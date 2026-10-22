@@ -470,6 +470,64 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-car.dim{opacity:.25;}
 .yd-car.hl{box-shadow:0 0 0 3px #fff,0 0 12px 3px rgba(255,255,255,.6);}
 
+/* ── 作業指示：詰めたレイアウト ── */
+#wo-detail{padding:12px 14px;}
+#wo-detail .wo-head{margin-bottom:6px;}
+#wo-detail .wo-head .big{font-size:18px;}
+#wo-detail .wo-sec{margin:12px 0 6px;font-size:11px;}
+#wo-detail .fgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 8px;}
+#wo-detail .field.half{grid-column:span 2;}
+#wo-detail .field label{font-size:10.5px;margin-bottom:2px;}
+#wo-detail .field input,#wo-detail .field select,#wo-detail .field textarea{padding:6px 8px;}
+#wo-detail .check-group{gap:5px;margin-top:0;}
+#wo-detail .selbtn{padding:6px 10px;font-size:12.5px;}
+#wo-detail .wo-tbl td{padding:3px 4px;}
+#wo-detail .wo-tbl th{padding:3px 4px;}
+#wo-detail .wo-tbl input,#wo-detail .wo-tbl select{padding:4px 6px;}
+#wo-detail .btn-add{margin-top:4px;padding:6px;}
+#wo-detail .wo-acts{margin-top:12px;}
+#wo-detail .lb-cars{margin-top:6px;gap:6px;}
+#wo-detail .wo-map{max-width:300px;}
+@media(max-width:600px){ #wo-detail .fgrid{grid-template-columns:repeat(2,minmax(0,1fr));} #wo-detail .field.half{grid-column:1/-1;} }
+/* 担当者アイコン */
+.wo-who{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.who{min-width:32px;height:32px;padding:0 7px;border-radius:16px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;touch-action:manipulation;transition:background .12s;}
+.who.on{background:var(--accent);border-color:var(--accent);color:#111;padding:0 12px;}
+.wo-who.dis .who{opacity:.35;cursor:default;}
+.wo-staff-i{display:inline-flex;align-items:center;gap:6px;}
+.wo-staff-i .who{min-width:26px;height:26px;padding:0 6px;font-size:12px;pointer-events:none;}
+/* 工程：1行ずつ */
+.wo-steps{display:flex;flex-direction:column;border-top:1px solid var(--surface3);}
+.wo-st{display:grid;grid-template-columns:136px minmax(0,1fr) 128px 132px;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--surface3);border-left:4px solid var(--sc,transparent);}
+.wo-st.hd{font-size:10.5px;color:var(--muted);padding:4px 4px 4px 8px;border-left-color:transparent;}
+.wo-st .nm{display:flex;align-items:center;gap:6px;min-width:0;}
+.wo-st .nm b{font-size:13px;line-height:1.2;}
+.wo-st .need{flex:none;width:38px;height:28px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;}
+.wo-st .need.on{border-color:var(--accent);color:var(--accent);}
+.wo-st .dt{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+.wo-st .dt span{display:none;}
+.wo-st input[type=date]{width:100%;min-width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 6px;font-size:16px;font-family:inherit;}
+.wo-st .fin{display:flex;flex-direction:column;gap:3px;}
+.wo-st .ok{height:34px;border-radius:8px;border:2px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;touch-action:manipulation;}
+.wo-st .ok.on{background:var(--positive);border-color:var(--positive);color:#111;}
+.wo-st.done .nm b{color:var(--muted);text-decoration:line-through;}
+.wo-st.skip{opacity:.4;}
+.wo-st.skip .need{opacity:1;}
+@media(max-width:760px){
+  .wo-st{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;}
+  .wo-st.hd{display:none;}
+  .wo-st .wo-who{grid-column:1/-1;order:3;}
+  .wo-st .nm{order:1;}
+  .wo-st .fin{order:2;flex-direction:row;}
+  .wo-st .fin .ok{flex:1;}
+  .wo-st .fin input{flex:1.3;}
+  .wo-st .dt{order:4;grid-column:1/-1;}
+  .wo-st .dt span{display:inline;white-space:nowrap;}
+}
+
+.wo-st .wo-who{gap:3px;}
+@media(max-width:760px){ .who{min-width:36px;height:36px;border-radius:18px;} }
+
 </style>
 </head>
 <body>
@@ -512,7 +570,6 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
       <div class="card" id="wo-detail"><div class="empty">左の一覧から作業指示を選んでください。</div></div>
     </div>
   </div>
-  <datalist id="wo-staff-dl"></datalist>
 </div>
 
 <!-- YARD TAB -->
@@ -551,9 +608,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <div class="card">
     <div class="card-title"><span class="bar"></span>設定</div>
     <div class="sg"><h3>担当者リスト</h3>
-      <div class="sg-note">工程の担当者欄の候補になります（チーム共有中は全端末で同じリスト）。</div>
+      <div class="sg-note">受付担当・工程の担当で使うアイコンです（1文字で表示し、タップするとフルネームになります）。チーム共有中は全端末で同じリストです。押すと外せます。</div>
       <div class="wo-staff" id="wo-staff"></div>
-      <div style="display:flex;gap:8px;margin-top:8px"><input class="wo-search" id="wo-staff-new" placeholder="名前を追加" style="flex:1;width:auto" onkeydown="if(event.key==='Enter'){woStaffAdd();}"><button type="button" class="btn" onclick="woStaffAdd()">追加</button></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><input class="wo-search" id="wo-staff-a" placeholder="1文字" maxlength="1" style="width:64px;text-align:center"><input class="wo-search" id="wo-staff-new" placeholder="名前（例：中島徹）" style="flex:1;width:auto" onkeydown="if(event.key==='Enter'){woStaffAdd();}"><button type="button" class="btn" onclick="woStaffAdd()">追加</button></div>
     </div>
     <div class="sg"><h3>チーム共有 <span id="cloud-badge" style="font-size:12px;color:var(--muted)"></span></h3>
       <div class="sg-note">ログインすると、同じチームの全端末で作業指示と車両配置を共有します（写真は共有しません）。</div>
@@ -857,8 +914,8 @@ const WO_DONE_COLOR='#e4ff1a';
 const WO_TASK_TYPES=['鈑金','塗装','鈑金塗装','取替','脱着','付属品脱着','調整','エイミング','その他'];
 const WO_SUPPLIERS=['HONDAパーツ','神姫産業','日産部販','ワールドパーツ','ヤナセ','多田自動車商会','川島商会','その他'];
 // 依頼元（系列ごとに色分け）
-const WO_OUT_GROUPS={honda:{n:'ホンダカーズ',c:'#ff5c5c'},netz:{n:'ネッツゾナ',c:'#4ea1ff'},other:{n:'その他',c:'#34d399'}};
-const WO_OUTSRC=[{n:'ホンダカーズ中央',g:'honda'},{n:'ホンダカーズ三宮',g:'honda'},{n:'ネッツゾナ六甲',g:'netz'},{n:'ネッツゾナ甲南',g:'netz'},{n:'ネッツゾナ西宮',g:'netz'},{n:'カーズコレクション',g:'other'},{n:'リドライブ',g:'other'},{n:'その他',g:'other'}];
+const WO_OUT_GROUPS={honda:{n:'ホンダカーズ',c:'#ff5c5c'},netz:{n:'ネッツゾナ',c:'#4ea1ff'},ippan:{n:'一般',c:'#c084fc'},other:{n:'その他',c:'#34d399'}};
+const WO_OUTSRC=[{n:'ホンダカーズ中央',g:'honda'},{n:'ホンダカーズ三宮',g:'honda'},{n:'ネッツゾナ六甲',g:'netz'},{n:'ネッツゾナ甲南',g:'netz'},{n:'ネッツゾナ西宮',g:'netz'},{n:'一般（新規）',g:'ippan'},{n:'一般（顧客）',g:'ippan'},{n:'カーズコレクション',g:'other'},{n:'リドライブ',g:'other'},{n:'その他',g:'other'}];
 function _woOutColor(n){ const o=WO_OUTSRC.find(x=>x.n===n); return WO_OUT_GROUPS[o?o.g:'other'].c; }
 const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
@@ -891,7 +948,22 @@ function _ydDefault(){
   return S;
 }
 let JOBS=[];
-let YARD={spaces:_ydDefault(),staff:[],updated:'',v:YD_VER};
+// 担当者（アイコンは1文字・タップでフルネーム）
+const WO_STAFF_DEF=[{a:'徹',n:'中島徹'},{a:'浩',n:'中島浩'},{a:'國',n:'國川'},{a:'姉',n:'姉﨑'},{a:'陣',n:'陣内'},{a:'前',n:'前嶋'},{a:'吉',n:'吉田'}];
+let YARD={spaces:_ydDefault(),staff:WO_STAFF_DEF.map(x=>({...x})),updated:'',v:YD_VER};
+function woStaffList(){
+  const L=Array.isArray(YARD.staff)?YARD.staff:[];
+  if(!L.length||L.some(x=>typeof x==='string')){   // 以前の名前だけのリストは置き換え（名前は残す）
+    const keep=L.filter(x=>typeof x==='string'&&!WO_STAFF_DEF.some(d=>d.n===x)).map(n=>({a:n.slice(0,1),n}));
+    YARD.staff=[...WO_STAFF_DEF.map(x=>({...x})),...keep,...L.filter(x=>x&&typeof x==='object')];
+  }
+  return YARD.staff;
+}
+// 担当者アイコンの列（選んだ人はフルネームで表示。もう一度押すと解除）。call は "関数名(" または "関数名('引数'," の形
+function woWhoHtml(cur,call,dis){
+  const L=woStaffList();
+  return `<div class="wo-who${dis?' dis':''}">${L.map(x=>{ const on=cur===x.n; return `<button type="button" class="who${on?' on':''}" title="${esc(x.n)}"${dis?' disabled':''} onclick="${call}${esc(JSON.stringify(on?'':x.n))})">${esc(on?x.n:x.a)}</button>`; }).join('')}${cur&&!L.some(x=>x.n===cur)?`<button type="button" class="who on" onclick="${call}'')">${esc(cur)}</button>`:''}</div>`;
+}
 let WO_CUR=null, WO_FILTER='active', WO_PHOTOS=[], WO_PHOTOS_FOR=null;
 const WOC={unsubs:[],live:false,err:'',first:{},timer:{}};
 const YD={edit:false,sel:null,carSel:null,drag:null};
@@ -937,7 +1009,8 @@ function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ dele
   if(!Array.isArray(j.suppliers)) j.suppliers=[];
   if(!Array.isArray(j.outsrc)) j.outsrc=[];
   if(j.outsrc.length>1){ j.outsrc=j.outsrc.slice(0,1); ch=true; }
-  if(!j.steps) j.steps={}; WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ j.steps[s.k]={need:true,who:'',date:'',done:false,at:''}; ch=true; } });
+  if(!j.steps) j.steps={};
+  for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ j.steps[s.k]={need:true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
   (j.tasks||[]).forEach(t=>{ for(const k of ['panel','replace','paint','acc','paintType','quarter','twoTone']){ if(k in t){ delete t[k]; ch=true; } } }); return ch; }
 
 // ── 保存（端末：暗号化／共有：Firestore） ──
@@ -1122,7 +1195,7 @@ async function woRenderFiles(){
 
 // ── 作業指示を作る ──
 function _woNew(){
-  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:true,who:'',date:'',done:false,at:''}; });
+  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:true,who:'',date:'',done:false,at:'',doneDate:''}; });
   const now=new Date().toISOString();
   return {id:_woId(),createdAt:now,updatedAt:now,plate:'',car:'',color:'',chassis:'',paintType:'',staff:'',pay:'',photoTaken:null,loanerUse:null,loanerCar:'',loanerFrom:'',loanerTo:'',loanerBook:'',
     inDate:_woToday(),dueDate:'',tasks:[],steps,parts:[],suppliers:[],supplierOther:'',outsrc:[],outsrcOther:'',outsrcNote:'',glassVendor:'',glassOther:'',coating:false,coatType:'',caution:'',slot:'',archived:false};
@@ -1149,10 +1222,14 @@ function woSet(f,v){ const j=_woCurJob(); if(!j) return; j[f]=v;
   woTouch(j); woRenderList(); if(f==='slot'){ ydRender(); } }
 function woStep(k,f,v){
   const j=_woCurJob(); if(!j) return; const st=j.steps[k]; st[f]=v;
-  if(f==='done') st.at=v?new Date().toISOString():'';
-  woTouch(j,f==='done'||f==='need'); woRenderList(); ydRender();
-  if(f==='done'||f==='need') woRenderDetail();
+  if(f==='done'){ st.at=v?new Date().toISOString():''; st.doneDate=v?_woToday():''; }
+  if(f==='doneDate'&&v&&!st.done){ st.done=true; st.at=new Date().toISOString(); }
+  const big=['done','need','who','doneDate'].includes(f);
+  woTouch(j,big); woRenderList(); ydRender();
+  if(big) woRenderDetail();
 }
+function woWhoStep(k,v){ woStep(k,'who',v); }
+function woWhoRecv(v){ woSet('staff',v); woRenderDetail(); }
 function woTask(i,f,v){ const j=_woCurJob(); if(!j||!j.tasks[i]) return; const t=j.tasks[i]; t[f]=v; woTouch(j); }
 // 作業区分の切り替え（複数選択）
 function woTaskType(i,k){ const j=_woCurJob(); if(!j||!j.tasks[i]) return; const t=j.tasks[i]; const ts=_woTypes(t);
@@ -1201,10 +1278,11 @@ async function woPhotoDel(i){ const j=_woCurJob(); if(!j) return; WO_PHOTOS.spli
 let _woPhT=null;
 function woPhotoTag(i,v){ const j=_woCurJob(); if(!j||!WO_PHOTOS[i]) return; WO_PHOTOS[i].tag=v; clearTimeout(_woPhT); _woPhT=setTimeout(()=>woPhotosPut(j.id,WO_PHOTOS),600); }
 function woStaffAdd(){
-  const el=document.getElementById('wo-staff-new'); const v=(el.value||'').trim(); if(!v) return;
-  if(!YARD.staff.includes(v)) YARD.staff.push(v); el.value=''; _ydChanged(); woRenderStaff();
+  const ea=document.getElementById('wo-staff-a'), el=document.getElementById('wo-staff-new'); const n=(el.value||'').trim(); const a=((ea&&ea.value)||n).trim().slice(0,1); if(!n){ toast('名前を入れてください'); return; }
+  const L=woStaffList(); if(L.some(x=>x.a===a)){ toast(`「${a}」のアイコンはすでに使われています`); return; }
+  L.push({a,n}); el.value=''; if(ea) ea.value=''; _ydChanged(); woRenderStaff();
 }
-async function woStaffDel(n){ if(!await askConfirm(`担当者リストから「${n}」を外しますか？`,'外す')) return; YARD.staff=YARD.staff.filter(x=>x!==n); _ydChanged(); woRenderStaff(); }
+async function woStaffDel(n){ if(!await askConfirm(`担当者リストから「${n}」を外しますか？`,'外す')) return; YARD.staff=woStaffList().filter(x=>x.n!==n); _ydChanged(); woRenderStaff(); }
 function woSupplier(v){ const j=_woCurJob(); if(!j) return; const a=j.suppliers||[]; j.suppliers=a.includes(v)?a.filter(x=>x!==v):WO_SUPPLIERS.filter(x=>x===v||a.includes(x)); woTouch(j,true); woRenderDetail(); }
 function _woSupplierNames(j){ return (j.suppliers||[]).map(x=>x==='その他'?(j.supplierOther||'その他'):x).join('、'); }
 function woOutsrc(v){ const j=_woCurJob(); if(!j) return; const a=j.outsrc||[]; j.outsrc=a.includes(v)?[]:[v]; woTouch(j,true); woRenderDetail(); woRenderList(); }
@@ -1230,8 +1308,8 @@ function woRenderAll(fromCloud){
 }
 function woRenderStaff(){
   const el=document.getElementById('wo-staff'); if(!el) return;
-  el.innerHTML=YARD.staff.length?YARD.staff.map(n=>`<button type="button" class="selbtn" onclick="woStaffDel(${esc(JSON.stringify(n))})">${esc(n)} ✕</button>`).join(''):'<span class="sg-note">まだ登録されていません</span>';
-  const dl=document.getElementById('wo-staff-dl'); if(dl) dl.innerHTML=YARD.staff.map(n=>`<option value="${esc(n)}">`).join('');
+  el.innerHTML=woStaffList().length?woStaffList().map(x=>`<button type="button" class="selbtn wo-staff-i" onclick="woStaffDel(${esc(JSON.stringify(x.n))})"><b class="who on">${esc(x.a)}</b>${esc(x.n)} ✕</button>`).join(''):'<span class="sg-note">まだ登録されていません</span>';
+
 }
 function _woSlotName(id){ const s=YARD.spaces.find(x=>x.id===id); return s?s.name:''; }
 function _woSlotFull(j){ const n=_woSlotName(j.slot); return n&&j.slotNote?n+'：'+j.slotNote:n; }
@@ -1268,7 +1346,7 @@ function woRenderDetail(){
   const j=_woCurJob();
   if(!j){ box.innerHTML='<div class="empty">左の一覧から作業指示を選んでください。</div>'; return; }
   const v=k=>esc(j[k]||'');
-  const inp=(k,label,extra='')=>`<div class="field${extra.includes('span2')?' span2':''}"><label>${label}</label><input value="${v(k)}" oninput="woSet('${k}',this.value)" ${extra.replace('span2','')}></div>`;
+  const inp=(k,label,extra='')=>`<div class="field${extra.includes('span2')?' span2':''}${extra.includes('half')?' half':''}"><label>${label}</label><input value="${v(k)}" oninput="woSet('${k}',this.value)" ${extra.replace('span2','').replace('half','')}></div>`;
   const slotOpts=`<option value="">（未配置）</option>`+YARD.spaces.map(s=>`<option value="${esc(s.id)}"${j.slot===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
   const n=woNext(j);
   box.innerHTML=`
@@ -1286,20 +1364,20 @@ function woRenderDetail(){
   </div>
   <div class="wo-sec"><span class="bar"></span>車両</div>
   <div class="fgrid">
-    ${inp('plate','登録番号','span2')}
+    ${inp('plate','登録番号','half')}
     ${inp('car','車種')}${inp('color','カラー番号')}
     <div class="field"><label>塗装タイプ</label><select onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
     ${inp('chassis','車台番号')}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
     <div class="field"><label>納車予定日</label><input type="date" value="${v('dueDate')}" onchange="woSet('dueDate',this.value)"></div>
-    ${inp('staff','受付担当','list="wo-staff-dl"')}
+    <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
     <div class="field"><label>置き場所</label><select onchange="woSet('slot',this.value)">${slotOpts}</select></div>
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
     ${(YARD.spaces.find(s=>s.id===j.slot)||{}).memo?`<div class="field span2"><label>場所のメモ（${esc(_woSlotName(j.slot))}）</label><input value="${v('slotNote')}" placeholder="例：裏の駐車場・提携工場" oninput="woSet('slotNote',this.value);ydRender()"></div>`:''}
   </div>
-  <div class="fgrid" style="margin-top:10px">
-    <div class="field span2"><label>お支払い区分</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${j.pay===k?' on':''}" onclick="woPick('pay','${k}')">${k}</button>`).join('')}</div></div>
-    <div class="field span2"><label>写真撮影</label><div class="check-group"><button type="button" class="selbtn${j.photoTaken===true?' on':''}" onclick="woPick('photoTaken',true)">あり</button><button type="button" class="selbtn${j.photoTaken===false?' on':''}" onclick="woPick('photoTaken',false)">なし</button></div></div>
+  <div class="fgrid" style="margin-top:8px">
+    <div class="field half"><label>お支払い区分</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${j.pay===k?' on':''}" onclick="woPick('pay','${k}')">${k}</button>`).join('')}</div></div>
+    <div class="field half"><label>写真撮影</label><div class="check-group"><button type="button" class="selbtn${j.photoTaken===true?' on':''}" onclick="woPick('photoTaken',true)">あり</button><button type="button" class="selbtn${j.photoTaken===false?' on':''}" onclick="woPick('photoTaken',false)">なし</button></div></div>
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
@@ -1314,15 +1392,15 @@ function woRenderDetail(){
   </table></div>
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
   <div class="wo-sec"><span class="bar"></span>工程・担当</div>
-  <div class="wo-scroll"><table class="wo-tbl">
-    <tr><th>工程</th><th>要否</th><th style="min-width:110px">担当</th><th style="min-width:130px">予定日</th><th>完了</th></tr>
-    ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; return `<tr class="${st.need?'':'skip'} ${st.done?'done':''}">
-      <td class="stp" style="white-space:nowrap;font-weight:700"><span class="wo-step-dot" style="--sc:${s.c}"></span>${s.n}</td>
-      <td><button type="button" class="selbtn wo-need${st.need?' on':''}" onclick="woStep('${s.k}','need',${!st.need})">${st.need?'要':'不要'}</button></td>
-      <td><input value="${esc(st.who||'')}" list="wo-staff-dl" placeholder="担当" oninput="woStep('${s.k}','who',this.value)"${st.need?'':' disabled'}></td>
-      <td><input type="date" value="${esc(st.date||'')}" onchange="woStep('${s.k}','date',this.value)"${st.need?'':' disabled'}></td>
-      <td style="text-align:center"><input type="checkbox"${st.done?' checked':''} onchange="woStep('${s.k}','done',this.checked)"${st.need?'':' disabled'}>${st.done&&st.at?`<div style="font-size:10px;color:var(--muted)">${_woMD(st.at.slice(0,10))}</div>`:''}</td></tr>`; }).join('')}
-  </table></div>
+  <div class="wo-steps">
+    <div class="wo-st hd"><span>工程</span><span>担当（タップで選択）</span><span>予定日</span><span>完了・完成日</span></div>
+    ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; const off=!st.need; return `<div class="wo-st${off?' skip':''}${st.done?' done':''}" style="--sc:${s.c}">
+      <div class="nm"><button type="button" class="need${st.need?' on':''}" onclick="woStep('${s.k}','need',${!st.need})" title="要否">${st.need?'要':'不要'}</button><b>${s.n}</b></div>
+      ${woWhoHtml(st.who||'',`woWhoStep('${s.k}',`,off)}
+      <label class="dt"><span>予定</span><input type="date" value="${esc(st.date||'')}" onchange="woStep('${s.k}','date',this.value)"${off?' disabled':''}></label>
+      <div class="fin"><button type="button" class="ok${st.done?' on':''}" onclick="woStep('${s.k}','done',${!st.done})"${off?' disabled':''}>${st.done?'✓ 完了':'完了'}</button>${st.done?`<input type="date" value="${esc(st.doneDate||'')}" onchange="woStep('${s.k}','doneDate',this.value)" title="完成日">`:''}</div>
+    </div>`; }).join('')}
+  </div>
   <div class="wo-sec"><span class="bar"></span>部品</div>
   <div class="wo-scroll"><table class="wo-tbl">
     <tr><th style="min-width:140px">部品名</th><th style="width:60px">数</th><th style="min-width:96px">状況</th><th style="min-width:130px">入荷予定</th><th></th></tr>
@@ -1414,8 +1492,8 @@ ${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('�
 ${(j.tasks||[]).map(t=>`<tr><td>${esc(t.part)}</td><td>${_woTypes(t).map(k=>`<span class="ty" style="background:${WO_TYPE_COLOR[k]||'#ddd'}">${esc(k)}</span>`).join(' ')}</td><td class="w" style="width:60%">${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan="3">&nbsp;</td></tr>'}
 </table>
 <h2>工程・担当</h2>
-<table><tr><th>工程</th><th style="width:auto">担当</th><th>予定日</th><th>完了</th><th style="width:22%">確認印・メモ</th></tr>
-${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; return `<tr class="${st.need?'':'skip'}"><td style="font-weight:700;border-left:6px solid ${s.c}">${s.n}${st.need?'':'（不要）'}</td><td class="w" style="width:25%">${esc(st.who||'')}</td><td>${esc(_woMD(st.date))}</td><td style="text-align:center">${st.need?`<span class="ck">${st.done?'✓':''}</span>`:'—'}</td><td class="w" style="width:30%"></td></tr>`; }).join('')}
+<table><tr><th>工程</th><th style="width:auto">担当</th><th>予定日</th><th>完成日</th><th>完了</th><th style="width:22%">確認印・メモ</th></tr>
+${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; return `<tr class="${st.need?'':'skip'}"><td style="font-weight:700;border-left:6px solid ${s.c}">${s.n}${st.need?'':'（不要）'}</td><td class="w" style="width:25%">${esc(st.who||'')}</td><td>${esc(_woMD(st.date))}</td><td>${esc(_woMD(st.doneDate||''))}</td><td style="text-align:center">${st.need?`<span class="ck">${st.done?'✓':''}</span>`:'—'}</td><td class="w" style="width:30%"></td></tr>`; }).join('')}
 </table>
 ${(j.parts||[]).length?`<h2>部品</h2><table><tr><th style="width:auto">部品名</th><th>数</th><th>状況</th><th>入荷予定</th><th>入荷確認</th></tr>${j.parts.map(p=>`<tr><td class="w">${esc(p.name)}</td><td class="n">${esc(p.qty)}</td><td>${esc(p.status)}</td><td>${esc(_woMD(p.eta))}</td><td style="text-align:center"><span class="ck">${p.status==='入荷済'?'✓':''}</span></td></tr>`).join('')}</table>`:''}
 ${pdfs.length?`<div style="font-size:10px;margin:-4px 0 8px">📎 添付PDF：${pdfs.map(f=>esc(f.name)).join('、')}</div>`:''}
