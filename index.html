@@ -454,22 +454,40 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-ghost{position:fixed;left:0;top:0;z-index:9000;pointer-events:none;opacity:.92;box-shadow:0 8px 20px rgba(0,0,0,.6);transform-origin:0 0;}
 .yd-car.yd-dragging{opacity:.3;}
 /* 1台用の枠：車の札（駒）を枠いっぱいに収める。文字は枠の大きさに合わせて縮む */
-.yd-sp.one{display:block;container-type:size;}
+.yd-sp.one{display:flex;flex-direction:column;flex-wrap:nowrap;container-type:size;padding:2px 3px 3px;gap:1px;}
+.yd-sp.one .nm{position:static;flex:none;}
+.yd-car .lic{font-style:normal;}
+.yd-car .lsh{display:none;}
 .yd-car small.sts{display:none;font-weight:900;opacity:1;}
 .yd-sp.one>.yd-car.yd-lc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.yd-sp.one>.yd-car{position:absolute;left:3px;right:3px;top:17px;bottom:3px;max-width:none;margin:0;justify-content:center;overflow:hidden;padding:2px 5px;font-size:clamp(9px,19cqh,16px);border-radius:5px;}
+.yd-sp.one>.yd-car{position:static;flex:1 1 auto;min-height:0;width:100%;max-width:none;margin:0;justify-content:center;overflow:hidden;padding:2px 5px;font-size:clamp(9px,19cqh,16px);border-radius:5px;word-break:break-all;line-height:1.1;}
 .yd-sp.one>.yd-car small{font-size:clamp(8px,12cqh,11px);line-height:1.15;}
 .yd-sp.one>.yd-car .yd-left{margin-top:2px;}
 .yd-sp.one>.yd-car .yd-left i{font-size:clamp(7px,9cqh,9px);padding:1px 3px;}
 @container (max-height:58px){ .yd-sp.one>.yd-car small:not(.stl):not(.sts){display:none;} .yd-sp.one>.yd-car .yd-left{display:none;} }
-@container (max-width:110px){ .yd-sp.one>.yd-car small.stl{display:none;} .yd-sp.one>.yd-car small.sts{display:block;} .yd-sp.one>.yd-car.yd-lc small{display:none;} .yd-sp.one>.yd-car.yd-lc{font-size:9px;padding:1px 2px;letter-spacing:-.02em;} }
+@container (max-width:110px){
+  .yd-sp.one>.yd-car small.stl{display:none;}
+  .yd-sp.one>.yd-car small.sts{display:block;line-height:1.1;}
+  .yd-sp.one>.yd-car.yd-lc small{display:none;}
+  /* 回送・回送レンタカー：名前を短くして、コメントを表示 */
+  .yd-sp.one>.yd-car.yd-lc.xp .lnm{display:none;}
+  .yd-sp.one>.yd-car.yd-lc.xp .lsh{display:block;color:var(--xc);font-size:clamp(8px,16cqw,11px);line-height:1.1;white-space:nowrap;}
+  .yd-sp.one>.yd-car.yd-lc.xp small.lmemo{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;word-break:break-all;font-size:8.5px;line-height:1.15;max-height:2.35em;overflow:hidden;color:#fff;margin-top:1px;}
+  .yd-sp.one>.yd-car.yd-lc.xp{justify-content:flex-start;padding-top:2px;}
+  .yd-sp.one>.yd-car.yd-lc{font-size:clamp(8px,17cqw,11px);padding:1px 3px;letter-spacing:-.04em;}
+  .yd-sp.one>.yd-car.yd-lc .lic{display:none;}
+  .yd-sp.one>.yd-car.yd-lc span{white-space:normal;word-break:break-all;line-height:1.1;}
+}
 @media(max-width:700px){
   /* スマホ：横スクロールなしで画面の幅に合わせる（縦は少し長めにして札が読める高さに） */
   .yd-canvas{min-width:0;width:100%;aspect-ratio:24/46;}
   .yd-sp{border-width:1.5px;border-radius:6px;padding:13px 2px 2px;gap:2px;}
   .yd-sp .nm{font-size:9px;left:4px;top:1px;right:3px;}
   .yd-sp .nm small{font-size:8px;margin-left:2px;}
-  .yd-sp.one>.yd-car{left:2px;right:2px;top:13px;bottom:2px;padding:1px 3px;border-width:1.5px;}
+  .yd-sp.one{padding:1px 2px 2px;}
+  .yd-sp.one .nm{white-space:normal;overflow:hidden;text-overflow:clip;word-break:break-all;line-height:1.05;max-height:2.2em;font-size:8.5px;letter-spacing:-.03em;}
+  .yd-sp.one .nm small{display:none;}
+  .yd-sp.one>.yd-car{padding:1px 3px;border-width:1.5px;font-size:clamp(10px,21cqw,13px);}
   .yd-sp:not(.one) .yd-car{font-size:9px;padding:2px 3px;}
   .yd-sp:not(.one) .yd-car small{font-size:8px;}
   .yd-rs{width:16px;height:16px;}
@@ -2066,7 +2084,7 @@ function _ydShortLabel(j){ const st=ydState(j); if(st.cats[0]==='その他') ret
 function _ydCarHtml(j){
   const due=woDueTag(j);
   const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
-  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${esc(_woPlateShort(j.plate)||j.car||'—')}<small>${esc(j.car||'')}</small><small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}${j.dueDate?' '+_woMD(j.dueDate):''}</small>${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
+  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${esc(_woPlateShort(j.plate)||j.car||'—')}<small>${esc(j.car||'')}</small><small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
 // 代車以外の駒（回送・回送レンタカー）。代車カレンダーとは連動しない。メモを付けられる
@@ -2077,7 +2095,7 @@ function _ydLcCars(){ return [...(typeof LOANER_CARS!=='undefined'?LOANER_CARS:[
 function _ydLcIn(sid){ const P=YARD.lpos||{}; return _ydLcCars().filter(c=>P[c.n]===sid&&!_ydLcOut(c.n)); }
 function _ydLcHtml(c){
   const x=c.k&&YD_XKIND[c.k]; const memo=((YARD.pmemo||{})[c.n])||'';
-  return `<div class="yd-car yd-lc${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span>${x?x.ic:'🔑'} ${esc(c.n)}</span><small>${x?esc(memo||'タップでメモ'):'代車・待機中'}</small></div>`;
+  return `<div title="${esc(x?(c.n+(memo?'：'+memo:'')):c.n)}" class="yd-car yd-lc${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span class="lnm"><i class="lic">${x?x.ic:'🔑'}</i> ${esc(c.n)}</span>${x?`<b class="lsh">${esc(c.n.replace('回送レンタカー','レンタ'))}</b>`:''}<small class="${x&&memo?'lmemo':''}">${x?esc(memo||'タップでメモ'):'代車・待機中'}</small></div>`;
 }
 function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; else delete YARD.pmemo[n]; _ydChanged();
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
