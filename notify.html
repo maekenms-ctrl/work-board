@@ -82,12 +82,12 @@
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 13:40</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 14:10</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 13:40</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 14:10</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -115,7 +115,7 @@
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 13:40</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 14:10</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -192,19 +192,19 @@ function diffJob(prev, cur, id=''){
       d:[(cur.tasks||[]).map(t=>t.part).filter(Boolean).join('・'), cur.dueDate?`納期 ${md(cur.dueDate)}`:''].filter(Boolean).join(' ／ '), mk:'new|'+id});
     return ev;
   }
+  // 工程の完了・取消は通知する（音あり）。担当の変更・要/不要の切り替えは通知しない
+  const nx = stepNext(cur), justDone = [];
   for(const s of STEPS){
     const a = prev.steps&&prev.steps[s.k] || {}, b = cur.steps&&cur.steps[s.k] || {};
     if(!a.done && b.done){
-      const nx = stepNext(cur);
-      ev.push({...base, ic:'✅', c:s.c, t:`${s.n} 完了：${L}`,
-        d:[b.who?`担当 ${b.who}`:'', nx?`次は「${nx.n}」`:'全工程完了 → 納車準備OK'].filter(Boolean).join(' ／ ')});
+      if(nx) ev.push({...base, ic:'✅', c:s.c, t:`${s.n} 完了：${L}`, d:[b.who?`担当 ${b.who}`:'', `次は「${nx.n}」`].filter(Boolean).join(' ／ ')});
+      else justDone.push(s.n + (b.who?`（${b.who}）`:''));
     } else if(a.done && !b.done){
       ev.push({...base, ic:'↩️', c:'#9aa0a6', t:`${s.n} の完了を取消：${L}`, d:''});
     }
-    if(!a.need !== !b.need && !(a.done!==b.done)){
-      ev.push({...base, ic:'⚙️', c:'#9aa0a6', t:`工程「${s.n}」を${b.need?'追加':'不要に'}：${L}`, d:''});
-    }
   }
+  // 最後の工程が終わったら「全工程完了」を1件だけ
+  if(justDone.length) ev.push({...base, ic:'🏁', c:DONE_C, t:`全工程完了：${L}`, d:`${justDone.join('・')} 完了 ／ 納車準備OK`});
   const pa = {}; (prev.parts||[]).forEach(p=>pa[p.id||p.name]=p);
   for(const p of (cur.parts||[])){
     const o = pa[p.id||p.name];
@@ -278,6 +278,8 @@ function dropWhere(fn){
   if(S.events.length !== before){ ls.set('ark-ev', S.events.map(({live,...e})=>e)); renderFeed(); renderBadge(); }
 }
 function dropRef(ref){ dropWhere(e => e.ref === ref); }
+// 以前の版で出ていた工程・担当・要不要の通知は、履歴からも消す
+try{ const re=/^工程「| の担当：/; const n=S.events.length; S.events=S.events.filter(e=>!(e.src==='wb'&&re.test(e.t||''))); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
 function push(evs, live){
   if(!evs.length) return;
   const now = Date.now();
@@ -287,7 +289,9 @@ function push(evs, live){
   const keep = S.events.filter(e => !(e.mk && mks.has(e.mk) && now - e.ts < 5*60000));
   S.events = evs.concat(keep).sort((a,b)=>b.ts-a.ts).slice(0, MAX_EV);
   ls.set('ark-ev', S.events.map(({live,...e})=>e));
-  if(live){ beep(evs); }
+  // 音を鳴らすのは「音なし」でない通知が1件でもあるときだけ
+  const loud = evs.filter(e=>!e.quiet);
+  if(live && loud.length){ beep(loud); }
   renderFeed(); renderBadge();
 }
 
