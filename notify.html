@@ -2,6 +2,16 @@
 <html>
 <head>
 <base target="_top">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b57d0">
+<script>
+// GitHub に置いた「ARK通知」ページのときだけ、アプリとしてインストールできるようにする
+if(/github\.io$/.test(location.hostname)){
+  var l=document.createElement('link'); l.rel='manifest'; l.href='notify.webmanifest'; document.head.appendChild(l);
+  var i=document.createElement('link'); i.rel='icon'; i.href='icon-192.png'; document.head.appendChild(i);
+  if('serviceWorker' in navigator) addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
 <meta charset="utf-8">
 <style>
   :root{
