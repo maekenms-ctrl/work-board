@@ -942,7 +942,7 @@ const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
 const WO_PHOTO_MAX=10;
-const YD_COLS=24, YD_ROWS=24, YD_VER=2;
+const YD_COLS=24, YD_ROWS=24, YD_VER=4;
 const YD_KINDS=[
   {k:'kita',  n:'北',      c:'#4ea1ff'},
   {k:'naka',  n:'中',      c:'#5ec98f'},
@@ -952,6 +952,7 @@ const YD_KINDS=[
   {k:'f2',    n:'2F・中央',c:'#00E5FF'},
   {k:'booth', n:'ブース',  c:'#FF2BD6'},
   {k:'f1',    n:'1F',      c:'#e4ff1a'},
+  {k:'loaner',n:'待機代車',c:'#c084fc'},
   {k:'other', n:'その他',  c:'#e5e7eb'},
 ];
 // 工場の置き場所（AUTO REPAIR KOBE の区分け）。memo:true の置き場所は、車ごとに場所のコメントを入れる
@@ -959,7 +960,8 @@ function _ydDefault(){
   const S=[]; const add=(id,name,kind,x,y,w,h,cap,memo)=>S.push({id,name,kind,x,y,w,h,cap:cap||1,...(memo?{memo:true}:{})});
   for(let i=1;i<=4;i++){ add('kita'+i,'北'+i,'kita',0,(i-1)*2,4,2); add('naka'+i,'中'+i,'naka',4,(i-1)*2,4,2); add('minami'+i,'南'+i,'minami',8,(i-1)*2,4,2); }
   add('tsuro-ato','通路後','tsuro',8,8,4,2); add('tsuro-mae','通路前','tsuro',8,10,4,2);
-  add('tera-yoko','寺横','tera',0,13,4,2); add('tera-kita','寺北','tera',0,15,4,2); add('tera-kitaoku','寺北奥','tera',0,17,4,2);
+  add('tera-kita','寺北','tera',0,13,4,2); add('tera-kitaoku','寺北奥','tera',4,13,4,2); add('tera-yoko','寺横','tera',0,15,4,2);
+  add('daisha','待機代車','loaner',0,17,8,3,4);
   add('f2-oku','2F奥','f2',8,13,4,2); add('chuo','中央','f2',12,13,4,2); add('comp-mae','コンプレッサー前','f2',16,13,4,2);
   add('f2-temae','2F手前','f2',8,15,4,2); add('tana','棚','f2',16,15,4,2);
   add('booth','ブース','booth',8,18,4,2); add('f1-oku','1F奥','f1',12,18,4,2);
@@ -971,6 +973,14 @@ function _ydDefault(){
 let JOBS=[];
 // 担当者（アイコンは1文字・タップでフルネーム）
 const WO_STAFF_DEF=[{a:'徹',n:'中島徹'},{a:'浩',n:'中島浩'},{a:'國',n:'國川'},{a:'姉',n:'姉﨑'},{a:'陣',n:'陣内'},{a:'前',n:'前嶋'},{a:'吉',n:'吉田'}];
+// 古いレイアウトを今の版に合わせる（編集した内容は残し、変更のあった置き場所だけ動かす）
+function _ydMigrate(spaces,v){
+  if(v!==2&&v!==3&&v!==4) return _ydDefault();
+  if(v===2){ const pos={'tera-kita':[0,13],'tera-kitaoku':[4,13],'tera-yoko':[0,15]};
+    spaces.forEach(s=>{ const q=pos[s.id]; if(q){ s.x=q[0]; s.y=q[1]; } }); }
+  if(v<4&&!spaces.some(s=>s.id==='daisha')) spaces.push(_ydDefault().find(s=>s.id==='daisha'));
+  return spaces;
+}
 let YARD={spaces:_ydDefault(),staff:WO_STAFF_DEF.map(x=>({...x})),updated:'',v:YD_VER};
 function woStaffList(){
   const L=Array.isArray(YARD.staff)?YARD.staff:[];
@@ -1053,7 +1063,7 @@ async function _woLoadLocal(){
   await _shLoadLocal();
 }
 function _ydSaveLocal(){ _lsSet('wo-yard',JSON.stringify(YARD)); }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y&&Array.isArray(y.spaces)){ YARD={spaces:y.v===YD_VER?y.spaces:_ydDefault(),staff:y.staff||[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),staff:y.staff||[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1104,7 +1114,7 @@ function woCloudStart(){
   lbStart();
   WOC.unsubs.push(fs.onSnapshot(fs.doc(CLOUD.db,'yard','layout'),d=>{
     const first=!WOC.first.yard; WOC.first.yard=true;
-    if(d.exists()){ const v=d.data(); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:old?_ydDefault():v.spaces,staff:v.staff||[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
+    if(d.exists()){ const v=d.data(); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),staff:v.staff||[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
     else if(first){ _ydCloudPut(); }
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
