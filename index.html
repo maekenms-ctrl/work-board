@@ -1098,7 +1098,7 @@ async function _woLoadLocal(){
 }
 function _ydSaveLocal(){ _lsSet('wo-yard',JSON.stringify(YARD)); }
 function _ydRenameKeys(y){ for(const f of ['lpos','pmemo']){ const o=y[f]; if(!o) continue; for(const i of [1,2]){ const a='返却レンタカー'+i, b='回送レンタカー'+i; if(a in o&&!(b in o)){ o[b]=o[a]; delete o[a]; } } } return y; }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},staff:y.staff||[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1112,7 +1112,20 @@ function _woCloudPut(j){
   const {fs}=CLOUD.fb; const d=_woClean(j); _woSanitize(d);
   fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),{...d,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()}).catch(e=>_woCloudErr(e,'jobs'));
 }
-function _woCloudDel(id){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(id))).catch(e=>_woCloudErr(e,'jobs')); }
+// 削除は「削除済みの印」をクラウドに残す（別の端末が持っていた古いデータで復活しないように）
+// つながっていないときは端末に覚えておき、次につながったときに送る
+function _woTombs(){ try{ return JSON.parse(_lsGet('wo-tomb')||'{}')||{}; }catch(e){ return {}; } }
+function _woTombSave(t){ const now=Date.now(); for(const k in t){ if(now-t[k]>90*864e5) delete t[k]; } _lsSet('wo-tomb',JSON.stringify(t)); }
+function _woCloudDel(id){
+  const t=_woTombs(); if(!t[id]){ t[id]=Date.now(); _woTombSave(t); }
+  if(!_woCloudOk()) return;
+  _woTombSend(id);
+}
+function _woTombSend(id){
+  const {fs}=CLOUD.fb;
+  fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(id)),{id:String(id),deleted:true,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()})
+    .then(()=>{ const t=_woTombs(); delete t[id]; _woTombSave(t); }).catch(e=>_woCloudErr(e,'jobs'));
+}
 function _ydCloudPut(){
   if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb;
@@ -1128,7 +1141,10 @@ function woCloudStart(){
   if(!CLOUD.started||WOC.live) return;
   const {fs}=CLOUD.fb; WOC.live=true; WOC.err=''; WOC.first={};
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'jobs'),snap=>{
-    const m={}, dirty=[], shm={}; snap.forEach(d=>{ const v=d.data(); if(v&&v._sheet&&v.id){ delete v._sheet; delete v.at; shm[v.id]=v; return; } delete v.at; delete v.by; if(v&&v.id){ if(_woSanitize(v)) dirty.push(v); m[v.id]=v; } });
+    const m={}, dirty=[], shm={}, gone=new Set(Object.keys(_woTombs()));
+    snap.forEach(d=>{ const v=d.data(); if(v&&v._sheet&&v.id){ delete v._sheet; delete v.at; shm[v.id]=v; return; } delete v.at; delete v.by; if(v&&v.deleted){ gone.add(String(v.id||d.id)); return; } if(v&&v.id){ if(gone.has(String(v.id))) return; if(_woSanitize(v)) dirty.push(v); m[v.id]=v; } });
+    // この端末で削除して、まだ送れていなかったものを送る
+    Object.keys(_woTombs()).forEach(id=>{ if(!snap.docs.some(d=>d.id===_cloudKey(id)&&d.data().deleted)) _woTombSend(id); });
     _shSync(shm,!WOC.first.jobs);
     setTimeout(()=>dirty.forEach(_woCloudPut),0);   // お客様名などが残っていた共有データを上書きして消す
     const first=!WOC.first.jobs; WOC.first.jobs=true;
@@ -1141,7 +1157,7 @@ function woCloudStart(){
     }
     if(first){
       // 共有に無い、この端末だけの作業指示を送る
-      for(const j of JOBS){ if(!m[j.id]){ next.push(j); _woCloudPut(j); } }
+      for(const j of JOBS){ if(!m[j.id] && !gone.has(String(j.id))){ next.push(j); _woCloudPut(j); } }
     }
     JOBS=next.sort((a,b)=>(b.createdAt||'')<(a.createdAt||'')?-1:1);
     _woSaveLocal(); woRenderAll(true);
@@ -1150,7 +1166,7 @@ function woCloudStart(){
   WOC.unsubs.push(fs.onSnapshot(fs.doc(CLOUD.db,'yard','layout'),d=>{
     const first=!WOC.first.yard; WOC.first.yard=true;
     if(YD._pend) return;   // この端末の変更を送る前に届いた古い内容は使わない
-    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},staff:v.staff||[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
+    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
     else if(first){ _ydCloudPut(); }
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
@@ -1328,21 +1344,57 @@ function woPart(id,f,v){ const j=_woCurJob(); if(!j) return; const p=j.parts.fin
 function woPartAdd(){ const j=_woCurJob(); if(!j) return; j.parts.push({id:_woId(),name:'',qty:1,status:'未発注',eta:''}); woTouch(j,true); woRenderDetail(); }
 function woPartDel(id){ const j=_woCurJob(); if(!j) return; j.parts=j.parts.filter(p=>p.id!==id); woTouch(j,true); woRenderDetail(); woRenderList(); }
 // 納車済にしたとき：出ていた代車は返却（駒の欄に戻す）、他社レンタカーは「回送レンタカー」の駒にする
+// あわせて作業指示と代車の紐づけを外す（記録として loanerLast に残す）
 function _woReturnLoaner(j){
-  const L=woLoanerInfo(j); if(!L) return '';
-  const t=_woToday(), rent=/^レンタカー/.test(L.car), msg=[];
-  if(!L.cal){
-    if(j.loanerFrom&&j.loanerFrom>t){ j.loanerUse=null; j.loanerCar=''; msg.push(`${_lbLabel(L.car)}の予約を取り消しました`); }
-    else { j.loanerReturned=true; if(!j.loanerTo||j.loanerTo>t) j.loanerTo=t; msg.push(`${_lbLabel(L.car)}を返却にしました`); }
-    lbSync(j);
-  } else if(L.src==='sheet'){ msg.push(`${_lbLabel(L.car)}は入庫管理表の予約です。表に返却日を入れてください`); }
-  else if(_woCloudOk()){ const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'loaner',L.id),{to:L.to>t?t:L.to,returned:true},{merge:true}).catch(()=>{}); msg.push(`${_lbLabel(L.car)}を返却にしました`); }
-  YARD.lpos=YARD.lpos||{}; YARD.pmemo=YARD.pmemo||{};
-  if(rent){ const free=YD_XPIECES.find(x=>x.k==='rent'&&!YARD.pmemo[x.n]&&!YARD.lpos[x.n]);
-    if(free){ YARD.pmemo[free.n]=[_lbLabel(L.car),j.car,j.plate].filter(Boolean).join(' '); msg.push(`「${free.n}」の駒にしました`); } else msg.push('回送レンタカーの駒が空いていません'); }
-  else delete YARD.lpos[L.car];
+  const L=woLoanerInfo(j), t=_woToday(), msg=[];
+  const ok=typeof _woCloudOk==='function'&&_woCloudOk()&&CLOUD.fb;
+  YARD.lpos=YARD.lpos||{}; YARD.pmemo=YARD.pmemo||{}; YARD.lret=YARD.lret||{};
+  if(L){
+    const rent=/^レンタカー/.test(L.car);
+    if(!L.cal){
+      // 作業ボードで登録した代車
+      clearTimeout(LB.timer[j.id]); delete LB.timer[j.id];
+      if(j.loanerFrom&&j.loanerFrom>t){
+        if(j.loanerBook&&ok){ const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'loaner',j.loanerBook)).catch(()=>{}); }
+        msg.push(`${_lbLabel(L.car)}の予約を取り消しました`);
+      } else {
+        if(j.loanerBook&&ok){ const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'loaner',j.loanerBook),{to:(!j.loanerTo||j.loanerTo>t)?t:j.loanerTo,returned:true,memo:'作業ボードから登録・返却済'},{merge:true}).catch(()=>{}); }
+        msg.push(`${_lbLabel(L.car)}を返却にしました`);
+      }
+    } else if(L.src==='sheet'){
+      // 入庫管理表（K列）の代車：表の返却日を待たずに、作業ボードでは返却扱いにする
+      YARD.lret[L.car]=t;
+      msg.push(`${_lbLabel(L.car)}を返却扱いにしました（入庫管理表の返却日も入れてください）`);
+    } else if(ok){
+      const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'loaner',L.id),{to:L.to>t?t:L.to,returned:true},{merge:true}).catch(()=>{});
+      msg.push(`${_lbLabel(L.car)}を返却にしました`);
+    }
+    if(rent){ const free=YD_XPIECES.find(x=>x.k==='rent'&&!YARD.pmemo[x.n]&&!YARD.lpos[x.n]);
+      if(free){ YARD.pmemo[free.n]=[_lbLabel(L.car),j.car,j.plate].filter(Boolean).join(' '); msg.push(`「${free.n}」の駒にしました`); } else msg.push('回送レンタカーの駒が空いていません'); }
+    else delete YARD.lpos[L.car];          // 置き場所から外す → 駒の欄（待機中）に戻る
+  }
+  if(_woUnlinkLoaner(j)) msg.push('代車の紐づけを外しました');
   _ydChanged();
   return msg.join('／');
+}
+// 作業指示から代車の情報を外す（代車カレンダーの記録は残す）
+function _woUnlinkLoaner(j){
+  if(!(j.loanerCar||j.loanerBook||j.loanerUse===true||j.loanerFrom||j.loanerTo)) return false;
+  if(j.loanerCar) j.loanerLast={car:j.loanerCar,from:j.loanerFrom||'',to:j.loanerTo||'',at:new Date().toISOString()};
+  clearTimeout(LB.timer[j.id]); delete LB.timer[j.id];
+  j.loanerUse=null; j.loanerCar=''; j.loanerFrom=''; j.loanerTo=''; j.loanerBook=''; delete j.loanerReturned;
+  return true;
+}
+// 以前に納車済にした作業指示に残っている代車の紐づけも外す（起動時に1回）
+function _woUnlinkArchived(){
+  if(SEC.ok&&!SEC.key) return;
+  let ch=false;
+  for(const j of JOBS){ if(j.archived&&(j.loanerCar||j.loanerBook)){
+    if(j.loanerBook&&typeof _woCloudOk==='function'&&_woCloudOk()){ const t=_woToday(), {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'loaner',j.loanerBook),{returned:true,...(j.loanerTo&&j.loanerTo>t?{to:t}:{})},{merge:true}).catch(()=>{}); }
+    if(j.loanerCar&&!/^レンタカー/.test(j.loanerCar)&&YARD.lpos) delete YARD.lpos[j.loanerCar];
+    _woUnlinkLoaner(j); woTouch(j); ch=true;
+  } }
+  if(ch) _ydChanged();
 }
 // ── 入庫管理表（H列＝登録番号）から消えた車を納車済にする ──
 // 安全策：一度表で見つかった車だけが対象／2回続けて（約3分おき）見つからなかったら／一度に6台以上消えたら自動ではしない
@@ -1368,7 +1420,7 @@ function woSheetCheck(){
 async function woArchive(v){
   const j=_woCurJob(); if(!j) return;
   const L=v?woLoanerInfo(j):null;
-  if(v&&!await askConfirm(`納車済にしますか？\n${_woTitle(j)}\n（車両配置からも外れます${L?`。${/^レンタカー/.test(L.car)?_lbLabel(L.car)+'は返却にして回送レンタカーの駒に':'代車（'+_lbLabel(L.car)+'）は返却にして駒の欄に戻'}します`:''}）`,'納車済にする')) return;
+  if(v&&!await askConfirm(`納車済にしますか？\n${_woTitle(j)}\n（車両配置からも外れます${L?`。${/^レンタカー/.test(L.car)?_lbLabel(L.car)+'は返却にして回送レンタカーの駒に':'代車（'+_lbLabel(L.car)+'）は返却にして紐づけを外し、駒の欄に戻'}します`:''}）`,'納車済にする')) return;
   const m=v?_woReturnLoaner(j):'';
   j.archived=!!v; if(v){ j.slot=''; j.deliveredAt=new Date().toISOString(); } else { j.sheetSeen=false; delete j.autoDelivered; delete WSC.miss[j.id]; }
   woTouch(j,true); woRenderAll(); toast((v?'納車済にしました':'作業中に戻しました')+(m?'。'+m:''),m?6000:3000);
@@ -1412,7 +1464,23 @@ function woRenderBadges(){
   const txt=!CLOUD.user?'この端末のみ（設定タブでログインするとチーム共有）':WOC.err?WOC.err:WOC.live?'チームで共有中':'この端末のみ';
   for(const id of ['wo-badge','yd-badge']){ const b=document.getElementById(id); if(!b) continue; b.textContent=txt; b.className='wo-badge'+(WOC.err?' err':WOC.live&&CLOUD.user?' on':''); }
 }
+// 外から作業指示を指定して開く（例：index.html#job=xxxx　ARK通知の「作業ボードで開く」）
+let _woLinkWait='';
+function _woDeepLink(){
+  const m=(location.hash||'').match(/[#&]job=([^&]+)/);
+  const id=m?decodeURIComponent(m[1]):_woLinkWait; if(!id) return;
+  if(m){ _woLinkWait=id; try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+  if(SEC.ok&&!SEC.key) return;                 // ロック解除を待つ
+  const j=JOBS.find(x=>x.id===id||_cloudKey(x.id)===id);
+  if(!j) return;                               // クラウドから届くのを待つ
+  _woLinkWait='';
+  setTimeout(()=>{ woOpen(j.id); toast('ARK通知から開きました：'+_woTitle(j)); },0);
+}
+window.addEventListener('hashchange',_woDeepLink);
+let _woUnlinkDone=false;
 function woRenderAll(fromCloud){
+  _woDeepLink();
+  if(!_woUnlinkDone&&JOBS.length&&!(SEC.ok&&!SEC.key)){ _woUnlinkDone=true; try{ _woUnlinkArchived(); }catch(e){ console.warn(e); } }
   woRenderBadges(); woRenderStaff(); woRenderList();
   const act=document.activeElement, det=document.getElementById('wo-detail');
   // 入力中は詳細を描き直さない（カーソルが飛ばないように）
@@ -1833,7 +1901,7 @@ function _ydCarHtml(j){
 // 代車以外の駒（回送・回送レンタカー）。代車カレンダーとは連動しない。メモを付けられる
 const YD_XPIECES=[{n:'回送1',k:'kaiso'},{n:'回送2',k:'kaiso'},{n:'回送レンタカー1',k:'rent'},{n:'回送レンタカー2',k:'rent'}];
 const YD_XKIND={kaiso:{ic:'🚚',sub:'回送',c:'#4ea1ff'},rent:{ic:'↩️',sub:'回送レンタカー',c:'#ffb020'}};
-function _ydLcOut(n){ if(YD_XPIECES.some(x=>x.n===n)) return null; if(typeof LB==='undefined'||!LB.live) return null; const t=_woToday(); return _lbAll().find(b=>!b.returned&&b.car===n&&b.from<=t&&t<=b.to)||null; }
+function _ydLcOut(n){ if(YD_XPIECES.some(x=>x.n===n)) return null; if(typeof LB==='undefined'||!LB.live) return null; const t=_woToday(), r=(YARD.lret||{})[n]; return _lbAll().find(b=>!b.returned&&b.car===n&&b.from<=t&&t<=b.to&&!(b.src==='sheet'&&r&&b.from<=r))||null; }
 function _ydLcCars(){ return [...(typeof LOANER_CARS!=='undefined'?LOANER_CARS:[]),...YD_XPIECES]; }
 function _ydLcIn(sid){ const P=YARD.lpos||{}; return _ydLcCars().filter(c=>P[c.n]===sid&&!_ydLcOut(c.n)); }
 function _ydLcHtml(c){
