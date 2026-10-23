@@ -150,7 +150,14 @@ const who = e => e ? String(e).split('@')[0] : '';
 const yen = n => '¥' + Math.round(+n||0).toLocaleString('ja-JP');
 function toast(t, ms=2600){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'), ms); }
 function plateNum(p){ const z = String(p||'').normalize('NFKC'); const m = z.match(/(\d{1,2}[-\s]?\d{2}|\d{1,4})\s*$/); return m ? m[1].replace(/[-\s]/g,'') : ''; }
-function carLabel(j){ return [j.car, j.plate ? plateNum(j.plate) || j.plate : ''].filter(Boolean).join(' ') || '（登録番号未入力）'; }
+// 車種名の表示をそろえる：全角→半角、英数字のあいだの「－ー‐−」は「-」に（N－ＢＯＸ → N-BOX、Ｎ－ＷＧＮ → N-WGN）
+// カタカナの長音（ムーブ・ラパン など）はそのまま
+function carName(v){
+  return String(v||'').normalize('NFKC').trim()
+    .replace(/([A-Za-z0-9])\s*[-‐‑‒–—―－−ー]\s*(?=[A-Za-z0-9])/g, '$1-')
+    .replace(/\s{2,}/g, ' ');
+}
+function carLabel(j){ return [carName(j.car), j.plate ? plateNum(j.plate) || j.plate : ''].filter(Boolean).join(' ') || '（登録番号未入力）'; }
 function stepNext(j){ for(const s of STEPS){ const st=j.steps&&j.steps[s.k]; if(st&&st.need&&!st.done) return s; } return null; }
 function tsOf(v){ if(!v) return 0; if(typeof v.toMillis==='function') return v.toMillis(); const t=Date.parse(v); return isNaN(t)?0:t; }
 
@@ -193,7 +200,7 @@ function diffJob(prev, cur, id=''){
   if(prev.dueDate !== cur.dueDate && cur.dueDate)
     ev.push({...base, ic:'📅', c:'#d93025', t:`納期${prev.dueDate?'変更':'決定'}：${L}`, d:prev.dueDate?`${md(prev.dueDate)} → ${md(cur.dueDate)}`:md(cur.dueDate), mk:'due|'+id});
   if(!prev.loanerCar && cur.loanerCar)
-    ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', t:`代車を手配：${cur.loanerCar}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
+    ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', t:`代車を手配：${carName(cur.loanerCar)}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
   if((prev.caution||'') !== (cur.caution||'') && cur.caution)
     ev.push({...base, ic:'⚠️', c:'#d93025', t:`注意事項を更新：${L}`, d:cur.caution, mk:'caution|'+id});
   return ev;
@@ -217,16 +224,16 @@ function diffLoaner(prev, cur, id){
   const b = cur || prev, by = who(b.by), kinds = (b.kinds||[]).join('・');
   const d = [b.name, `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
   const base = {src:'loan', key:{num:'', car:''}, by};
-  if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${b.car}`, d}];
-  if(!cur)  return [{...base, ic:'🗑️', c:'#9aa0a6', t:`代車予約を取消：${b.car}`, d}];
+  if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${carName(b.car)}`, d}];
+  if(!cur)  return [{...base, ic:'🗑️', c:'#9aa0a6', t:`代車予約を取消：${carName(b.car)}`, d}];
   if(prev.car!==cur.car || prev.from!==cur.from || prev.to!==cur.to)
-    return [{...base, ic:'🔁', c:'#8430ce', t:`代車予約を変更：${cur.car}`, d:`${prev.car} ${md(prev.from)}〜${md(prev.to)} → ${md(cur.from)}〜${md(cur.to)}`}];
+    return [{...base, ic:'🔁', c:'#8430ce', t:`代車予約を変更：${carName(cur.car)}`, d:`${carName(prev.car)} ${md(prev.from)}〜${md(prev.to)} → ${md(cur.from)}〜${md(cur.to)}`}];
   return [];
 }
 
 // ───────── 見積り（見積りツール・追加分） ─────────
 function diffEst(prev, cur){
-  const L = [cur.car, plateNum(cur.plate)||cur.plate].filter(Boolean).join(' ') || '（車両未入力）';
+  const L = [carName(cur.car), plateNum(cur.plate)||cur.plate].filter(Boolean).join(' ') || '（車両未入力）';
   return [{src:'est', ic:'🧾', c:'#f29900', t:`見積り${prev?'を更新':'作成'}：${L}`,
     d:[yen(cur.grand)+'（税込）', (cur.parts||[]).slice(0,5).join('・'), cur.staff?`担当 ${cur.staff}`:''].filter(Boolean).join(' ／ '),
     key:{num:plateNum(cur.plate), car:cur.car||''}, by:who(cur.by)}];
@@ -289,7 +296,7 @@ function sheetHtml(){
   if(!S.sheet) return `<div class="d" style="padding:10px;color:var(--sub)">シートを読み込み中…</div>`;
   const r = S.sheet;
   const one = (x, pill, pc) => `<div class="row" data-row="${x.row}"><span class="pill" style="background:${pc}">${esc(pill)}</span>
-    <span class="x"><b>${esc(x.name)}</b> ${esc(x.car)} ${esc(x.num)}<br><span class="d">${esc(x.work)}${x.loaner?` ／ 代車 ${esc(x.loaner)}`:''}${x.staff?` ／ ${esc(x.staff)}`:''}</span></span></div>`;
+    <span class="x"><b>${esc(x.name)}</b> ${esc(carName(x.car))} ${esc(x.num)}<br><span class="d">${esc(x.work)}${x.loaner?` ／ 代車 ${esc(carName(x.loaner))}`:''}${x.staff?` ／ ${esc(x.staff)}`:''}</span></span></div>`;
   const sec = (title, list, pill, pc) => `<div class="sec">${title}<span class="n">${list.length}台</span></div>` +
     (list.length ? list.map(x=>one(x, x.kind||pill, pc)).join('') : `<div class="d" style="padding:2px 10px;color:var(--sub)">なし</div>`);
   return `<div class="sec" style="color:var(--sub)">── 入出庫管理表「${esc(r.sheet)}」 <button class="chip" id="sheetReload" style="margin-left:auto">更新</button></div>`
