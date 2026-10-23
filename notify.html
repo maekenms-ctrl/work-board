@@ -82,12 +82,12 @@
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 16:05</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 17:45</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 16:05</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 17:45</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -115,7 +115,7 @@
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 16:05</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 17:45</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -490,7 +490,7 @@ function listen(name, onSnap){
     const first = S.first[name]; S.first[name] = false;
     onSnap(snap, first);
     // パネルを閉じている間に削除されたものも、開いたときに通知から消す
-    if(first){ const ids = new Set(); snap.docChanges().forEach(ch=>{ if(ch.type!=='removed' && !(ch.doc.data()||{}).deleted) ids.add(name+'/'+ch.doc.id); });
+    if(first){ const ids = new Set(); snap.docChanges().forEach(ch=>{ const v=ch.doc.data()||{}; if(ch.type!=='removed' && !v.deleted && !v._sheet) ids.add(name+'/'+ch.doc.id); });
       dropWhere(e => e.ref && e.ref.startsWith(name+'/') && !ids.has(e.ref)); }
     // 受信状況（切り分け用）：件数・最後に変更を受け取った時刻
     S.stat[name] = S.stat[name] || {n:0, last:0, log:[]};
@@ -520,6 +520,7 @@ function start(){
     const out = [];
     snap.docChanges().forEach(ch => {
       const id = ch.doc.id, cur = ch.doc.data(), prev = S.jobs[id];
+      if(cur && cur._sheet) return;   // 保存した「作業指示書」は作業指示ではないので通知しない
       if(ch.type === 'removed' || (cur && cur.deleted)){ dropRef('jobs/'+id); delete S.jobs[id]; return; }
       S.jobs[id] = cur;
       if(first) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
