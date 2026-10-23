@@ -1759,6 +1759,16 @@ function woSheetFill(){
   woTouch(j,true); woRenderAll(); toast(`入庫管理表（${x.tab} ${x.row}行目）から転記しました`,4500);
 }
 // 作業前：納車済でなく、まだどの工程も完了していない車（入庫待ちを含む）
+// 作業前に戻す：工程の「完了」をすべて外す（担当・予定・要/不要はそのまま）
+async function woBackToPre(){
+  const j=_woCurJob(); if(!j||j.archived) return;
+  const done=WO_STEPS.filter(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.done; }).map(s=>s.n);
+  if(!done.length){ toast('すでに作業前です'); return; }
+  if(!await askConfirm(`作業前に戻しますか？\n${_woTitle(j)}\n完了を外す工程：${done.join('・')}`,'作業前に戻す')) return;
+  for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st){ st.done=false; st.at=''; st.doneDate=''; } }
+  if(j.yStages){ for(const c of Object.keys(j.yStages)) if(j.yStages[c]!=='前') delete j.yStages[c]; }
+  woTouch(j,true); WO_FILTER='pre'; woRenderAll(); toast('作業前に戻しました');
+}
 function woIsPre(j){ return !j.archived&&!WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.done; }); }
 function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='pre') return woIsPre(j); return woState(j)===WO_FILTER; }
 
@@ -1983,6 +1993,7 @@ function woRenderDetail(){
     <button type="button" class="btn btn-primary" onclick="woSaveSheet()">💾 作業指示書を保存</button>
     <button type="button" class="btn" onclick="shList('${j.id}')">📁 保存した指示書${(()=>{ const n=SHEETS.filter(x=>x.jobId===j.id).length; return n?`（${n}）`:''; })()}</button>
     <button type="button" class="btn" onclick="ydLocate('${j.id}')">🅿️ 配置図で見る</button>
+    ${!j.archived&&!woIsPre(j)?`<button type="button" class="btn" onclick="woBackToPre()">↩ 作業前に戻す</button>`:''}
     ${j.archived?`<button type="button" class="btn" onclick="woArchive(false)">↩ 作業中に戻す</button>`:`<button type="button" class="btn" onclick="woArchive(true)">🚗 納車済にする</button>`}
     <button type="button" class="btn danger" onclick="woDelete()">🗑 削除</button>
   </div>`;
