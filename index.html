@@ -432,6 +432,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tag.coat{background:#34d399;color:#111;}
 .wo-tag.inwait{background:transparent;color:var(--text);border:1px dashed var(--muted);}
 .wo-tag.sameday{background:#ff4d4d;color:#fff;}
+.wo-sp-box{max-width:560px;max-height:86vh;display:flex;flex-direction:column;}
+.wo-sp-list{overflow:auto;flex:1;min-height:120px;}
+.wo-sp-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;color:var(--text);font:inherit;cursor:pointer;}
+.wo-sp-row:hover{border-color:var(--accent);}
+.wo-sp-row .d{flex:none;width:52px;font-size:12px;font-weight:800;color:var(--accent);}
+.wo-sp-row .m{flex:1;min-width:0;font-size:14px;}
+.wo-sp-row .m small{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wo-sp-row .g{flex:none;font-size:20px;font-weight:900;color:var(--accent);}
 .wo-sec+.fgrid input:not([type]){width:100%;}
 
 .wo-tag.loan{background:#a78bfa;color:#111;}
@@ -646,6 +654,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 <div id="tab-wo" class="tab-panel active">
   <div class="wo-top">
     <div class="check-group" id="wo-filter">
+      <button class="selbtn rbtn" data-f="pre" onclick="woFilter('pre')">作業前</button>
       <button class="selbtn rbtn on" data-f="active" onclick="woFilter('active')">作業中</button>
       <button class="selbtn rbtn" data-f="done" onclick="woFilter('done')">完成・納車待ち</button>
       <button class="selbtn rbtn" data-f="archived" onclick="woFilter('archived')">納車済</button>
@@ -667,7 +676,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div>
       <div class="card">
         <div class="card-title"><span class="bar"></span>作業指示一覧</div>
-        <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示</button>
+        <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示（手打ち）</button>
+        <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woSheetPick()">📋 入庫管理表から取り込む</button>
         <div id="wo-list"></div>
         <div id="wo-empty" class="empty">作業指示はまだありません。<br>「＋ 新しい作業指示」から作れます。</div>
       </div>
@@ -1461,11 +1471,11 @@ function _woCheckReady(){
 }
 function woNewBlank(){
   if(!_woCheckReady()) return;
-  const j=_woNew(); JOBS.unshift(j); woTouch(j,true); WO_FILTER='active'; woOpen(j.id);
+  const j=_woNew(); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre'; woOpen(j.id);
   toast('作業指示を作りました。登録番号と作業箇所を入力してください',4000);
 }
 function _woGoTab(t){ const b=document.querySelector(`.tab-btn[data-tab="${t}"]`); if(b) b.click(); }
-function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&woState(j)!==WO_FILTER) WO_FILTER='all'; } _woGoTab('wo'); woRenderAll(); const d=document.getElementById('wo-detail'); if(d&&window.innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); }
+function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); woRenderAll(); const d=document.getElementById('wo-detail'); if(d&&window.innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); }
 
 // ── 編集 ──
 function _woCurJob(){ return _woJob(WO_CUR); }
@@ -1670,6 +1680,87 @@ function _woGlassName(j){ return j.glassVendor==='その他'?(j.glassOther?j.gla
 // 選択ボタン（同じものをもう一度押すと解除）
 function woPick(f,v){ const j=_woCurJob(); if(!j) return; j[f]=j[f]===v?(f==='pay'?'':null):v; woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woFilter(f){ WO_FILTER=f; woRenderList(); }
+// ── 入庫管理表から取り込む：表の行（入庫日・車種・番号・納期・区分）から作業指示を作る ──
+function _woSheetKey(x){ return (x.tab||'')+'-'+x.row; }
+function _woSheetRows(){
+  const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[];
+  const onBoard=new Set(JOBS.filter(j=>!j.archived).map(j=>_woPlateNo(j.plate)).filter(Boolean));
+  const keys=new Set(JOBS.map(j=>j.sheetKey).filter(Boolean));
+  const t=_woToday(), old=_ymd(new Date(Date.now()-60*864e5));
+  return raw.filter(x=>{
+    if(!(x.model||x.plate)) return false;
+    if(keys.has(_woSheetKey(x))) return false;
+    const no=_woPlateNo(x.plate); if(no&&onBoard.has(no)) return false;
+    const out=_sheetDate(x.out); if(out&&out<t) return false;            // 出庫済の車は出さない
+    const ind=_sheetDate(x.inDate); if(ind&&ind<old) return false;        // 60日より前の入庫は出さない
+    return true;
+  }).map(x=>({...x,_in:_sheetDate(x.inDate)||'',_due:_sheetDate(x.due)||_sheetDate(x.out)||''}))
+    .sort((a,b)=>(b._in||'0000')<(a._in||'0000')?-1:(b._in||'0000')>(a._in||'0000')?1:0);
+}
+function _woSdCats2(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
+function _woFromSheet(j,x,overwrite){
+  const t=_woToday();
+  const set=(f,v)=>{ if(v&&(overwrite||!j[f])) j[f]=v; };
+  const norm=v=>String(v||'').replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/\u3000/g,' ').replace(/[\uFF61-\uFF9F]+/g,k=>k.normalize('NFKC')).trim().replace(/([A-Za-z0-9])\s*[-‐‑‒–—―－−ー]\s*(?=[A-Za-z0-9])/g,'$1-');
+  set('car',norm(x.model)); set('plate',norm(x.plate));
+  if(x._in) set('inDate',x._in);
+  if(x._due&&/^\d{4}-\d{2}-\d{2}$/.test(x._due)) set('dueDate',x._due);
+  const cats=_woSdCats2(x.kind); if(cats.length&&(overwrite||!j.yCatsSet)) { j.yCats=cats; j.yCatsSet=true; }
+  if(!j.inDate||j.inDate>t){ if(j.inChecked!==true) j.inChecked=false; }
+  if(x.car) j.sheetLoaner=x.car;
+  j.sheetKey=_woSheetKey(x); j.sheetRow=`${x.tab} ${x.row}行目`;
+}
+function woSheetPick(){
+  if(!_woCheckReady()) return;
+  if(typeof LB==='undefined'||!LB.sheetUrl){ toast('入庫管理表が設定されていません（見積りツールの設定で連動してください）',6000); return; }
+  if(!LB.sheetRaw){ toast('入庫管理表を読み込んでいます。少し待ってからもう一度押してください',5000); _lbSheetLoad(); return; }
+  document.getElementById('wo-sp-ov')?.remove();
+  const ov=document.createElement('div'); ov.className='cf-ov'; ov.id='wo-sp-ov';
+  ov.innerHTML=`<div class="cf-box wo-sp-box"><div class="est-head"><b>📋 入庫管理表から取り込む</b><button type="button" class="btn" onclick="this.closest('.cf-ov').remove()">閉じる</button></div>
+    <input class="wo-search" id="wo-sp-q" placeholder="🔍 お客様・車種・番号" style="width:100%;margin:8px 0" oninput="woSheetPickRender()">
+    <div class="sg-note" style="margin:0 0 6px">作業ボードにまだない車だけを、入庫日が新しい順に表示します。押すと作業指示を作ります（お客様名は作業ボードには保存しません）。</div>
+    <div id="wo-sp-list" class="wo-sp-list"></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn" onclick="_lbSheetLoad().then(woSheetPickRender);toast('入庫管理表を読み直しています…')">🔄 読み直す</button></div></div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov); woSheetPickRender();
+}
+function woSheetPickRender(){
+  const el=document.getElementById('wo-sp-list'); if(!el) return;
+  const q=((document.getElementById('wo-sp-q')||{}).value||'').normalize('NFKC').toLowerCase().replace(/\s/g,'');
+  const rows=_woSheetRows().filter(x=>!q||[x.name,x.model,x.plate].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q));
+  WSP.rows=rows;
+  el.innerHTML=rows.length?rows.map((x,i)=>`<button type="button" class="wo-sp-row" onclick="woSheetImport(${i})">
+      <span class="d">${x._in?_woMD(x._in):'入庫日なし'}</span>
+      <span class="m"><b>${esc(x.model||'（車種なし）')}</b> ${esc(x.plate||'')}<small>${esc([x.name,x.kind,x.car?'代車 '+x.car:'',x._due?'納期 '+_woMD(x._due):''].filter(Boolean).join(' ／ '))}</small></span>
+      <span class="g">＋</span></button>`).join('')
+    :'<div class="empty">取り込める車はありません<br><small>（作業ボードにすでにある車・出庫済の車は出しません）</small></div>';
+}
+const WSP={rows:[]};
+function woSheetImport(i){
+  const x=WSP.rows[i]; if(!x) return;
+  const j=_woNew(); j.id='wo-sh-'+_cloudKey(_woSheetKey(x)).slice(0,60)+'-'+Date.now().toString(36);
+  j.inDate=''; _woFromSheet(j,x,true); if(!j.inDate) j.inDate=_woToday();
+  JOBS.unshift(j); woTouch(j,true);
+  document.getElementById('wo-sp-ov')?.remove();
+  WO_FILTER='pre'; woOpen(j.id);
+  toast(`入庫管理表から作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`,5000);
+}
+// 作業指示の画面：番号が入庫管理表にあれば、入庫日・車種・納期を転記できる
+function _woSheetMatch(j){
+  const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; const no=_woPlateNo(j.plate);
+  if(j.sheetKey){ const x=raw.find(r=>_woSheetKey(r)===j.sheetKey); if(x) return x; }
+  if(!no) return null;
+  const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
+  return c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
+}
+function woSheetFill(){
+  const j=_woCurJob(); if(!j) return; const x=_woSheetMatch(j); if(!x){ toast('入庫管理表に同じ番号の車が見つかりません'); return; }
+  _woFromSheet(j,{...x,_in:_sheetDate(x.inDate)||'',_due:_sheetDate(x.due)||_sheetDate(x.out)||''},true);
+  woTouch(j,true); woRenderAll(); toast(`入庫管理表（${x.tab} ${x.row}行目）から転記しました`,4500);
+}
+// 作業前：納車済でなく、まだどの工程も完了していない車（入庫待ちを含む）
+function woIsPre(j){ return !j.archived&&!WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.done; }); }
+function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='pre') return woIsPre(j); return woState(j)===WO_FILTER; }
 
 // ── 表示 ──
 function woRenderBadges(){
@@ -1759,8 +1850,9 @@ function woRenderList(){
   const empty=document.getElementById('wo-empty');
   if(SEC.ok&&!SEC.key){ list.innerHTML='<div class="empty">ロック中です</div>'; empty.style.display='none'; return; }
   const q=(document.getElementById('wo-q').value||'').normalize('NFKC').toLowerCase().replace(/\s/g,'');
+  { const pb=document.querySelector('#wo-filter [data-f="pre"]'); if(pb){ const n=JOBS.filter(woIsPre).length; pb.textContent=n?`作業前 ${n}`:'作業前'; } }
   const lf=document.getElementById('wo-loanf'); if(lf){ const n=JOBS.filter(j=>{ const L=woLoanerInfo(j); return L&&L.now; }).length; lf.classList.toggle('on',WO_LOANF); lf.innerHTML=`🔑 代車・レンタカー貸出中 ${n}台`; }
-  const rows=JOBS.filter(j=>(!WO_LOANF||(woLoanerInfo(j)||{}).now)&&(WO_FILTER==='all'||woState(j)===WO_FILTER)&&(!q||[j.plate,j.car,j.color,j.chassis].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)));
+  const rows=JOBS.filter(j=>(!WO_LOANF||(woLoanerInfo(j)||{}).now)&&_woInFilter(j)&&(!q||[j.plate,j.car,j.color,j.chassis].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)));
   if(WO_FILTER!=='archived') _woSortRows(rows);
   WO_ROWS=rows.map(j=>j.id);
   const sel=document.getElementById('wo-sort'); if(sel&&sel.value!==WO_SORT) sel.value=WO_SORT;
@@ -1816,6 +1908,7 @@ function woRenderDetail(){
     <div class="field"><label>塗装タイプ</label><select onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
     ${inp('chassis','車台番号')}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
+    ${(()=>{ const x=_woSheetMatch(j); return x?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woSheetFill()">📋 入庫管理表（${esc(x.tab)} ${x.row}行目：${esc([x.model,x.plate].filter(Boolean).join(' '))}${x.inDate?' 入庫 '+esc(x.inDate):''}）から転記</button></div>`:''; })()}
     <div class="field"><label>入庫</label><div class="check-group"><button type="button" class="selbtn rbtn wo-inbtn${j.inChecked!==false?' on':''}" onclick="woCheckIn()">${j.inChecked!==false?'✓ 入庫済':'🚗 入庫済にする'}</button></div>${j.inChecked===false&&j.loanerUse===true&&j.loanerCar?`<div class="sg-note" style="margin:4px 0 0">押すと${/^レンタカー/.test(j.loanerCar)?esc(_lbLabel(j.loanerCar))+'を貸出中にします':'代車（'+esc(_lbLabel(j.loanerCar))+'）を貸出中にして、駒を外します'}</div>`:''}</div>
     <div class="field"><label>納車予定日</label><input type="date" value="${v('dueDate')}" onchange="woSet('dueDate',this.value)"></div>
     <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
@@ -2438,6 +2531,7 @@ async function _lbSheetLoad(){
       r.car=RENTAL_ROWS.map(x=>x.n).find(ok)||RENTAL_ROWS[RENTAL_ROWS.length-1].n; }
     LB.sheet=rows; LB.sheetAt=Date.now(); LB.sheetErr='';
     try{ _woArchivedSheetReturn(); }catch(e){ console.warn(e); }
+    LB.sheetRaw=(j.rows||[]).filter(x=>!(cut[x.tab||'']!=null&&x.row>=cut[x.tab||'']));
     if((j.rows||[]).length){ LB.hasPlate=hasPlate; LB.nos=hasPlate?nos:null; try{ woSheetCheck(); }catch(e){ console.warn(e); } }
     else { LB.nos=null; try{ WSC.last='入庫管理表が空でした（納車済の確認はしていません）'; }catch(e){} }
   }catch(e){ LB.sheetErr='入庫管理表を読み込めませんでした'; }
