@@ -82,12 +82,12 @@
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 14:55</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 16:05</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 14:55</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 16:05</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -115,7 +115,7 @@
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 14:55</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 16:05</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -128,7 +128,6 @@
       <button class="chip" data-f="wb">作業ボード</button>
       <button class="chip" data-f="est">見積り</button>
       <button class="chip" data-f="loan">代車</button>
-      <button class="chip" data-f="sheet">シート</button>
     </div>
     <main id="feed"></main>
   </div>
@@ -264,7 +263,7 @@ function diffSheet(d){
   const fix = /車種|代車/.test(d.cols||'') ? carName : (x => x);
   const ch = d.before || d.after ? `${d.cols}：${d.before?fix(d.before)+' → ':''}${fix(d.after)||'（空欄）'}` : `${d.cols} を変更`;
   return [{src:'sheet', ic:'📋', c:'#1a56c4', t:`シート更新：${who_}`, d:`${ch} ／ ${d.tab}`,
-    key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, by:who(d.by), mk:'sheet|'+d.tab+'|'+d.row}];
+    key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, by:who(d.by), mk:'sheet|'+d.tab+'|'+d.row, quiet:true}];   // シートの操作は音なし
 }
 
 // ───────── 状態 ─────────
@@ -280,6 +279,7 @@ function dropWhere(fn){
 function dropRef(ref){ dropWhere(e => e.ref === ref); }
 // 以前の版で出ていた工程・担当・要不要の通知は、履歴からも消す
 try{ const re=/^工程「| の担当：/; const n=S.events.length; S.events=S.events.filter(e=>!(e.src==='wb'&&re.test(e.t||''))); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
+try{ const n=S.events.length; S.events=S.events.filter(e=>e.src!=='sheet'); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
 function push(evs, live){
   if(!evs.length) return;
   const now = Date.now();
@@ -421,7 +421,8 @@ function playSound(src, force){
 // 複数まとめて届いたときは1回だけ鳴らす（優先：代車 → 見積り → 作業ボード）
 function beep(evs){
   const srcs = new Set((evs||[]).map(e=>e.src));
-  playSound(srcs.has('loan')?'loan':srcs.has('est')?'est':srcs.has('wb')?'wb':'sheet');
+  if(!srcs.has('loan') && !srcs.has('est') && !srcs.has('wb')) return;   // シートだけなら鳴らさない
+  playSound(srcs.has('loan')?'loan':srcs.has('est')?'est':'wb');
 }
 
 function renderSoundPanel(){
@@ -430,7 +431,7 @@ function renderSoundPanel(){
   $('sndBody').innerHTML = `
     <label class="sw"><input type="checkbox" id="sndOn"${S.sound?' checked':''}> 通知音を鳴らす</label>
     <div class="sl">音量 <input type="range" id="sndVol" min="0" max="100" value="${S.snd.vol}"> <span id="sndVolN">${S.snd.vol}</span></div>
-    ${Object.entries(SRC_NAME).map(([k,n])=>`
+    ${Object.entries(SRC_NAME).filter(([k])=>k!=='sheet').map(([k,n])=>`
       <div class="sr"><div class="sh"><span class="src ${k}">${n}</span><button class="chip" data-test="${k}">▶ 試す</button></div>
         <select data-src="${k}">${opts(S.snd[k])}</select>
         ${S.snd[k]==='custom'?`<div class="cf">${CUSTOM[k]?`🎵 ${esc(CUSTOM[k].name)}`:'ファイルが未選択です'}
@@ -540,18 +541,7 @@ function start(){
     push(out, !first);
   });
 
-  listen('sheet', (snap, first) => {
-    const out = [];
-    snap.docChanges().forEach(ch => {
-      const id = ch.doc.id, cur = ch.doc.data();
-      if(ch.type === 'removed'){ dropRef('sheet/'+id); return; }
-      const ts = tsOf(cur.at);
-      if(first && !(ts && ymd(new Date(ts))===today())) return;     // 開いたときは今日の分だけ
-      diffSheet(cur).map(e=>({...e, ts: first ? ts : 0, ref:'sheet/'+id})).filter(e=>!first || fresh(e)).forEach(e=>out.push(e));
-    });
-    push(out, !first);
-  });
-
+  // シートへの書き込みは通知しない（画面が埋まるため）
   listen('estimates', (snap, first) => {
     const out = [];
     snap.docChanges().forEach(ch => {
