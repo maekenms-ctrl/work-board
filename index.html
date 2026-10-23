@@ -429,6 +429,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tag.ext{background:#4ea1ff;color:#111;}
 .wo-tag.coat{background:#34d399;color:#111;}
 .wo-tag.inwait{background:transparent;color:var(--text);border:1px dashed var(--muted);}
+.wo-tag.sameday{background:#ff4d4d;color:#fff;}
 .wo-sec+.fgrid input:not([type]){width:100%;}
 
 .wo-tag.loan{background:#a78bfa;color:#111;}
@@ -1282,7 +1283,14 @@ function woCloudStart(){
     }
     JOBS=next.sort((a,b)=>(b.createdAt||'')<(a.createdAt||'')?-1:1);
     _woSaveLocal(); woRenderAll(true);
+    try{ _woSameDayRun(); }catch(e){ console.warn(e); }
   },err=>_woCloudErr(err,'jobs')));
+  // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
+  WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'daily'),snap=>{
+    const t=_woToday(); WSD.docs=[];
+    snap.forEach(d=>{ const v=d.data()||{}; if(v.kind==='add'&&v.date===t) WSD.docs.push({id:d.id,...v}); });
+    try{ _woSameDayRun(); }catch(e){ console.warn(e); }
+  },err=>{ console.warn('daily',err); }));
   lbStart();
   WOC.unsubs.push(fs.onSnapshot(fs.doc(CLOUD.db,'yard','layout'),d=>{
     const first=!WOC.first.yard; WOC.first.yard=true;
@@ -1292,6 +1300,33 @@ function woCloudStart(){
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
   woRenderBadges();
+}
+// ── 当日の追加入庫から作業指示を作る（どの端末で作っても同じIDになるので重複しない）──
+const WSD={docs:[]};
+function _woSdCats(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
+function _woSameDayRun(){
+  if(!WOC.first.jobs||SEC.locked||(SEC.ok&&!SEC.key)||!WSD.docs.length) return;
+  const tomb=_woTombs(); const made=[];
+  for(const d of WSD.docs){
+    const id='wo-sd-'+_cloudKey(d.id);
+    if(tomb[id]) continue;                                   // 削除した作業指示は作り直さない
+    const ex=JOBS.find(j=>j.id===id);
+    if(ex){                                                  // あとから車種・番号が書かれたら足す
+      let ch=false;
+      if(!ex.car&&d.car){ ex.car=d.car; ch=true; } if(!ex.plate&&d.num){ ex.plate=d.num; ch=true; }
+      if(!ex.sheetWork&&d.work){ ex.sheetWork=d.work; ch=true; }
+      if(ch) woTouch(ex,true);
+      continue;
+    }
+    if(!d.car&&!d.num) continue;                             // 車種・番号が入るまで待つ
+    const no=_woPlateNo(d.num);
+    if(no&&JOBS.some(j=>!j.archived&&_woPlateNo(j.plate)===no)) continue;   // すでに作業ボードにある車
+    const j=_woNew(); j.id=id; j.plate=d.num||''; j.car=d.car||''; j.inDate=d.date; j.inChecked=false; j.sameDay=true;
+    j.sheetWork=d.work||''; j.sheetRow=(d.tab||'')+' '+(d.row||'')+'行目';
+    const cats=_woSdCats(d.cat); if(cats.length) j.yCats=cats;
+    JOBS.unshift(j); woTouch(j,true); made.push([j.car,j.plate].filter(Boolean).join(' '));
+  }
+  if(made.length){ woRenderAll(); toast('当日入庫の作業指示を作りました：'+made.join('、'),6000); }
 }
 function woCloudStop(){ WOC.unsubs.forEach(f=>{try{f();}catch(e){}}); WOC.unsubs=[]; WOC.live=false; WOC.first={}; lbStop(); woRenderBadges(); }
 
@@ -1714,12 +1749,12 @@ function woRenderList(){
     let head='';
     if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=WO_CAT_ORDER[_woCatRank(j)]||'その他'; if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     return head+`<div class="wo-card${j.id===WO_CUR?' cur':''}" data-id="${j.id}" style="--sc:${j.archived?'var(--border)':woColor(j)}" onclick="woOpen('${j.id}')">${canDrag?`<button type="button" class="wo-drag" title="ドラッグで並べ替え" aria-label="並べ替え" onclick="event.stopPropagation()">⠿</button>`:''}
-      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${j.inChecked===false&&!j.archived?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
+      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${j.inChecked===false&&!j.archived?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}
+      ${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}
     </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
 }
 function _woMapHtml(j){
