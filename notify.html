@@ -38,7 +38,7 @@
   .ev .d{color:var(--sub);font-size:12px;margin-top:2px;line-height:1.4;word-break:break-all}
   .ev .m{color:#80868b;font-size:11px;margin-top:3px}
   .src{display:inline-block;font-size:10px;padding:0 6px;border-radius:8px;margin-right:4px;vertical-align:1px}
-  .src.wb{background:#e6f4ea;color:#137333}.src.est{background:#fef7e0;color:#b06000}.src.loan{background:#f3e8fd;color:#8430ce}
+  .src.wb{background:#e6f4ea;color:#137333}.src.est{background:#fef7e0;color:#b06000}.src.loan{background:#f3e8fd;color:#8430ce}.src.sheet{background:#e8f0fe;color:#1a56c4}
   .empty{color:var(--sub);text-align:center;padding:40px 10px;line-height:1.7}
   /* 今日タブ */
   .sec{margin:14px 2px 4px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:6px}
@@ -64,6 +64,8 @@
   .menu.on{display:block}
   .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 14px;font:inherit;cursor:pointer}
   .menu button:hover{background:#f1f3f4}
+  .open{border:1px solid #a8c7fa;background:#fff;color:#0b57d0;border-radius:14px;padding:2px 9px;margin-left:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;vertical-align:1px}
+  .open:hover{background:#d3e3fd}
   .tapnote{position:fixed;left:10px;right:10px;bottom:10px;z-index:30;background:#0b57d0;color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;text-align:center;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
   .tapnote span{font-weight:400;font-size:12px;opacity:.85}
   @media (min-width:700px){ body{font-size:15px} main{max-width:760px;margin:0 auto} .chips{max-width:760px;margin:0 auto} header .top,header .tabs{max-width:760px;margin-left:auto;margin-right:auto} }
@@ -80,6 +82,17 @@
 </head>
 <body>
 
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 13:40</span></div>
+<script>
+// 読み込みで止まったとき、真っ白にせず理由を表示する
+(function(){
+  function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 13:40</span>'; }
+  window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
+  window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
+  setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
+})();
+</script>
 <div id="login" class="login" style="display:none">
   <h2>✦ ARK 通知</h2>
   <p>見積りツール・作業ボードと同じ<br>チームのメールアドレスとパスワードでログインしてください。</p>
@@ -102,6 +115,7 @@
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 13:40</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -114,6 +128,7 @@
       <button class="chip" data-f="wb">作業ボード</button>
       <button class="chip" data-f="est">見積り</button>
       <button class="chip" data-f="loan">代車</button>
+      <button class="chip" data-f="sheet">シート</button>
     </div>
     <main id="feed"></main>
   </div>
@@ -153,7 +168,11 @@ function plateNum(p){ const z = String(p||'').normalize('NFKC'); const m = z.mat
 // 車種名の表示をそろえる：全角→半角、英数字のあいだの「－ー‐−」は「-」に（N－ＢＯＸ → N-BOX、Ｎ－ＷＧＮ → N-WGN）
 // カタカナの長音（ムーブ・ラパン など）はそのまま
 function carName(v){
-  return String(v||'').normalize('NFKC').trim()
+  return String(v||'')
+    .replace(/[！-～]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))   // 全角英数 → 半角（①②③ はそのまま）
+    .replace(/　/g, ' ')
+    .replace(/[｡-ﾟ]+/g, k => k.normalize('NFKC'))                            // 半角カナ → 全角カナ
+    .trim()
     .replace(/([A-Za-z0-9])\s*[-‐‑‒–—―－−ー]\s*(?=[A-Za-z0-9])/g, '$1-')
     .replace(/\s{2,}/g, ' ');
 }
@@ -239,6 +258,15 @@ function diffEst(prev, cur){
     key:{num:plateNum(cur.plate), car:cur.car||''}, by:who(cur.by)}];
 }
 
+// ───────── 入出庫管理表（シートへの書き込み） ─────────
+function diffSheet(d){
+  const who_ = [d.name, carName(d.car), d.num].filter(Boolean).join(' ') || `${d.tab} ${d.row}行目`;
+  const fix = /車種|代車/.test(d.cols||'') ? carName : (x => x);
+  const ch = d.before || d.after ? `${d.cols}：${d.before?fix(d.before)+' → ':''}${fix(d.after)||'（空欄）'}` : `${d.cols} を変更`;
+  return [{src:'sheet', ic:'📋', c:'#1a56c4', t:`シート更新：${who_}`, d:`${ch} ／ ${d.tab}`,
+    key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, by:who(d.by), mk:'sheet|'+d.tab+'|'+d.row}];
+}
+
 // ───────── 状態 ─────────
 const S = {
   events: ls.get('ark-ev', []), seen: ls.get('ark-seen', 0), sound: ls.get('ark-sound', true),
@@ -268,16 +296,28 @@ function renderFeed(){
   const list = S.events.filter(e => S.filter==='all' || e.src===S.filter);
   if(!list.length){ $('feed').innerHTML = `<div class="empty">まだ通知はありません。<br>見積りツールや作業ボードで<br>変更があるとここに表示されます。</div>${estNote()}`; return; }
   let h = estNote(), lastDay = '';
-  const srcName = {wb:'作業ボード', est:'見積り', loan:'代車'};
+  const srcName = {wb:'作業ボード', est:'見積り', loan:'代車', sheet:'シート'};
   for(const e of list){
     const d = new Date(e.ts), day = ymd(d);
     if(day !== lastDay){ lastDay = day; h += `<div class="day">${day===today()?'今日':`${d.getMonth()+1}月${d.getDate()}日`}</div>`; }
     h += `<div class="ev ${e.ts>S.seen?'new':''}" data-id="${esc(e.id)}" style="--c:${esc(e.c)}">
       <div class="ic">${e.ic}</div>
       <div class="bd"><div class="t">${esc(e.t)}</div>${e.d?`<div class="d">${esc(e.d)}</div>`:''}
-      <div class="m"><span class="src ${e.src}">${srcName[e.src]}</span>${pad(d.getHours())}:${pad(d.getMinutes())}${e.by?` ・ ${esc(e.by)}`:''}</div></div></div>`;
+      <div class="m"><span class="src ${e.src}">${srcName[e.src]}</span>${pad(d.getHours())}:${pad(d.getMinutes())}${e.by?` ・ ${esc(e.by)}`:''}${openBtn(e)}</div></div></div>`;
   }
   $('feed').innerHTML = h;
+}
+// アプリで開く
+const APP_URL = {wb:'https://maekenms-ctrl.github.io/work-board/', est:'https://maekenms-ctrl.github.io/estimate-tool/'};
+function openBtn(e){
+  if(e.src==='sheet') return '';
+  if(e.src==='wb') return e.jid ? `<button class="open" data-open="wb" data-jid="${esc(e.jid)}">↗ 作業ボードで開く</button>` : '';
+  return `<button class="open" data-open="est">↗ 見積りツールを開く</button>`;
+}
+function openApp(kind, jid){
+  const url = APP_URL[kind] + (jid ? '#job=' + encodeURIComponent(jid) : '');
+  const w = window.open(url, 'ark-' + kind);   // 開いているタブがあればそれを使う
+  if(!w) toast('ポップアップがブロックされました。アドレスバー右のアイコンから許可してください', 5000);
 }
 function estNote(){ return S.estDenied ? `<div class="note">見積りの通知は、Firestoreのルールに <b>estimates</b> を追加すると表示されます（設定手順を参照）。</div>` : ''; }
 function renderBadge(){
@@ -337,8 +377,8 @@ const SOUNDS = {
   up:     {n:'ドミソ',         notes:[[523,0,.25,'sine'],[659,.14,.25,'sine'],[784,.28,.45,'sine']]},
   alarm:  {n:'アラーム（目立つ）', notes:[[880,0,.12,'square'],[880,.2,.12,'square'],[880,.4,.12,'square']]},
 };
-const SRC_NAME = {wb:'作業ボード', est:'見積り', loan:'代車'};
-S.snd = Object.assign({vol:60, wb:'chime', est:'pinpon', loan:'up'}, ls.get('ark-snd', {}));
+const SRC_NAME = {wb:'作業ボード', est:'見積り', loan:'代車', sheet:'シート'};
+S.snd = Object.assign({vol:60, wb:'chime', est:'pinpon', loan:'up', sheet:'pop'}, ls.get('ark-snd', {}));
 const CUSTOM = {};   // src → objectURL（自分で選んだ音声ファイル）
 
 // 好きな音声ファイルは IndexedDB に保存（この端末のブラウザ内だけ）
@@ -373,7 +413,7 @@ function playSound(src, force){
 // 複数まとめて届いたときは1回だけ鳴らす（優先：代車 → 見積り → 作業ボード）
 function beep(evs){
   const srcs = new Set((evs||[]).map(e=>e.src));
-  playSound(srcs.has('loan')?'loan':srcs.has('est')?'est':'wb');
+  playSound(srcs.has('loan')?'loan':srcs.has('est')?'est':srcs.has('wb')?'wb':'sheet');
 }
 
 function renderSoundPanel(){
@@ -416,7 +456,8 @@ async function boot(){
     showLogin(); $('loginErr').textContent = 'Firebaseを読み込めませんでした：' + (e&&e.message||e);
   }
 }
-function showLogin(){ stop(); $('app').style.display='none'; $('login').style.display=''; }
+function bootDone(){ window.__ARK_READY=true; const b=$('boot'); if(b) b.remove(); }
+function showLogin(){ bootDone(); stop(); $('app').style.display='none'; $('login').style.display=''; }
 
 async function login(){
   const em = $('em').value.trim(), pw = $('pw').value;
@@ -452,6 +493,7 @@ function listen(name, onSnap){
     if(S.tab==='today') renderToday();
   }, err => {
     if(name==='estimates' && /permission/.test(String(err&&err.code))){ S.estDenied = true; renderFeed(); return; }
+    if(name==='sheet' && /permission/.test(String(err&&err.code))){ S.sheetDenied = true; return; }   // ルール未設定でも他の通知は動かす
     S.errs = S.errs || {};
     S.errs[name] = /permission/.test(String(err&&err.code)) ? `${name==='jobs'?'作業ボード':name} を読む権限がありません（Firestoreのルールを確認）` : `${name} に接続できません：${err&&err.code||err}`;
     setStatus(S.errs[name], 'err');
@@ -460,7 +502,7 @@ function listen(name, onSnap){
 
 function start(){
   stop();
-  $('login').style.display='none'; $('app').style.display='';
+  bootDone(); $('login').style.display='none'; $('app').style.display='';
   setStatus('接続中…'); renderFeed(); renderBadge();
   const known = new Set(S.events.map(e=>e.src+'|'+e.t+'|'+Math.floor(e.ts/60000)));
   const fresh = e => !known.has(e.src+'|'+e.t+'|'+Math.floor(e.ts/60000));
@@ -471,8 +513,8 @@ function start(){
       const id = ch.doc.id, cur = ch.doc.data(), prev = S.jobs[id];
       if(ch.type === 'removed' || (cur && cur.deleted)){ dropRef('jobs/'+id); delete S.jobs[id]; return; }
       S.jobs[id] = cur;
-      if(first) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id}));
-      else diffJob(prev, cur, id).forEach(e=>out.push({...e, ref:'jobs/'+id}));
+      if(first) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
+      else diffJob(prev, cur, id).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
     });
     push(out, !first);
   });
@@ -486,6 +528,18 @@ function start(){
       S.loaner[id] = cur;
       if(first){ if(tsOf(cur.at) && ymd(new Date(tsOf(cur.at)))===today()) diffLoaner(null, cur, id).map(e=>({...e, ts:tsOf(cur.at), ref:'loaner/'+id})).filter(fresh).forEach(e=>out.push(e)); }
       else diffLoaner(prev, cur, id).forEach(e=>out.push({...e, ref:'loaner/'+id}));
+    });
+    push(out, !first);
+  });
+
+  listen('sheet', (snap, first) => {
+    const out = [];
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, cur = ch.doc.data();
+      if(ch.type === 'removed'){ dropRef('sheet/'+id); return; }
+      const ts = tsOf(cur.at);
+      if(first && !(ts && ymd(new Date(ts))===today())) return;     // 開いたときは今日の分だけ
+      diffSheet(cur).map(e=>({...e, ts: first ? ts : 0, ref:'sheet/'+id})).filter(e=>!first || fresh(e)).forEach(e=>out.push(e));
     });
     push(out, !first);
   });
@@ -518,9 +572,15 @@ document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
   S.filter = b.dataset.f; document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===b)); renderFeed();
 });
 $('feed').addEventListener('click', e => {
+  const ob = e.target.closest('button.open'); if(ob){ e.stopPropagation(); openApp(ob.dataset.open, ob.dataset.jid); return; }
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
-  el.classList.remove('new'); jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
+  el.classList.remove('new');
+  if(ev.src==='sheet' && ev.key && ev.key.tab){
+    if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0);
+    return;
+  }
+  jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 $('todayView').addEventListener('click', e => {
   if(e.target.id==='sheetReload'){ S.sheet=null; renderToday(); loadSheetToday(); return; }
@@ -597,3 +657,4 @@ boot();
 </script>
 </body>
 </html>
+<!-- ARK通知 ここまで（この行まで貼り付けてください） -->
