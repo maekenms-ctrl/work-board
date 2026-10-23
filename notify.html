@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#ffffff; --card:#f8fafd; --line:#e3e8ef; --ink:#1f1f1f; --sub:#5f6368;
+    --blue:#0b57d0; --blue-soft:#d3e3fd; --red:#d93025; --amber:#f29900; --green:#188038;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Google Sans","Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif;font-size:13px}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 12px 0;border-bottom:1px solid var(--line)}
+  .top{display:flex;align-items:center;gap:8px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#bbb;flex:none}
+  .dot.on{background:#1e8e3e;box-shadow:0 0 0 3px #ceead6}
+  .dot.err{background:var(--red)}
+  #status{font-size:12px;color:var(--sub);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icon-btn{border:0;background:none;cursor:pointer;font-size:15px;padding:4px;border-radius:50%;color:var(--sub)}
+  .icon-btn:hover{background:#eef2f7}
+  .tabs{display:flex;gap:4px;margin-top:8px}
+  .tab{flex:1;border:0;background:none;padding:8px 0 9px;font:inherit;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent}
+  .tab.on{color:var(--blue);border-color:var(--blue)}
+  .badge{display:inline-block;min-width:17px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:17px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer;color:var(--sub)}
+  .chip.on{background:var(--blue-soft);border-color:var(--blue-soft);color:#041e49}
+  main{padding:0 10px 16px}
+  .day{font-size:11px;color:var(--sub);margin:12px 4px 4px;font-weight:600}
+  .ev{display:flex;gap:9px;padding:9px 10px;margin:6px 0;border-radius:12px;background:var(--card);border:1px solid transparent;cursor:pointer;transition:background .15s}
+  .ev:hover{background:#eef3fb}
+  .ev.new{border-color:#a8c7fa;background:#ecf3fe;animation:pop .5s ease}
+  @keyframes pop{from{transform:translateX(12px);opacity:0}to{transform:none;opacity:1}}
+  .ev .ic{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:14px;background:#fff;border:2px solid var(--c,#c4c7c5)}
+  .ev .bd{flex:1;min-width:0}
+  .ev .t{font-weight:600;line-height:1.35}
+  .ev .d{color:var(--sub);font-size:12px;margin-top:2px;line-height:1.4;word-break:break-all}
+  .ev .m{color:#80868b;font-size:11px;margin-top:3px}
+  .src{display:inline-block;font-size:10px;padding:0 6px;border-radius:8px;margin-right:4px;vertical-align:1px}
+  .src.wb{background:#e6f4ea;color:#137333}.src.est{background:#fef7e0;color:#b06000}.src.loan{background:#f3e8fd;color:#8430ce}
+  .empty{color:var(--sub);text-align:center;padding:40px 10px;line-height:1.7}
+  /* 今日タブ */
+  .sec{margin:14px 2px 4px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:6px}
+  .sec .n{color:var(--sub);font-weight:400}
+  .row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--card);margin:5px 0;cursor:pointer}
+  .row:hover{background:#eef3fb}
+  .pill{font-size:11px;padding:1px 8px;border-radius:10px;color:#fff;white-space:nowrap;flex:none}
+  .row .x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .late{color:var(--red);font-weight:700}
+  /* ログイン */
+  .login{padding:22px 16px}
+  .login h2{font-size:17px;margin:0 0 6px}
+  .login p{color:var(--sub);font-size:12px;line-height:1.6;margin:0 0 14px}
+  .login input{width:100%;padding:10px 12px;border:1px solid #c4c7c5;border-radius:8px;font:inherit;margin-bottom:9px}
+  .login input:focus{outline:2px solid var(--blue);border-color:transparent}
+  .btn{width:100%;padding:10px;border:0;border-radius:20px;background:var(--blue);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:.6}
+  .err{color:var(--red);font-size:12px;margin-top:10px;line-height:1.5;white-space:pre-wrap}
+  .toast{position:fixed;left:10px;right:10px;bottom:10px;background:#303030;color:#fff;border-radius:8px;padding:9px 12px;font-size:12px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+  .toast.on{opacity:1;transform:none}
+  .note{font-size:11px;color:var(--sub);background:#fef7e0;border-radius:8px;padding:7px 9px;margin:8px 2px;line-height:1.5}
+  .menu{position:absolute;right:10px;top:38px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:6px 0;z-index:9;display:none;min-width:190px}
+  .menu.on{display:block}
+  .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 14px;font:inherit;cursor:pointer}
+  .menu button:hover{background:#f1f3f4}
+  .tapnote{position:fixed;left:10px;right:10px;bottom:10px;z-index:30;background:#0b57d0;color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;text-align:center;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+  .tapnote span{font-weight:400;font-size:12px;opacity:.85}
+  @media (min-width:700px){ body{font-size:15px} main{max-width:760px;margin:0 auto} .chips{max-width:760px;margin:0 auto} header .top,header .tabs{max-width:760px;margin-left:auto;margin-right:auto} }
+  .snd{position:fixed;inset:0 0 auto 0;top:0;max-height:100%;overflow:auto;background:#fff;z-index:20;padding:12px 14px 20px;box-shadow:0 6px 20px rgba(0,0,0,.15);display:none}
+  .snd.on{display:block}
+  .snd-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .sw{display:flex;align-items:center;gap:6px;font-weight:600;margin:6px 0 10px}
+  .sl{display:flex;align-items:center;gap:8px;margin-bottom:6px;color:var(--sub)} .sl input{flex:1}
+  .sr{background:var(--card);border-radius:10px;padding:9px 10px;margin:8px 0}
+  .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .sr select{width:100%;padding:7px 8px;border:1px solid #c4c7c5;border-radius:8px;font:inherit;background:#fff}
+  .cf{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+
+<div id="login" class="login" style="display:none">
+  <h2>✦ ARK 通知</h2>
+  <p>見積りツール・作業ボードと同じ<br>チームのメールアドレスとパスワードでログインしてください。</p>
+  <input id="em" type="email" placeholder="メールアドレス" autocomplete="username">
+  <input id="pw" type="password" placeholder="パスワード" autocomplete="current-password">
+  <button class="btn" id="loginBtn">ログイン</button>
+  <div class="err" id="loginErr"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="top">
+      <span class="dot" id="dot"></span>
+      <span id="status">接続中…</span>
+      <button class="icon-btn" id="soundBtn" title="通知音">🔔</button>
+      <button class="icon-btn" id="menuBtn" title="メニュー">⋮</button>
+    </div>
+    <div class="menu" id="menu">
+      <button data-act="read">すべて既読にする</button>
+      <button data-act="log">受信ログを見る（確認用）</button>
+      <button data-act="clear">通知履歴を消す</button>
+      <button data-act="logout">ログアウト</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
+      <button class="tab" data-tab="today">今日の状況</button>
+    </div>
+  </header>
+  <div id="feedView">
+    <div class="chips">
+      <button class="chip on" data-f="all">すべて</button>
+      <button class="chip" data-f="wb">作業ボード</button>
+      <button class="chip" data-f="est">見積り</button>
+      <button class="chip" data-f="loan">代車</button>
+    </div>
+    <main id="feed"></main>
+  </div>
+  <main id="todayView" style="display:none"></main>
+</div>
+
+<div class="snd" id="sndPanel"><div class="snd-h"><b>🔔 通知音</b><button class="icon-btn" id="sndClose">✕</button></div><div id="sndBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const CFG = {apiKey:"AIzaSyBCUH7KW9IanTh2s6OoFumSQe4Pzm_2aiA",authDomain:"ark-share-31734.firebaseapp.com",projectId:"ark-share-31734",storageBucket:"ark-share-31734.firebasestorage.app",messagingSenderId:"608593197071",appId:"1:608593197071:web:d52472d82852aad0980b7a"};
+
+// 作業ボードと同じ工程定義
+const STEPS = [
+  {k:'bankin',n:'板金・取替',c:'#ffb020'},{k:'shitaji',n:'下地',c:'#a78bfa'},{k:'toso',n:'塗装',c:'#FF2BD6'},
+  {k:'kumitsuke',n:'組付',c:'#00E5FF'},{k:'migaki',n:'磨き・仕上げ',c:'#5ec98f'},
+  {k:'obd',n:'OBDコンピュータチェック',c:'#fb7185'},{k:'kensa',n:'洗車・完成検査',c:'#4ea1ff'}];
+const DONE_C = '#c6d400';
+const MAX_EV = 300;
+
+// ───────── 小物 ─────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => ymd(new Date());
+const md = s => { const m = String(s||'').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : (s||''); };
+const who = e => e ? String(e).split('@')[0] : '';
+const yen = n => '¥' + Math.round(+n||0).toLocaleString('ja-JP');
+function toast(t, ms=2600){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('on'), ms); }
+function plateNum(p){ const z = String(p||'').normalize('NFKC'); const m = z.match(/(\d{1,2}[-\s]?\d{2}|\d{1,4})\s*$/); return m ? m[1].replace(/[-\s]/g,'') : ''; }
+function carLabel(j){ return [j.car, j.plate ? plateNum(j.plate) || j.plate : ''].filter(Boolean).join(' ') || '（登録番号未入力）'; }
+function stepNext(j){ for(const s of STEPS){ const st=j.steps&&j.steps[s.k]; if(st&&st.need&&!st.done) return s; } return null; }
+function tsOf(v){ if(!v) return 0; if(typeof v.toMillis==='function') return v.toMillis(); const t=Date.parse(v); return isNaN(t)?0:t; }
+
+// ───────── 変更の見分け（作業ボード） ─────────
+function diffJob(prev, cur, id=''){
+  const ev = [], L = carLabel(cur), by = who(cur.by);
+  const base = {src:'wb', key:{num:plateNum(cur.plate), car:cur.car||''}, by};
+  const named = j => !!(j && (j.plate || j.car));
+  // 登録直後は番号・車種が空なので、入力されたときに「登録」として知らせる
+  if(!prev || (!named(prev) && named(cur))){
+    if(!named(cur)) return ev;
+    ev.push({...base, ic:'🆕', c:'#0b57d0', t:`作業指示を登録：${L}`,
+      d:[(cur.tasks||[]).map(t=>t.part).filter(Boolean).join('・'), cur.dueDate?`納期 ${md(cur.dueDate)}`:''].filter(Boolean).join(' ／ '), mk:'new|'+id});
+    return ev;
+  }
+  for(const s of STEPS){
+    const a = prev.steps&&prev.steps[s.k] || {}, b = cur.steps&&cur.steps[s.k] || {};
+    if(!a.done && b.done){
+      const nx = stepNext(cur);
+      ev.push({...base, ic:'✅', c:s.c, t:`${s.n} 完了：${L}`,
+        d:[b.who?`担当 ${b.who}`:'', nx?`次は「${nx.n}」`:'全工程完了 → 納車準備OK'].filter(Boolean).join(' ／ ')});
+    } else if(a.done && !b.done){
+      ev.push({...base, ic:'↩️', c:'#9aa0a6', t:`${s.n} の完了を取消：${L}`, d:''});
+    }
+    if(!a.need !== !b.need && !(a.done!==b.done)){
+      ev.push({...base, ic:'⚙️', c:'#9aa0a6', t:`工程「${s.n}」を${b.need?'追加':'不要に'}：${L}`, d:''});
+    }
+  }
+  const pa = {}; (prev.parts||[]).forEach(p=>pa[p.id||p.name]=p);
+  for(const p of (cur.parts||[])){
+    const o = pa[p.id||p.name];
+    if(o && o.status!==p.status){
+      const ic = p.status==='入荷済'?'📦':p.status==='発注済'?'🛒':'📋';
+      ev.push({...base, ic, c:p.status==='入荷済'?'#188038':'#f29900', t:`部品 ${p.status}：${p.name}`,
+        d:`${L}${p.eta&&p.status==='発注済'?` ／ 入荷予定 ${md(p.eta)}`:''}`});
+    }
+  }
+  if(!prev.archived && cur.archived) ev.push({...base, ic:'🚗', c:DONE_C, t:`納車済：${L}`, d:''});
+  if(prev.archived && !cur.archived) ev.push({...base, ic:'↩️', c:'#9aa0a6', t:`納車済を取消：${L}`, d:''});
+  if(prev.dueDate !== cur.dueDate && cur.dueDate)
+    ev.push({...base, ic:'📅', c:'#d93025', t:`納期${prev.dueDate?'変更':'決定'}：${L}`, d:prev.dueDate?`${md(prev.dueDate)} → ${md(cur.dueDate)}`:md(cur.dueDate), mk:'due|'+id});
+  if(!prev.loanerCar && cur.loanerCar)
+    ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', t:`代車を手配：${cur.loanerCar}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
+  if((prev.caution||'') !== (cur.caution||'') && cur.caution)
+    ev.push({...base, ic:'⚠️', c:'#d93025', t:`注意事項を更新：${L}`, d:cur.caution, mk:'caution|'+id});
+  return ev;
+}
+
+// 初回接続時：今日すでに起きたこと（工程完了の時刻）を復元
+function todayFromJob(j){
+  const ev=[], t=today(), L=carLabel(j);
+  for(const s of STEPS){ const st=j.steps&&j.steps[s.k];
+    if(st&&st.done&&st.at&&ymd(new Date(st.at))===t)
+      ev.push({src:'wb', ic:'✅', c:s.c, t:`${s.n} 完了：${L}`, d:st.who?`担当 ${st.who}`:'', ts:Date.parse(st.at), key:{num:plateNum(j.plate),car:j.car||''}, by:''});
+  }
+  if(j.createdAt && ymd(new Date(j.createdAt))===t)
+    ev.push({src:'wb', ic:'🆕', c:'#0b57d0', t:`作業指示を登録：${L}`, d:'', ts:Date.parse(j.createdAt), key:{num:plateNum(j.plate),car:j.car||''}, by:''});
+  return ev;
+}
+
+// ───────── 代車予約（見積りツール） ─────────
+function isBooking(id, v){ return v && !v.sheet && !v.shop && v.car && v.from && !String(id).startsWith('_'); }
+function diffLoaner(prev, cur, id){
+  const b = cur || prev, by = who(b.by), kinds = (b.kinds||[]).join('・');
+  const d = [b.name, `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
+  const base = {src:'loan', key:{num:'', car:''}, by};
+  if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${b.car}`, d}];
+  if(!cur)  return [{...base, ic:'🗑️', c:'#9aa0a6', t:`代車予約を取消：${b.car}`, d}];
+  if(prev.car!==cur.car || prev.from!==cur.from || prev.to!==cur.to)
+    return [{...base, ic:'🔁', c:'#8430ce', t:`代車予約を変更：${cur.car}`, d:`${prev.car} ${md(prev.from)}〜${md(prev.to)} → ${md(cur.from)}〜${md(cur.to)}`}];
+  return [];
+}
+
+// ───────── 見積り（見積りツール・追加分） ─────────
+function diffEst(prev, cur){
+  const L = [cur.car, plateNum(cur.plate)||cur.plate].filter(Boolean).join(' ') || '（車両未入力）';
+  return [{src:'est', ic:'🧾', c:'#f29900', t:`見積り${prev?'を更新':'作成'}：${L}`,
+    d:[yen(cur.grand)+'（税込）', (cur.parts||[]).slice(0,5).join('・'), cur.staff?`担当 ${cur.staff}`:''].filter(Boolean).join(' ／ '),
+    key:{num:plateNum(cur.plate), car:cur.car||''}, by:who(cur.by)}];
+}
+
+// ───────── 状態 ─────────
+const S = {
+  events: ls.get('ark-ev', []), seen: ls.get('ark-seen', 0), sound: ls.get('ark-sound', true),
+  filter:'all', tab:'feed', stat:{}, jobs:{}, loaner:{}, est:{}, first:{}, unsubs:[], estDenied:false, user:null
+};
+// 削除された作業指示・予約・見積りの通知を消す
+function dropWhere(fn){
+  const before = S.events.length; S.events = S.events.filter(e => !fn(e));
+  if(S.events.length !== before){ ls.set('ark-ev', S.events.map(({live,...e})=>e)); renderFeed(); renderBadge(); }
+}
+function dropRef(ref){ dropWhere(e => e.ref === ref); }
+function push(evs, live){
+  if(!evs.length) return;
+  const now = Date.now();
+  evs.forEach((e,i)=>{ e.ts = e.ts || now; e.id = e.id || (now+'-'+Math.random().toString(36).slice(2,7)+i); e.live = !!live; });
+  // 入力途中の連続更新は1件にまとめる（同じ車両・同じ種類・5分以内）
+  const mks = new Set(evs.filter(e=>e.mk).map(e=>e.mk));
+  const keep = S.events.filter(e => !(e.mk && mks.has(e.mk) && now - e.ts < 5*60000));
+  S.events = evs.concat(keep).sort((a,b)=>b.ts-a.ts).slice(0, MAX_EV);
+  ls.set('ark-ev', S.events.map(({live,...e})=>e));
+  if(live){ beep(evs); }
+  renderFeed(); renderBadge();
+}
+
+// ───────── 描画 ─────────
+function renderFeed(){
+  const list = S.events.filter(e => S.filter==='all' || e.src===S.filter);
+  if(!list.length){ $('feed').innerHTML = `<div class="empty">まだ通知はありません。<br>見積りツールや作業ボードで<br>変更があるとここに表示されます。</div>${estNote()}`; return; }
+  let h = estNote(), lastDay = '';
+  const srcName = {wb:'作業ボード', est:'見積り', loan:'代車'};
+  for(const e of list){
+    const d = new Date(e.ts), day = ymd(d);
+    if(day !== lastDay){ lastDay = day; h += `<div class="day">${day===today()?'今日':`${d.getMonth()+1}月${d.getDate()}日`}</div>`; }
+    h += `<div class="ev ${e.ts>S.seen?'new':''}" data-id="${esc(e.id)}" style="--c:${esc(e.c)}">
+      <div class="ic">${e.ic}</div>
+      <div class="bd"><div class="t">${esc(e.t)}</div>${e.d?`<div class="d">${esc(e.d)}</div>`:''}
+      <div class="m"><span class="src ${e.src}">${srcName[e.src]}</span>${pad(d.getHours())}:${pad(d.getMinutes())}${e.by?` ・ ${esc(e.by)}`:''}</div></div></div>`;
+  }
+  $('feed').innerHTML = h;
+}
+function estNote(){ return S.estDenied ? `<div class="note">見積りの通知は、Firestoreのルールに <b>estimates</b> を追加すると表示されます（設定手順を参照）。</div>` : ''; }
+function renderBadge(){
+  const n = S.events.filter(e=>e.ts>S.seen).length, b=$('badge');
+  b.style.display = n ? '' : 'none'; b.textContent = n>99?'99+':n;
+}
+// 入出庫管理表（このシート）の今日の予定
+S.sheet = null; S.sheetErr = '';
+function loadSheetToday(){
+  if(!(window.google && google.script && google.script.run)){ S.sheetErr = 'シートの納期・出庫・入庫は、パソコンのスプレッドシートのパネルで表示されます（このページでは作業ボード・見積り・代車の通知のみ）'; return; }
+  google.script.run.withSuccessHandler(r => { S.sheet = r; S.sheetErr = ''; if(S.tab==='today') renderToday(); })
+    .withFailureHandler(e => { S.sheetErr = 'シートを読めませんでした：' + (e&&e.message||e); if(S.tab==='today') renderToday(); }).getSheetToday();
+}
+function sheetHtml(){
+  if(S.sheetErr) return `<div class="note">${esc(S.sheetErr)}</div>`;
+  if(!S.sheet) return `<div class="d" style="padding:10px;color:var(--sub)">シートを読み込み中…</div>`;
+  const r = S.sheet;
+  const one = (x, pill, pc) => `<div class="row" data-row="${x.row}"><span class="pill" style="background:${pc}">${esc(pill)}</span>
+    <span class="x"><b>${esc(x.name)}</b> ${esc(x.car)} ${esc(x.num)}<br><span class="d">${esc(x.work)}${x.loaner?` ／ 代車 ${esc(x.loaner)}`:''}${x.staff?` ／ ${esc(x.staff)}`:''}</span></span></div>`;
+  const sec = (title, list, pill, pc) => `<div class="sec">${title}<span class="n">${list.length}台</span></div>` +
+    (list.length ? list.map(x=>one(x, x.kind||pill, pc)).join('') : `<div class="d" style="padding:2px 10px;color:var(--sub)">なし</div>`);
+  return `<div class="sec" style="color:var(--sub)">── 入出庫管理表「${esc(r.sheet)}」 <button class="chip" id="sheetReload" style="margin-left:auto">更新</button></div>`
+    + sec('📅 今日が納期（B列）', r.due, '納期', '#d93025')
+    + sec('🚗 今日出庫（C列）', r.out, '出庫', '#188038')
+    + sec('🔧 今日入庫（D列）', r.inn, '入庫', '#0b57d0');
+}
+function renderToday(){
+  const t = today(), jobs = Object.values(S.jobs).filter(j=>!j.archived);
+  const late = jobs.filter(j=>j.dueDate && j.dueDate<t && stepNext(j)).sort((a,b)=>a.dueDate<b.dueDate?-1:1);
+  const due  = jobs.filter(j=>j.dueDate===t);
+  const ready= jobs.filter(j=>!stepNext(j));
+  const parts= jobs.filter(j=>(j.parts||[]).some(p=>p.status==='未発注'||p.status==='発注済'));
+  const byStep = STEPS.map(s=>({s, js:jobs.filter(j=>{ const n=stepNext(j); return n&&n.k===s.k; })})).filter(x=>x.js.length);
+  const row = (j, pill, pc, extra='') => `<div class="row" data-num="${esc(plateNum(j.plate))}" data-car="${esc(j.car||'')}">
+    <span class="pill" style="background:${pc}">${esc(pill)}</span><span class="x">${esc(carLabel(j))}</span>${extra}</div>`;
+  let h = '';
+  const sec = (title, n) => `<div class="sec">${title}<span class="n">${n}台</span></div>`;
+  if(late.length){ h += sec('⏰ 納期遅れ', late.length); late.forEach(j=>{ h += row(j, md(j.dueDate), '#d93025', `<span class="late">${esc(stepNext(j).n)}</span>`); }); }
+  h += sec('📅 今日が納期', due.length); due.forEach(j=>{ const n=stepNext(j); h += row(j, n?n.n:'完成', n?n.c:DONE_C); });
+  if(!due.length) h += `<div class="d" style="padding:4px 10px;color:var(--sub)">なし</div>`;
+  h += sec('🚗 完成・納車待ち', ready.length); ready.forEach(j=>{ h += row(j, '完成', DONE_C, j.dueDate?`<span class="d">${md(j.dueDate)}</span>`:''); });
+  if(parts.length){ h += sec('📦 部品待ち', parts.length); parts.forEach(j=>{ const w=(j.parts||[]).filter(p=>p.status==='未発注'||p.status==='発注済'); h += row(j, w[0].status, w[0].status==='未発注'?'#d93025':'#f29900', `<span class="d">${esc(w.map(p=>p.name).join('・'))}</span>`); }); }
+  h += `<div class="sec">🔧 工程ごとの台数<span class="n">作業中 ${jobs.length-ready.length}台</span></div>`;
+  byStep.forEach(({s,js})=>{ h += `<div class="row" style="cursor:default"><span class="pill" style="background:${s.c}">${esc(s.n)}</span><span class="x">${js.map(carLabel).map(esc).join('、')}</span><b>${js.length}</b></div>`; });
+  $('todayView').innerHTML = sheetHtml() + `<div class="sec" style="margin-top:18px;color:var(--sub)">── 作業ボード ──</div>` + (jobs.length ? h : `<div class="note">作業ボードの作業指示が届いていません（${S.stat.jobs?S.stat.jobs.n:0}件）。作業ボードの「設定」タブでチーム共有にログインすると表示されます。</div>`);
+}
+function setStatus(txt, state){ $('status').textContent = txt; $('dot').className = 'dot ' + (state||''); }
+
+// ───────── 通知音 ─────────
+let actx;
+// 用意した音（Web Audioで合成）： [周波数, 開始秒, 長さ秒, 波形]
+const SOUNDS = {
+  chime:  {n:'チャイム',       notes:[[880,0,.3,'sine'],[1320,.09,.3,'sine']]},
+  pinpon: {n:'ピンポーン',     notes:[[659,0,.5,'sine'],[523,.32,.9,'sine']]},
+  bell:   {n:'ベル',           notes:[[1046,0,1.2,'triangle'],[2093,0,.6,'sine']]},
+  pop:    {n:'ポン（短い）',   notes:[[620,0,.12,'sine']]},
+  up:     {n:'ドミソ',         notes:[[523,0,.25,'sine'],[659,.14,.25,'sine'],[784,.28,.45,'sine']]},
+  alarm:  {n:'アラーム（目立つ）', notes:[[880,0,.12,'square'],[880,.2,.12,'square'],[880,.4,.12,'square']]},
+};
+const SRC_NAME = {wb:'作業ボード', est:'見積り', loan:'代車'};
+S.snd = Object.assign({vol:60, wb:'chime', est:'pinpon', loan:'up'}, ls.get('ark-snd', {}));
+const CUSTOM = {};   // src → objectURL（自分で選んだ音声ファイル）
+
+// 好きな音声ファイルは IndexedDB に保存（この端末のブラウザ内だけ）
+function idb(){ return new Promise((ok,ng)=>{ try{ const r=indexedDB.open('ark-notify',1); r.onupgradeneeded=()=>r.result.createObjectStore('snd'); r.onsuccess=()=>ok(r.result); r.onerror=()=>ng(r.error); }catch(e){ ng(e); } }); }
+async function idbPut(k,v){ const db=await idb(); return new Promise((ok,ng)=>{ const t=db.transaction('snd','readwrite'); v==null?t.objectStore('snd').delete(k):t.objectStore('snd').put(v,k); t.oncomplete=ok; t.onerror=()=>ng(t.error); }); }
+async function idbGet(k){ const db=await idb(); return new Promise((ok,ng)=>{ const r=db.transaction('snd').objectStore('snd').get(k); r.onsuccess=()=>ok(r.result); r.onerror=()=>ng(r.error); }); }
+async function loadCustom(){ for(const k of Object.keys(SRC_NAME)){ try{ const b=await idbGet('custom-'+k); if(b){ CUSTOM[k]={url:URL.createObjectURL(b.blob), name:b.name}; } }catch(e){} } }
+
+function playSynth(key, vol){
+  const def = SOUNDS[key]; if(!def) return;
+  actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended') actx.resume();
+  const t0 = actx.currentTime + .02, peak = Math.max(.0002, .35 * vol);
+  for(const [f, st, len, type] of def.notes){
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, t0+st);
+    g.gain.exponentialRampToValueAtTime(type==='square'?peak*.35:peak, t0+st+.015);
+    g.gain.exponentialRampToValueAtTime(.0001, t0+st+len);
+    o.connect(g).connect(actx.destination); o.start(t0+st); o.stop(t0+st+len+.05);
+  }
+}
+function playSound(src, force){
+  if(!S.sound && !force) return;
+  const key = S.snd[src] || 'chime', vol = (+S.snd.vol||0)/100;
+  if(key==='none' || vol<=0) return;
+  try{
+    if(key==='custom' && CUSTOM[src]){ const a=new Audio(CUSTOM[src].url); a.volume=Math.min(1,vol); a.play().catch(()=>{}); return; }
+    playSynth(key==='custom'?'chime':key, vol);
+  }catch(e){}
+}
+// 複数まとめて届いたときは1回だけ鳴らす（優先：代車 → 見積り → 作業ボード）
+function beep(evs){
+  const srcs = new Set((evs||[]).map(e=>e.src));
+  playSound(srcs.has('loan')?'loan':srcs.has('est')?'est':'wb');
+}
+
+function renderSoundPanel(){
+  const opts = cur => Object.entries(SOUNDS).map(([k,v])=>`<option value="${k}"${cur===k?' selected':''}>${v.n}</option>`).join('')
+    + `<option value="custom"${cur==='custom'?' selected':''}>好きな音（ファイル）</option><option value="none"${cur==='none'?' selected':''}>鳴らさない</option>`;
+  $('sndBody').innerHTML = `
+    <label class="sw"><input type="checkbox" id="sndOn"${S.sound?' checked':''}> 通知音を鳴らす</label>
+    <div class="sl">音量 <input type="range" id="sndVol" min="0" max="100" value="${S.snd.vol}"> <span id="sndVolN">${S.snd.vol}</span></div>
+    ${Object.entries(SRC_NAME).map(([k,n])=>`
+      <div class="sr"><div class="sh"><span class="src ${k}">${n}</span><button class="chip" data-test="${k}">▶ 試す</button></div>
+        <select data-src="${k}">${opts(S.snd[k])}</select>
+        ${S.snd[k]==='custom'?`<div class="cf">${CUSTOM[k]?`🎵 ${esc(CUSTOM[k].name)}`:'ファイルが未選択です'}
+          <label class="chip">ファイルを選ぶ<input type="file" accept="audio/*" data-file="${k}" hidden></label>
+          ${CUSTOM[k]?`<button class="chip" data-unset="${k}">外す</button>`:''}</div>`:''}
+      </div>`).join('')}
+    <div class="d" style="color:var(--sub);margin-top:8px;line-height:1.5">好きな音は mp3・wav・m4a などが使えます（3MBまで）。このパソコンのブラウザに保存されます。</div>`;
+}
+
+// ───────── シートの該当行へ ─────────
+function jump(num, car){
+  if(!num && !car){ return; }
+  if(!(window.google && google.script && google.script.run)){ toast('（プレビュー）シートの行を探します：'+[car,num].join(' ')); return; }
+  google.script.run.withSuccessHandler(r=>{
+    toast(r ? `「${r.sheet}」の ${r.row} 行目を選択しました` : 'このシートには該当する車両が見つかりませんでした');
+  }).withFailureHandler(e=>toast('行を探せませんでした：'+(e&&e.message||e))).findRow(num, car);
+}
+
+// ───────── Firebase ─────────
+let fb, app, auth, db;
+async function boot(){
+  try{
+    const [A, U, F] = await Promise.all([import(FB+'firebase-app.js'), import(FB+'firebase-auth.js'), import(FB+'firebase-firestore.js')]);
+    fb = {A,U,F};
+    app = A.getApps().find(a=>a.name==='notify') || A.initializeApp(CFG, 'notify');
+    try{ auth = U.initializeAuth(app, {persistence:[U.indexedDBLocalPersistence, U.browserLocalPersistence, U.inMemoryPersistence]}); }
+    catch(e){ auth = U.getAuth(app); }
+    try{ db = F.initializeFirestore(app, {experimentalAutoDetectLongPolling:true}); }catch(e){ db = F.getFirestore(app); }
+    U.onAuthStateChanged(auth, u => { S.user = u; u ? start() : showLogin(); });
+  }catch(e){
+    showLogin(); $('loginErr').textContent = 'Firebaseを読み込めませんでした：' + (e&&e.message||e);
+  }
+}
+function showLogin(){ stop(); $('app').style.display='none'; $('login').style.display=''; }
+
+async function login(){
+  const em = $('em').value.trim(), pw = $('pw').value;
+  if(!em || !pw){ $('loginErr').textContent='メールアドレスとパスワードを入れてください'; return; }
+  $('loginBtn').disabled = true; $('loginErr').textContent='';
+  try{ await fb.U.signInWithEmailAndPassword(auth, em, pw); $('pw').value=''; }
+  catch(e){
+    const c = String(e&&e.code||'') + ' ' + String(e&&e.message||'');
+    $('loginErr').textContent =
+      /invalid|wrong|not-found|credential/.test(c) ? 'メールアドレスかパスワードが違います' :
+      /too-many/.test(c) ? 'しばらく時間をおいてからお試しください' :
+      /referer|referrer|blocked/.test(c) ? 'APIキーの「ウェブサイトの制限」でブロックされています。\nGoogle Cloud コンソールで *.googleusercontent.com を許可してください（設定手順を参照）。' :
+      'ログインできませんでした：' + c;
+  }finally{ $('loginBtn').disabled = false; }
+}
+
+function listen(name, onSnap){
+  const {F} = fb;
+  S.first[name] = true;
+  S.unsubs.push(F.onSnapshot(F.collection(db, name), snap => {
+    const first = S.first[name]; S.first[name] = false;
+    onSnap(snap, first);
+    // パネルを閉じている間に削除されたものも、開いたときに通知から消す
+    if(first){ const ids = new Set(); snap.docChanges().forEach(ch=>{ if(ch.type!=='removed' && !(ch.doc.data()||{}).deleted) ids.add(name+'/'+ch.doc.id); });
+      dropWhere(e => e.ref && e.ref.startsWith(name+'/') && !ids.has(e.ref)); }
+    // 受信状況（切り分け用）：件数・最後に変更を受け取った時刻
+    S.stat[name] = S.stat[name] || {n:0, last:0, log:[]};
+    const st = S.stat[name]; st.n = name==='jobs' ? Object.keys(S.jobs).length : (snap.size != null ? snap.size : st.n);
+    if(!first){ st.last = Date.now(); snap.docChanges().forEach(ch=>{ const d=ch.doc.data()||{}; st.log.unshift(`${new Date().toLocaleTimeString('ja-JP')} ${ch.type} ${d.car||''} ${d.plate||''} by ${who(d.by)}`); }); st.log = st.log.slice(0,30); }
+    const j = S.stat.jobs || {n:0,last:0};
+    if(S.errs && Object.keys(S.errs).length){ setStatus(Object.values(S.errs)[0], 'err'); return; }
+    setStatus(`受信中 ・ 作業指示 ${j.n}件${j.last?` ・ 最終 ${new Date(j.last).toLocaleTimeString('ja-JP')}`:' ・ 変更待ち'}`, 'on');
+    if(S.tab==='today') renderToday();
+  }, err => {
+    if(name==='estimates' && /permission/.test(String(err&&err.code))){ S.estDenied = true; renderFeed(); return; }
+    S.errs = S.errs || {};
+    S.errs[name] = /permission/.test(String(err&&err.code)) ? `${name==='jobs'?'作業ボード':name} を読む権限がありません（Firestoreのルールを確認）` : `${name} に接続できません：${err&&err.code||err}`;
+    setStatus(S.errs[name], 'err');
+  }));
+}
+
+function start(){
+  stop();
+  $('login').style.display='none'; $('app').style.display='';
+  setStatus('接続中…'); renderFeed(); renderBadge();
+  const known = new Set(S.events.map(e=>e.src+'|'+e.t+'|'+Math.floor(e.ts/60000)));
+  const fresh = e => !known.has(e.src+'|'+e.t+'|'+Math.floor(e.ts/60000));
+
+  listen('jobs', (snap, first) => {
+    const out = [];
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, cur = ch.doc.data(), prev = S.jobs[id];
+      if(ch.type === 'removed' || (cur && cur.deleted)){ dropRef('jobs/'+id); delete S.jobs[id]; return; }
+      S.jobs[id] = cur;
+      if(first) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id}));
+      else diffJob(prev, cur, id).forEach(e=>out.push({...e, ref:'jobs/'+id}));
+    });
+    push(out, !first);
+  });
+
+  listen('loaner', (snap, first) => {
+    const out = [];
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, cur = ch.doc.data(), prev = S.loaner[id];
+      if(ch.type === 'removed'){ dropRef('loaner/'+id); delete S.loaner[id]; return; }
+      if(!isBooking(id, cur)) return;
+      S.loaner[id] = cur;
+      if(first){ if(tsOf(cur.at) && ymd(new Date(tsOf(cur.at)))===today()) diffLoaner(null, cur, id).map(e=>({...e, ts:tsOf(cur.at), ref:'loaner/'+id})).filter(fresh).forEach(e=>out.push(e)); }
+      else diffLoaner(prev, cur, id).forEach(e=>out.push({...e, ref:'loaner/'+id}));
+    });
+    push(out, !first);
+  });
+
+  listen('estimates', (snap, first) => {
+    const out = [];
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, cur = ch.doc.data(), prev = S.est[id];
+      if(ch.type === 'removed'){ dropRef('estimates/'+id); delete S.est[id]; return; }
+      S.est[id] = cur;
+      if(first){ if(tsOf(cur.at) && ymd(new Date(tsOf(cur.at)))===today()) diffEst(null, cur).map(e=>({...e, ts:tsOf(cur.at), ref:'estimates/'+id})).filter(fresh).forEach(e=>out.push(e)); }
+      else diffEst(prev, cur).forEach(e=>out.push({...e, ref:'estimates/'+id}));
+    });
+    push(out, !first);
+  });
+}
+function stop(){ S.errs = {}; S.unsubs.forEach(f=>{ try{ f(); }catch(e){} }); S.unsubs = []; S.jobs = {}; S.loaner = {}; S.est = {}; }
+
+// ───────── 操作 ─────────
+$('loginBtn').onclick = login;
+$('pw').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  S.tab = b.dataset.tab;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on', x===b));
+  $('feedView').style.display = S.tab==='feed' ? '' : 'none';
+  $('todayView').style.display = S.tab==='today' ? '' : 'none';
+  if(S.tab==='today'){ renderToday(); loadSheetToday(); }
+});
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  S.filter = b.dataset.f; document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===b)); renderFeed();
+});
+$('feed').addEventListener('click', e => {
+  const el = e.target.closest('.ev'); if(!el) return;
+  const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
+  el.classList.remove('new'); jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
+});
+$('todayView').addEventListener('click', e => {
+  if(e.target.id==='sheetReload'){ S.sheet=null; renderToday(); loadSheetToday(); return; }
+  const sr = e.target.closest('.row[data-row]');
+  if(sr && window.google && google.script){ google.script.run.withSuccessHandler(x=>toast(`${x.row} 行目を選択しました`)).selectRow(+sr.dataset.row); return; }
+  const r = e.target.closest('.row[data-num]'); if(r) jump(r.dataset.num, r.dataset.car); });
+$('soundBtn').onclick = e => { e.stopPropagation(); renderSoundPanel(); $('sndPanel').classList.add('on'); };
+$('sndClose').onclick = () => $('sndPanel').classList.remove('on');
+$('sndPanel').addEventListener('click', e => e.stopPropagation());
+const saveSnd = () => ls.set('ark-snd', S.snd);
+$('sndBody').addEventListener('input', e => {
+  if(e.target.id==='sndVol'){ S.snd.vol=+e.target.value; $('sndVolN').textContent=S.snd.vol; saveSnd(); }
+});
+$('sndBody').addEventListener('change', async e => {
+  const t = e.target;
+  if(t.id==='sndOn'){ S.sound=t.checked; ls.set('ark-sound', S.sound); $('soundBtn').textContent=S.sound?'🔔':'🔕'; }
+  if(t.id==='sndVol'){ playSound('wb', true); }
+  if(t.dataset.src){ S.snd[t.dataset.src]=t.value; saveSnd(); renderSoundPanel(); if(t.value!=='custom') playSound(t.dataset.src, true); }
+  if(t.dataset.file){
+    const k=t.dataset.file, f=t.files&&t.files[0]; if(!f) return;
+    if(f.size>3*1024*1024){ toast('3MB以下の音声ファイルを選んでください'); return; }
+    try{ await idbPut('custom-'+k, {blob:f, name:f.name}); if(CUSTOM[k]) URL.revokeObjectURL(CUSTOM[k].url); CUSTOM[k]={url:URL.createObjectURL(f), name:f.name}; renderSoundPanel(); playSound(k, true); toast('「'+f.name+'」を設定しました'); }
+    catch(err){ toast('保存できませんでした：'+(err&&err.message||err)); }
+  }
+});
+$('sndBody').addEventListener('click', async e => {
+  const t = e.target.closest('button'); if(!t) return;
+  if(t.dataset.test) playSound(t.dataset.test, true);
+  if(t.dataset.unset){ const k=t.dataset.unset; try{ await idbPut('custom-'+k, null); }catch(err){} if(CUSTOM[k]) URL.revokeObjectURL(CUSTOM[k].url); delete CUSTOM[k]; renderSoundPanel(); }
+});
+loadCustom();
+
+// ───────── タブレット・単独ページ向け ─────────
+// スマホ・タブレットは「一度タップ」しないと音が鳴らないため、案内を出してタップで有効化
+const IN_SHEET = !!(window.google && google.script && google.script.run);
+let audioReady = false, wakeLock = null;
+async function keepAwake(){
+  if(IN_SHEET || !('wakeLock' in navigator)) return;
+  try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function unlockAudio(){
+  if(audioReady) return; audioReady = true;
+  try{ actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); const b=actx.createBuffer(1,1,22050), src=actx.createBufferSource(); src.buffer=b; src.connect(actx.destination); src.start(0); }catch(e){}
+  const el = $('tapNote'); if(el) el.remove();
+  keepAwake();
+}
+document.addEventListener('pointerdown', unlockAudio, {once:false, capture:true});
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && audioReady) keepAwake(); });
+if(!IN_SHEET){
+  const n = document.createElement('div'); n.id='tapNote'; n.className='tapnote';
+  n.innerHTML = '🔈 画面をどこか1回タップすると、通知音が鳴るようになります<br><span>（あわせて画面が自動で消えないようにします）</span>';
+  document.body.appendChild(n);
+}
+$('soundBtn').textContent = S.sound ? '🔔' : '🔕';
+$('menuBtn').onclick = e => { e.stopPropagation(); $('menu').classList.toggle('on'); };
+document.addEventListener('click', () => { $('menu').classList.remove('on'); $('sndPanel').classList.remove('on'); });
+$('menu').addEventListener('click', async e => {
+  const a = e.target.dataset.act; if(!a) return;
+  if(a==='log'){
+    const L = ['jobs','loaner','estimates'].map(n=>{ const st=S.stat[n]; return `■ ${n}：${st?st.n+'件':'未受信'}\n` + (st&&st.log.length?st.log.join('\n'):'（パネルを開いてから変更なし）'); }).join('\n\n');
+    alert(L);
+  }
+  if(a==='read'){ S.seen = Date.now(); ls.set('ark-seen', S.seen); renderFeed(); renderBadge(); }
+  if(a==='clear'){ S.events = []; ls.set('ark-ev', []); renderFeed(); renderBadge(); }
+  if(a==='logout'){ try{ await fb.U.signOut(auth); }catch(err){} }
+});
+// パネルを見ている間は既読にする（20秒後）
+setInterval(() => { if(document.visibilityState==='visible' && S.tab==='feed'){ const n=Date.now()-20000; if(n>S.seen){ S.seen=n; ls.set('ark-seen', S.seen); renderBadge(); } } }, 10000);
+// 日付が変わったら「今日の状況」を更新
+setInterval(() => { if(S.tab==='today'){ loadSheetToday(); renderToday(); } }, 60000);
+
+window.__ARK = {diffJob, diffLoaner, diffEst, todayFromJob, plateNum, carLabel, S, push};
+boot();
+</script>
+</body>
+</html>
