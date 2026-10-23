@@ -1045,7 +1045,20 @@ function _woCloudPut(j){
   const {fs}=CLOUD.fb; const d=_woClean(j); _woSanitize(d);
   fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),{...d,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()}).catch(e=>_woCloudErr(e,'jobs'));
 }
-function _woCloudDel(id){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(id))).catch(e=>_woCloudErr(e,'jobs')); }
+// 削除は「削除済みの印」をクラウドに残す（別の端末が持っていた古いデータで復活しないように）
+// つながっていないときは端末に覚えておき、次につながったときに送る
+function _woTombs(){ try{ return JSON.parse(_lsGet('wo-tomb')||'{}')||{}; }catch(e){ return {}; } }
+function _woTombSave(t){ const now=Date.now(); for(const k in t){ if(now-t[k]>90*864e5) delete t[k]; } _lsSet('wo-tomb',JSON.stringify(t)); }
+function _woCloudDel(id){
+  const t=_woTombs(); if(!t[id]){ t[id]=Date.now(); _woTombSave(t); }
+  if(!_woCloudOk()) return;
+  _woTombSend(id);
+}
+function _woTombSend(id){
+  const {fs}=CLOUD.fb;
+  fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(id)),{id:String(id),deleted:true,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()})
+    .then(()=>{ const t=_woTombs(); delete t[id]; _woTombSave(t); }).catch(e=>_woCloudErr(e,'jobs'));
+}
 function _ydCloudPut(){
   if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb;
@@ -1061,7 +1074,10 @@ function woCloudStart(){
   if(!CLOUD.started||WOC.live) return;
   const {fs}=CLOUD.fb; WOC.live=true; WOC.err=''; WOC.first={};
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'jobs'),snap=>{
-    const m={}, dirty=[]; snap.forEach(d=>{ const v=d.data(); delete v.at; delete v.by; if(v&&v.id){ if(_woSanitize(v)) dirty.push(v); m[v.id]=v; } });
+    const m={}, dirty=[], gone=new Set(Object.keys(_woTombs()));
+    snap.forEach(d=>{ const v=d.data(); delete v.at; delete v.by; if(v&&v.deleted){ gone.add(String(v.id||d.id)); return; } if(v&&v.id){ if(gone.has(String(v.id))) return; if(_woSanitize(v)) dirty.push(v); m[v.id]=v; } });
+    // この端末で削除して、まだ送れていなかったものを送る
+    Object.keys(_woTombs()).forEach(id=>{ if(!snap.docs.some(d=>d.id===_cloudKey(id)&&d.data().deleted)) _woTombSend(id); });
     setTimeout(()=>dirty.forEach(_woCloudPut),0);   // お客様名などが残っていた共有データを上書きして消す
     const first=!WOC.first.jobs; WOC.first.jobs=true;
     const next=[];
@@ -1073,7 +1089,7 @@ function woCloudStart(){
     }
     if(first){
       // 共有に無い、この端末だけの作業指示を送る
-      for(const j of JOBS){ if(!m[j.id]){ next.push(j); _woCloudPut(j); } }
+      for(const j of JOBS){ if(!m[j.id] && !gone.has(String(j.id))){ next.push(j); _woCloudPut(j); } }
     }
     JOBS=next.sort((a,b)=>(b.createdAt||'')<(a.createdAt||'')?-1:1);
     _woSaveLocal(); woRenderAll(true);
