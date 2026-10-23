@@ -1427,7 +1427,8 @@ function woRenderStaff(){
 function _woSlotName(id){ const s=YARD.spaces.find(x=>x.id===id); return s?s.name:''; }
 function _woSlotFull(j){ const n=_woSlotName(j.slot); return n&&j.slotNote?n+'：'+j.slotNote:n; }
 // この車に出ている代車・レンタカー（作業指示の代車欄、なければ代車カレンダーで登録番号の4桁が一致する予約）
-function _woPlateNo(p){ const m=String(p||'').normalize('NFKC').match(/[0-9][0-9・.\-‐ー ]*$/); const d=m?m[0].replace(/[^0-9]/g,''):''; return d.length>=2?d:''; }
+// 先頭の0は無視して照合（シートの「515」と作業ボードの「0515」「・515」を同じ車とみなす）
+function _woPlateNo(p){ const m=String(p||'').normalize('NFKC').match(/[0-9][0-9・.\-‐ー ]*$/); const d=m?m[0].replace(/[^0-9]/g,''):''; return d.length>=2?(d.replace(/^0+/,'')||'0'):''; }
 function woLoanerInfo(j){
   if(j.archived) return null;
   const t=_woToday();
