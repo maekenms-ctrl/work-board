@@ -465,10 +465,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-sp.one>.yd-car small{font-size:clamp(8px,12cqh,11px);line-height:1.15;}
 .yd-sp.one>.yd-car .yd-left{margin-top:2px;}
 .yd-sp.one>.yd-car .yd-left i{font-size:clamp(7px,9cqh,9px);padding:1px 3px;}
-@container (max-height:58px){ .yd-sp.one>.yd-car small:not(.stl):not(.sts){display:none;} .yd-sp.one>.yd-car .yd-left{display:none;} }
+@container (max-height:58px){ .yd-sp.one>.yd-car small.nt{display:none;} .yd-sp.one>.yd-car .yd-left{display:none;} }
+.yd-car .pn{font-weight:900;}
 @container (max-width:110px){
   .yd-sp.one>.yd-car small.stl{display:none;}
-  .yd-sp.one>.yd-car small.sts{display:block;line-height:1.1;}
+  .yd-sp.one>.yd-car small.sts{display:block;line-height:1.08;}
+  /* 番号・車名・状態・納期の4行が入るように */
+  .yd-sp.one>.yd-car:not(.yd-lc){justify-content:flex-start;padding:2px 2px 1px 3px;}
+  .yd-sp.one>.yd-car .pn{font-size:clamp(10px,20cqw,12px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:clip;}
+  .yd-sp.one>.yd-car small.cn,.yd-sp.one>.yd-car small.sts{font-size:clamp(7px,14.5cqw,8.5px);line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.03em;}
+  .yd-sp.one>.yd-car small.cn{font-weight:700;opacity:.9;font-size:clamp(6px,calc((100cqw - 12px) / var(--w,4)),8.5px);letter-spacing:-.04em;text-overflow:ellipsis;line-height:1.35;min-height:1.35em;display:block;}
+  /* 納期がない札は、長い車名を2行で表示 */
+  .yd-sp.one>.yd-car small.cn.cn2{font-size:clamp(7px,14.5cqw,8.5px);white-space:normal;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.15;min-height:0;}
   .yd-sp.one>.yd-car.yd-lc small{display:none;}
   /* 回送・回送レンタカー：名前を短くして、コメントを表示 */
   .yd-sp.one>.yd-car.yd-lc.xp .lnm{display:none;}
@@ -2114,12 +2122,14 @@ function ydStateButtons(j,idp){
 // 残り作業の札（OBD・洗車／完成検査が「要」で未完了）
 function _ydLeft(j){ const L=[]; const o=j.steps&&j.steps.obd, k=j.steps&&j.steps.kensa; if(o&&o.need&&!o.done) L.push('obd'); if(k&&k.need&&!k.done) L.push('wash'); return L; }
 function ydFilter(f){ YD.filter=YD.filter===f?'':f; ydRender(); }
+// 文字の幅（全角＝1、半角＝0.6）。枠の幅に合わせて車名の大きさを決めるのに使う
+function _ydTextW(t){ let w=0; for(const ch of String(t||'')) w+=/[\x20-\x7e\uff61-\uff9f]/.test(ch)?0.62:1; return Math.max(1,w).toFixed(2); }
 // 狭い枠用の短い表示（例：鈑前／整途中／鈑・整）
 function _ydShortLabel(j){ const st=ydState(j); if(st.cats[0]==='その他') return 'その他'; return st.parts.map(p=>p.cat.slice(0,1)+(st.parts.length>1?'':p.stage)).join('・'); }
 function _ydCarHtml(j){
   const due=woDueTag(j);
   const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
-  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${esc(_woPlateShort(j.plate)||j.car||'—')}<small>${esc(j.car||'')}</small><small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
+  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')"><b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
 // 代車以外の駒（回送・回送レンタカー）。代車カレンダーとは連動しない。メモを付けられる
