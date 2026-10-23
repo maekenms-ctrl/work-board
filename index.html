@@ -927,6 +927,7 @@ const WO_STEPS=[
   {k:'toso',     n:'塗装',          c:'#FF2BD6'},
   {k:'kumitsuke',n:'組付',          c:'#00E5FF'},
   {k:'migaki',   n:'磨き・仕上げ',  c:'#5ec98f'},
+  {k:'seibi',    n:'整備',          c:'#14b8a6'},
   {k:'obd',      n:'OBDコンピュータチェック',c:'#fb7185'},
   {k:'kensa',    n:'洗車・完成検査',c:'#4ea1ff'},
 ];
@@ -1030,7 +1031,7 @@ function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ dele
   if(!Array.isArray(j.outsrc)) j.outsrc=[];
   if(j.outsrc.length>1){ j.outsrc=j.outsrc.slice(0,1); ch=true; }
   if(!j.steps) j.steps={};
-  for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ j.steps[s.k]={need:true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
+  for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ j.steps[s.k]={need:s.k==='seibi'?j.yCat==='整備':true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
   (j.tasks||[]).forEach(t=>{ for(const k of ['panel','replace','paint','acc','paintType','quarter','twoTone']){ if(k in t){ delete t[k]; ch=true; } } }); return ch; }
 
 // ── 保存（端末：暗号化／共有：Firestore） ──
@@ -1221,7 +1222,7 @@ async function woRenderFiles(){
 
 // ── 作業指示を作る ──
 function _woNew(){
-  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:true,who:'',date:'',done:false,at:'',doneDate:''}; });
+  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:s.k!=='seibi',who:'',date:'',done:false,at:'',doneDate:''}; });
   const now=new Date().toISOString();
   return {id:_woId(),createdAt:now,updatedAt:now,plate:'',car:'',color:'',chassis:'',paintType:'',staff:'',pay:'',photoTaken:null,loanerUse:null,loanerCar:'',loanerFrom:'',loanerTo:'',loanerBook:'',
     inDate:_woToday(),dueDate:'',tasks:[],steps,parts:[],suppliers:[],supplierOther:'',outsrc:[],outsrcOther:'',outsrcNote:'',glassVendor:'',glassOther:'',coating:false,coatType:'',caution:'',slot:'',archived:false};
@@ -1685,7 +1686,7 @@ function ydState(j){
   const stage=j.yStage||(cat==='鈑金'?_ydAutoStage(j):'前'); const c=YD_PAL[cat][stage];
   return {cat,stage,bg:c[0],fg:c[1],label:cat+'・'+stage,auto:!j.yStage&&cat==='鈑金'};
 }
-function ydSetCat(id,c){ const j=_woJob(id); if(!j) return; j.yCat=c; if(c==='その他') j.yStage=''; woTouch(j,true); ydRender(); if(WO_CUR===id) woRenderDetail(); }
+function ydSetCat(id,c){ const j=_woJob(id); if(!j) return; j.yCat=c; if(c==='整備'&&j.steps&&j.steps.seibi&&!j.steps.seibi.done) j.steps.seibi.need=true; if(c==='その他') j.yStage=''; woTouch(j,true); ydRender(); if(WO_CUR===id) woRenderDetail(); }
 function ydSetStage(id,s){ const j=_woJob(id); if(!j) return; j.yStage=j.yStage===s?'':s; woTouch(j,true); ydRender(); if(WO_CUR===id) woRenderDetail(); }
 function ydSetNote(id,v){ const j=_woJob(id); if(!j) return; j.yNote=v; woTouch(j); clearTimeout(YD._nt); YD._nt=setTimeout(()=>{ const a=document.activeElement; ydRender(); if(a&&a.id){ const n=document.getElementById(a.id); if(n){ n.focus(); try{ n.setSelectionRange(n.value.length,n.value.length); }catch(e){} } } },700); }
 // 状態の選択ボタン（配置図のバーと作業指示画面で共通）
