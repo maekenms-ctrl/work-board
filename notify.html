@@ -83,12 +83,12 @@
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 18:30</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 19:00</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 18:30</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 19:00</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -116,7 +116,7 @@
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 18:30</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 19:00</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -196,7 +196,7 @@ function diffJob(prev, cur, id=''){
   // 登録直後は番号・車種が空なので、入力されたときに「登録」として知らせる
   if(!prev || (!named(prev) && named(cur))){
     if(!named(cur)) return ev;
-    ev.push({...base, ic:'🆕', c:'#0b57d0', t:`作業指示を登録：${L}`,
+    ev.push({...base, ic:'🆕', c:'#0b57d0', quiet: !!cur.sameDay, t:`作業指示を登録${cur.sameDay?'（当日入庫・シートから）':''}：${L}`,
       d:[(cur.tasks||[]).map(t=>t.part).filter(Boolean).join('・'), cur.dueDate?`納期 ${md(cur.dueDate)}`:''].filter(Boolean).join(' ／ '), mk:'new|'+id});
     return ev;
   }
@@ -576,6 +576,22 @@ function start(){
       const d = ch.doc.data() || {};
       if(d.date !== today()) return;          // 今日の分だけ
       const ts = tsOf(d.at) || Date.now();
+      if(d.kind === 'add'){
+        // 当日の追加入庫（8:30のあとにD列へ今日の日付が入った車）
+        const mk = 'dailyadd|' + ch.doc.id;
+        const who_ = [d.name, carName(d.car), d.num].filter(Boolean).join(' ');
+        const e = {src:'daily', ic:'📅', c:'#c5221f', ts,
+          t: `本日の追加入庫：${who_ || '（お客様名・車種 未入力）'}`,
+          d: [[d.work, d.cat, d.loaner?'代車 '+carName(d.loaner):''].filter(Boolean).join('・'), `${d.tab} ${d.row}行目`].filter(Boolean).join(' ／ '),
+          key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, by:who(d.by), mk, ref:'daily/'+ch.doc.id};
+        const old = S.events.find(x=>x.mk===mk);
+        if(old){                                  // あとから名前・車種を書いた → 同じ通知を書き換える（音なし）
+          if(old.t!==e.t || old.d!==e.d){ Object.assign(old, {t:e.t, d:e.d, key:e.key}); ls.set('ark-ev', S.events.map(({live,...x})=>x)); renderFeed(); }
+          return;
+        }
+        out.push(e);
+        return;
+      }
       const items = Array.isArray(d.items) ? d.items : [];
       const e = {src:'daily', ic:'📅', c:'#c5221f', ts,
         t: items.length ? `本日の入庫予定：${items.length}台` : '本日の入庫予定はありません',
@@ -619,7 +635,7 @@ $('feed').addEventListener('click', e => {
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
   el.classList.remove('new');
-  if(ev.src==='sheet' && ev.key && ev.key.tab){
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && ev.key.tab){
     if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0);
     return;
   }
