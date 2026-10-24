@@ -469,6 +469,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-sp.one .nm{position:static;flex:none;}
 .yd-car .lic{font-style:normal;}
 .yd-car .lsh{display:none;}
+.yd-sp .sp-note-btn{border:0;background:none;padding:0 2px;margin-left:4px;font-size:11px;cursor:pointer;line-height:1;vertical-align:1px;}
+.yd-sp .sp-note{font-size:11px;font-weight:800;color:var(--text);background:rgba(255,255,255,.08);border-radius:4px;padding:1px 5px;margin:0 0 3px;flex-basis:100%;line-height:1.25;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+@media(max-width:700px){ .yd-sp .sp-note{font-size:9.5px;padding:1px 3px;} }
 .yd-car.yd-lc.lout{border-style:dashed;border-color:#ffb020;}
 .yd-car.yd-lc.lout small{color:#ffb020;}
 .yd-car .lsh.lwait{color:#ffb020;font-size:9px;}
@@ -497,7 +500,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .yd-sp.one>.yd-car small.cn.cn2{font-size:clamp(7px,14.5cqw,8.5px);white-space:normal;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.15;min-height:0;}
   .yd-sp.one>.yd-car.yd-lc small{display:none;}
   .yd-sp.one>.yd-car.yd-lc.lout .lsh.lwait{display:block;line-height:1.1;}
-  /* 回送・回送レンタカー：名前を短くして、コメントを表示 */
+  /* レンタカー・その他車両：名前を短くして、コメントを表示 */
   .yd-sp.one>.yd-car.yd-lc.xp .lnm{display:none;}
   .yd-sp.one>.yd-car.yd-lc.xp .lsh{display:block;color:var(--xc);font-size:clamp(8px,16cqw,11px);line-height:1.1;white-space:nowrap;}
   .yd-sp.one>.yd-car.yd-lc.xp small.lmemo{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;word-break:break-all;font-size:8.5px;line-height:1.15;max-height:2.35em;overflow:hidden;color:#fff;margin-top:1px;}
@@ -723,7 +726,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="yd-legend" id="yd-legend" style="margin-top:10px"></div>
   </div>
   <div class="card">
-    <div class="card-title"><span class="bar"></span>駒（待機中の代車・回送・回送レンタカー）置き場所へスワイプ</div>
+    <div class="card-title"><span class="bar"></span>駒（待機中の代車・レンタカー・その他車両）置き場所へスワイプ</div>
     <div class="yd-pool" id="yd-lpool"></div>
   </div>
   <div class="card">
@@ -1541,7 +1544,7 @@ function woTaskDel(i){ const j=_woCurJob(); if(!j) return; const gone=j.tasks.sp
 function woPart(id,f,v){ const j=_woCurJob(); if(!j) return; const p=j.parts.find(x=>x.id===id); if(!p) return; p[f]=f==='qty'?(+v||1):v; woTouch(j,f==='status'); if(f==='status'){ woRenderList(); ydRender(); woRenderDetail(); } }
 function woPartAdd(){ const j=_woCurJob(); if(!j) return; j.parts.push({id:_woId(),name:'',qty:1,status:'未発注',eta:''}); woTouch(j,true); woRenderDetail(); }
 function woPartDel(id){ const j=_woCurJob(); if(!j) return; j.parts=j.parts.filter(p=>p.id!==id); woTouch(j,true); woRenderDetail(); woRenderList(); }
-// 納車済にしたとき：出ていた代車は返却（駒の欄に戻す）、他社レンタカーは「回送レンタカー」の駒にする
+// 納車済にしたとき：出ていた代車は返却（駒の欄に戻す）、他社レンタカーは「レンタカー」の駒にする
 // あわせて作業指示と代車の紐づけを外す（記録として loanerLast に残す）
 function _woReturnLoaner(j){
   const L=woLoanerInfo(j), t=_woToday(), msg=[];
@@ -1568,7 +1571,7 @@ function _woReturnLoaner(j){
       msg.push(`${_lbLabel(L.car)}を返却にしました`);
     }
     if(rent){ const free=YD_XPIECES.find(x=>x.k==='rent'&&!YARD.pmemo[x.n]&&!YARD.lpos[x.n]);
-      if(free){ YARD.pmemo[free.n]=[_lbLabel(L.car),j.car,j.plate].filter(Boolean).join(' '); msg.push(`「${free.n}」の駒にしました`); } else msg.push('回送レンタカーの駒が空いていません'); }
+      if(free){ YARD.pmemo[free.n]=[_lbLabel(L.car),j.car,j.plate].filter(Boolean).join(' '); msg.push(`「${_ydPn(free.n)}」の駒にしました`); } else msg.push('レンタカーの駒が空いていません'); }
     else delete YARD.lpos[L.car];          // 置き場所から外す → 駒の欄（待機中）に戻る
   }
   if(_woUnlinkLoaner(j)) msg.push('代車の紐づけを外しました');
@@ -1651,7 +1654,7 @@ function woSheetCheck(){
 async function woArchive(v){
   const j=_woCurJob(); if(!j) return;
   const L=v?woLoanerInfo(j):null;
-  if(v&&!await askConfirm(`納車済にしますか？\n${_woTitle(j)}\n（車両配置からも外れます${L?`。${/^レンタカー/.test(L.car)?_lbLabel(L.car)+'は返却にして回送レンタカーの駒に':'代車（'+_lbLabel(L.car)+'）は返却にして紐づけを外し、駒の欄に戻'}します`:''}）`,'納車済にする')) return;
+  if(v&&!await askConfirm(`納車済にしますか？\n${_woTitle(j)}\n（車両配置からも外れます${L?`。${/^レンタカー/.test(L.car)?_lbLabel(L.car)+'は返却にしてレンタカーの駒に':'代車（'+_lbLabel(L.car)+'）は返却にして紐づけを外し、駒の欄に戻'}します`:''}）`,'納車済にする')) return;
   const m=v?_woReturnLoaner(j):'';
   j.archived=!!v; if(v){ j.slot=''; j.deliveredAt=new Date().toISOString(); } else { j.sheetSeen=false; delete j.autoDelivered; delete WSC.miss[j.id]; }
   woTouch(j,true); woRenderAll(); toast((v?'納車済にしました':'作業中に戻しました')+(m?'。'+m:''),m?6000:3000);
@@ -2288,16 +2291,19 @@ function _ydCarHtml(j){
   return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}<b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
-// 代車以外の駒（回送・回送レンタカー）。代車カレンダーとは連動しない。メモを付けられる
-const YD_XPIECES=[{n:'回送1',k:'kaiso'},{n:'回送2',k:'kaiso'},{n:'回送レンタカー1',k:'rent'},{n:'回送レンタカー2',k:'rent'}];
-const YD_XKIND={kaiso:{ic:'🚚',sub:'回送',c:'#4ea1ff'},rent:{ic:'↩️',sub:'回送レンタカー',c:'#ffb020'}};
+// 代車以外の駒（レンタカー・その他車両）。代車カレンダーとは連動しない。メモを付けられる
+// ※ 置き場所・メモを引き継ぐため、中の名前（n）は前のまま。画面には lab を出す
+const YD_XPIECES=[{n:'回送レンタカー1',k:'rent',lab:'レンタカー1'},{n:'回送レンタカー2',k:'rent',lab:'レンタカー2'},{n:'回送1',k:'other',lab:'その他車両1'},{n:'回送2',k:'other',lab:'その他車両2'}];
+const YD_XKIND={rent:{ic:'🚗',sub:'レンタカー',c:'#ffb020'},other:{ic:'🏷',sub:'その他車両（下取り・販売）',c:'#a78bfa'},kaiso:{ic:'🏷',sub:'その他車両',c:'#a78bfa'}};
+// 駒の表示名
+function _ydPn(n){ const x=YD_XPIECES.find(p=>p.n===n); return x?x.lab:n; }
 function _ydLcOut(n){ if(YD_XPIECES.some(x=>x.n===n)) return null; if(typeof LB==='undefined'||!LB.live) return null; const t=_woToday(), r=(YARD.lret||{})[n]; return _lbAll().find(b=>!b.returned&&b.car===n&&b.from<=t&&t<=b.to&&!(b.src==='sheet'&&r&&b.from<=r)&&!_woLoanPending(b))||null; }
 function _ydLcCars(){ return [...(typeof LOANER_CARS!=='undefined'?LOANER_CARS:[]),...YD_XPIECES]; }
 // 置き場所に置いた駒は、貸出中になっても残す（お客様の車を配置図に置いたときに消える）
 function _ydLcIn(sid){ const P=YARD.lpos||{}; return _ydLcCars().filter(c=>P[c.n]===sid); }
 function _ydLcHtml(c){
   const x=c.k&&YD_XKIND[c.k]; const memo=((YARD.pmemo||{})[c.n])||''; const out=!x&&_ydLcOut(c.n);
-  return `<div title="${esc(x?(c.n+(memo?'：'+memo:'')):c.n+(out?'（貸出中・お客様の車待ち）':''))}" class="yd-car yd-lc${out?' lout':''}${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span class="lnm"><i class="lic">${x?x.ic:'🔑'}</i> ${esc(c.n)}</span>${x?`<b class="lsh">${esc(c.n.replace('回送レンタカー','レンタ'))}</b>`:''}<small class="${x&&memo?'lmemo':''}">${x?esc(memo||'タップでメモ'):out?'貸出中・お客様の車待ち':'代車・待機中'}</small>${out?'<b class="lsh lwait">貸出中</b>':''}</div>`;
+  return `<div title="${esc(x?(_ydPn(c.n)+(memo?'：'+memo:'')):c.n+(out?'（貸出中・お客様の車待ち）':''))}" class="yd-car yd-lc${out?' lout':''}${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span class="lnm"><i class="lic">${x?x.ic:'🔑'}</i> ${esc(_ydPn(c.n))}</span>${x?`<b class="lsh">${esc(_ydPn(c.n).replace('レンタカー','レンタ').replace('その他車両','その他'))}</b>`:''}<small class="${x&&memo?'lmemo':''}">${x?esc(memo||'タップでメモ'):out?'貸出中・お客様の車待ち':'代車・待機中'}</small>${out?'<b class="lsh lwait">貸出中</b>':''}</div>`;
 }
 function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; else delete YARD.pmemo[n]; _ydChanged();
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
@@ -2308,7 +2314,7 @@ function ydRender(){
   const dEl=document.getElementById('yd-date'); if(dEl) dEl.textContent=new Date().toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
   cv.innerHTML=YARD.spaces.map(s=>{ const k=_ydKind(s.kind); const js=locked?[]:_ydJobsIn(s.id); const lcs=locked?[]:_ydLcIn(s.id); const used=js.length+lcs.length;
     return `<div class="yd-sp${(s.cap||1)<=1&&used<=1?' one':''}${YD.edit&&YD.sel===s.id?' sel':''}${used>(s.cap||1)?' over':''}${YD.carSel&&!YD.edit?' target':''}" data-sp="${esc(s.id)}" style="--kc:${k.c};left:${s.x/YD_COLS*100}%;top:${s.y/YD_ROWS*100}%;width:${s.w/YD_COLS*100}%;height:${s.h/YD_ROWS*100}%" onclick="ydTapSpace(event,'${esc(s.id)}')">
-      <div class="nm">${esc(s.name)}<small>${used}/${s.cap||1}</small></div>${js.map(_ydCarHtml).join('')}${lcs.map(_ydLcHtml).join('')}<div class="yd-rs" data-rs="${esc(s.id)}"></div></div>`; }).join('');
+      <div class="nm">${esc(s.name)}<small>${used}/${s.cap||1}</small>${s.memo&&!YD.edit&&!locked?`<button type="button" class="sp-note-btn" onclick="event.stopPropagation();ydSpaceNote('${esc(s.id)}')" aria-label="場所のコメント">✏️</button>`:''}</div>${s.note?`<div class="sp-note">📍 ${esc(s.note)}</div>`:''}${js.map(_ydCarHtml).join('')}${lcs.map(_ydLcHtml).join('')}<div class="yd-rs" data-rs="${esc(s.id)}"></div></div>`; }).join('');
   const pool=document.getElementById('yd-pool');
   if(pool){
     const ids=new Set(YARD.spaces.map(s=>s.id));
@@ -2325,7 +2331,7 @@ function ydRender(){
     lp.onclick=e=>{ if(e.target===lp&&YD.carSel) ydMove(YD.carSel,''); };
     lp.innerHTML=locked?'<span class="sg-note">ロック中です</span>':(wait.length?wait.map(_ydLcHtml).join(''):'<span class="sg-note">置き場所に置いていない駒はありません</span>')
       +(out.length?`<div class="yd-lout">貸出中（タップで返却）：${out.map(c=>{ const b=_ydLcOut(c.n); return `<button type="button" class="yd-lret" onclick="ydReturnLc('${esc(c.n)}')">${esc(c.n)}<small>〜${b.to==='9999-12-31'?'返却未定':_woMD(b.to)}</small></button>`; }).join('')}</div>`:'')
-      +(typeof LB!=='undefined'&&!LB.live?'<div class="sg-note" style="flex-basis:100%;margin:4px 0 0">チーム共有にログインすると、代車カレンダーで貸出中の代車は自動で消えます</div>':'');
+      +(typeof LB!=='undefined'&&!LB.live?'<div class="sg-note" style="flex-basis:100%;margin:4px 0 0">チーム共有にログインすると、代車カレンダーと連動して貸出中の代車が分かります</div>':'');
   }
   const fb=document.getElementById('yd-filter');
   if(fb){ const act=locked?[]:JOBS.filter(j=>!j.archived); const n=k=>act.filter(j=>_ydLeft(j).includes(k)).length;
@@ -2340,7 +2346,7 @@ function _ydRenderBar(){
   bar.dataset.for=String(YD.carSel||'');
   if(YD.carSel&&String(YD.carSel).startsWith('lc:')&&!YD.edit){ const n=YD.carSel.slice(3); bar.classList.add('show');
     const xp=YD_XPIECES.find(x=>x.n===n); const xk=xp&&YD_XKIND[xp.k];
-    bar.innerHTML=`<span>${xk?xk.ic+' '+esc(n):'🔑 代車 '+esc(n)}：置き場所をタップ</span>${xk?`<input id="yd-pm" class="wo-search" style="flex:1;min-width:160px" value="${esc((YARD.pmemo||{})[n]||'')}" placeholder="${xp.k==='rent'?'メモ（例：トヨタレンタ 引取 10/25）':'メモ（例：ネッツ甲南へ）'}" oninput="ydPieceMemo('${esc(n)}',this.value)" onblur="setTimeout(ydRender,0)">`:''}<span style="flex:1"></span>${(YARD.lpos||{})[n]?`<button type="button" class="btn" onclick="ydMove('lc:${esc(n)}','')">置き場所から外す</button>`:''}<button type="button" class="btn" onclick="YD.carSel=null;ydRender()">やめる</button>`; return; }
+    bar.innerHTML=`<span>${xk?xk.ic+' '+esc(_ydPn(n)):'🔑 代車 '+esc(n)}：置き場所をタップ</span>${xk?`<input id="yd-pm" class="wo-search" style="flex:1;min-width:160px" value="${esc((YARD.pmemo||{})[n]||'')}" placeholder="${xp.k==='rent'?'メモ（例：トヨタレンタ 引取 10/25）':'メモ（例：下取り プリウス／販売 N-BOX）'}" oninput="ydPieceMemo('${esc(n)}',this.value)" onblur="setTimeout(ydRender,0)">`:''}<span style="flex:1"></span>${(YARD.lpos||{})[n]?`<button type="button" class="btn" onclick="ydMove('lc:${esc(n)}','')">置き場所から外す</button>`:''}<button type="button" class="btn" onclick="YD.carSel=null;ydRender()">やめる</button>`; return; }
   const j=YD.carSel&&_woJob(YD.carSel);
   if(!j||YD.edit){ bar.classList.remove('show'); bar.innerHTML=''; return; }
   bar.classList.add('show');
@@ -2351,6 +2357,15 @@ function _ydRenderBar(){
     <button type="button" class="btn" onclick="YD.carSel=null;ydRender()">やめる</button>`;
 }
 function ydTapCar(e,id){ e.stopPropagation(); if(YD.edit||Date.now()-(YD.noClick||0)<500) return; YD.carSel=YD.carSel===id?null:id; ydRender(); }
+// 置き場所のコメント（例：コインパーキング・3丁目）。チーム全員で共有
+async function ydSpaceNote(id){
+  if(SEC.ok&&!SEC.key){ toast('ロックを解除してから操作してください'); return; }
+  const s=YARD.spaces.find(x=>x.id===id); if(!s) return;
+  const t=await askText(`${s.name}：場所のコメント`,s.note||'','例：コインパーキング／3丁目');
+  if(t===null) return;
+  s.note=String(t).trim().slice(0,40); if(!s.note) delete s.note;
+  _ydChanged(); ydRender(); toast(s.note?`「${s.name}」に「${s.note}」と付けました`:'コメントを消しました');
+}
 function ydTapSpace(e,id){
   if(YD.edit){ YD.sel=id; ydRender(); return; }
   if(YD.carSel) ydMove(YD.carSel,id);
@@ -2365,7 +2380,7 @@ async function ydMove(jid,sid){
   if(sid&&!String(jid).startsWith('lc:')){ const jj=_woJob(jid); const lc=jj?_woLoanerPiece(jj):''; if(lc&&(YARD.lpos||{})[lc]===sid&&!_ydJobsIn(sid).some(x=>x.id!==jid)&&_ydLcIn(sid).every(c=>c.n===lc)) return _ydMoveJob(jid,sid); }
   if(sid){ const f=_ydFull(sid,String(jid)); if(f){ toast(`「${f.name}」はいっぱいです（${f.cap||1}台まで）。先に今の車を動かしてください`,4500); YD.carSel=null; ydRender(); return; } }
   if(String(jid).startsWith('lc:')){ const n=jid.slice(3); YARD.lpos=YARD.lpos||{}; if(sid) YARD.lpos[n]=sid; else delete YARD.lpos[n];
-    YD.carSel=null; _ydChanged(); const s=YARD.spaces.find(x=>x.id===sid); const lb=YD_XPIECES.some(x=>x.n===n)?n:'代車 '+n; toast(s?`${lb} を「${s.name}」へ置きました`:`${lb} を置き場所から外しました`); ydRender(); return; }
+    YD.carSel=null; _ydChanged(); const s=YARD.spaces.find(x=>x.id===sid); const lb=YD_XPIECES.some(x=>x.n===n)?_ydPn(n):'代車 '+n; toast(s?`${lb} を「${s.name}」へ置きました`:`${lb} を置き場所から外しました`); ydRender(); return; }
   return _ydMoveJob(jid,sid);
 }
 async function _ydMoveJob(jid,sid){
@@ -2388,6 +2403,7 @@ function _ydRenderEditForm(){
   f.dataset.for=s.id;
   f.innerHTML=`<div class="fgrid" style="margin-top:8px">
     <div class="field span2"><label>名前</label><input value="${esc(s.name)}" oninput="ydSet('name',this.value)"></div>
+    <div class="field span2"><label>場所のコメント（例：コインパーキング／3丁目）</label><input value="${esc(s.note||'')}" maxlength="40" oninput="ydSet('note',this.value)"></div>
     <div class="field"><label>種類</label><select onchange="ydSet('kind',this.value)">${YD_KINDS.map(k=>`<option value="${k.k}"${s.kind===k.k?' selected':''}>${k.n}</option>`).join('')}</select></div>
     <div class="field"><label>置ける台数</label><input inputmode="numeric" value="${s.cap||1}" oninput="ydSet('cap',Math.max(1,parseInt(this.value)||1))"></div>
     <div class="field span2"><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)"><input type="checkbox" style="width:20px;height:20px;accent-color:var(--accent)"${s.memo?' checked':''} onchange="ydSet('memo',this.checked)">車を置くときに場所のコメントを入れる</label></div>
@@ -2475,7 +2491,7 @@ function ydPrint(){
   if(SEC.ok&&!SEC.key){ toast('ロックを解除してから操作してください'); return; }
   const ids=new Set(YARD.spaces.map(s=>s.id));
   const car=j=>`<div class="c" style="background:${ydState(j).bg};color:${ydState(j).fg};${woPartsWait(j)?'border:2px dashed #111;':''}"><b>${esc(_woPlateShort(j.plate)||j.car||'—')}</b> ${esc(j.car||'')}<br><b>${esc(ydState(j).label)}</b>${j.dueDate?' ／納車'+_woMD(j.dueDate):''}${j.slotNote?'<br>📝'+esc(j.slotNote):''}${_ydLeft(j).length?'<br>残：'+_ydLeft(j).map(x=>x==='obd'?'OBD':'洗車・検査').join('・'):''}</div>`;
-  const sp=YARD.spaces.map(s=>{ const k=_ydKind(s.kind); return `<div class="s" style="left:${s.x/YD_COLS*100}%;top:${s.y/YD_ROWS*100}%;width:${s.w/YD_COLS*100}%;height:${s.h/YD_ROWS*100}%;border-color:${k.c}"><div class="n" style="color:${k.c}">${esc(s.name)}</div>${_ydJobsIn(s.id).map(car).join('')}${_ydLcIn(s.id).map(c=>{ const x=c.k&&YD_XKIND[c.k]; const m=((YARD.pmemo||{})[c.n])||''; return `<div class="c" style="background:#fff;border:2px dashed ${x?x.c:'#111'}">${x?x.ic+' '+esc(c.n):'🔑 代車 '+esc(c.n)}${m?'<br>'+esc(m):''}</div>`; }).join('')}</div>`; }).join('');
+  const sp=YARD.spaces.map(s=>{ const k=_ydKind(s.kind); return `<div class="s" style="left:${s.x/YD_COLS*100}%;top:${s.y/YD_ROWS*100}%;width:${s.w/YD_COLS*100}%;height:${s.h/YD_ROWS*100}%;border-color:${k.c}"><div class="n" style="color:${k.c}">${esc(s.name)}${s.note?' ・ '+esc(s.note):''}</div>${_ydJobsIn(s.id).map(car).join('')}${_ydLcIn(s.id).map(c=>{ const x=c.k&&YD_XKIND[c.k]; const m=((YARD.pmemo||{})[c.n])||''; return `<div class="c" style="background:#fff;border:2px dashed ${x?x.c:'#111'}">${x?x.ic+' '+esc(c.n):'🔑 代車 '+esc(c.n)}${m?'<br>'+esc(m):''}</div>`; }).join('')}</div>`; }).join('');
   const act=JOBS.filter(j=>!j.archived).sort((a,b)=>(a.dueDate||'9999')<(b.dueDate||'9999')?-1:1);
   const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>車両配置図</title><style>
 @page{size:A4 landscape;margin:7mm;}*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;color:#111;font-size:10px;padding:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
