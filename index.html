@@ -1643,17 +1643,45 @@ function _woUnlinkArchived(){
 // ── 入庫管理表（H列＝登録番号）から消えた車を納車済にする ──
 // 安全策：一度表で見つかった車だけが対象／2回続けて（約3分おき）見つからなかったら／一度に6台以上消えたら自動ではしない
 const WSC={miss:{},last:''};
+// 番号が見つからなくても、車種が同じで「番号が1文字違い」か「シートの行が同じ」の行があれば、まだ表にあるとみなす
+function _woCarNorm(v){ return String(v||'').normalize('NFKC').toUpperCase().replace(/[\s\-‐－−・]/g,''); }
+function _woSheetNear(j){
+  const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; const c=_woCarNorm(j.car); const no=_woPlateNo(j.plate);
+  if(!c) return null;
+  const sameCar=r=>{ const m=_woCarNorm(r.model); return m&&(m===c||m.includes(c)||c.includes(m)); };
+  const near=(a,b)=>{ if(!a||!b||a.length!==b.length) return false; let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) d++; return d<=1; };
+  for(const r of raw){ if(!sameCar(r)) continue;
+    const rn=_woPlateNo(r.plate);
+    if(rn&&JOBS.some(o=>o!==j&&!o.archived&&_woPlateNo(o.plate)===rn)) continue;   // ほかの作業指示の車の行
+    if(j.sheetKey&&_woSheetKey(r)===j.sheetKey) return r;
+    if(near(no,rn)) return r; }
+  return null;
+}
 function woSheetCheck(){
   if(!LB.nos||!LB.hasPlate||SEC.locked) return;
   if(LB.nos.size===0){ WSC.last='入庫管理表に登録番号（H列）が1件もないため、確認していません'; return; }
   const gone=[]; let seen=0;
   for(const j of JOBS){
     if(j.archived) continue; const no=_woPlateNo(j.plate); if(!no) continue;
-    if(LB.nos.has(no)){ seen++; WSC.miss[j.id]=0; if(!j.sheetSeen){ j.sheetSeen=true; woTouch(j); } continue; }
+    if(LB.nos.has(no)){ seen++; WSC.miss[j.id]=0; if(!j.sheetSeen||j.sheetPlateDiff){ j.sheetSeen=true; delete j.sheetPlateDiff; woTouch(j); } continue; }
     if(!j.sheetSeen) continue;
+    const nr=_woSheetNear(j);
+    if(nr){ seen++; WSC.miss[j.id]=0; const sp=String(nr.plate||''); if(j.sheetPlateDiff!==sp){ j.sheetPlateDiff=sp; woTouch(j); } continue; }   // 番号が違うだけで、まだ表にある
     WSC.miss[j.id]=(WSC.miss[j.id]||0)+1;
     if(WSC.miss[j.id]>=2) gone.push(j);
   }
+  // 「表から消えた」と自動で納車済にしたが、まだ表にある車は作業中に戻す（14日以内）
+  const lim14=new Date(Date.now()-14*864e5).toISOString(), back=[];
+  for(const j of JOBS){
+    if(!j.archived||j.autoDelivered!=='sheet'||!j.deliveredAt||j.deliveredAt<lim14) continue;
+    const no=_woPlateNo(j.plate);
+    if((no&&LB.nos.has(no))||_woSheetNear(j)){
+      j.archived=false; delete j.deliveredAt; delete j.autoDelivered; WSC.miss[j.id]=0;
+      if(!(no&&LB.nos.has(no))){ const nr=_woSheetNear(j); if(nr) j.sheetPlateDiff=String(nr.plate||''); }
+      woTouch(j,true); back.push(j.car||j.plate);
+    }
+  }
+  if(back.length){ woRenderAll(); toast(`入庫管理表にまだあるため、作業中に戻しました：${back.join('、')}（代車は選び直してください）`,9000); }
   WSC.last=`${new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})} 確認：表にある作業中の車 ${seen}台`;
   if(!gone.length) return;
   if(gone.length>5){ WSC.last+=`／${gone.length}台が表から消えています（多すぎるため自動で納車済にしていません）`; toast(`入庫管理表から${gone.length}台が消えています。表を確認してください（自動で納車済にはしていません）`,8000); return; }
@@ -1957,7 +1985,7 @@ function woRenderList(){
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}
+      ${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
 }
 function _woMapHtml(j){
