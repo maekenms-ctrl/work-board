@@ -83,6 +83,8 @@ if(/github\.io$/.test(location.hostname)){
   .src.msg{background:#d3e3fd;color:#041e49}
   .ev[style*="#0b57d0"] .t{white-space:pre-wrap;word-break:break-all}
   .cdel{border-color:#dadce0!important;color:#5f6368!important}
+  .open.in{border-color:#ceead6;color:#137333}
+  .ev .m br+.open{margin-left:0;margin-top:5px}
   .open{display:inline-block;border:1px solid #a8c7fa;background:#fff;color:#0b57d0;border-radius:14px;padding:2px 9px;margin-left:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;vertical-align:1px;text-decoration:none}
   .open:hover{background:#d3e3fd}
   .tapnote{position:fixed;left:10px;right:10px;bottom:10px;z-index:30;background:#0b57d0;color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;text-align:center;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
@@ -101,12 +103,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 10:35</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 11:50</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 10:35</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 11:50</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -135,7 +137,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 10:35</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 11:50</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -361,8 +363,12 @@ function renderPast(){
     : `<div class="empty">過去の通知はまだありません。<br>毎朝${RESET_HOUR}:00に、前日までの通知がここに移ります。</div>`;
 }
 // アプリで開く
-const APP_URL = {wb:'https://maekenms-ctrl.github.io/work-board/', est:'https://maekenms-ctrl.github.io/estimate-tool/'};
+const APP_URL = {wb:'https://maekenms-ctrl.github.io/work-board/index.html', est:'https://maekenms-ctrl.github.io/estimate-tool/'};
 function openBtn(e){
+  if(e.src==='daily' && e.sh){
+    const q = new URLSearchParams({sheet:'1', tab:e.sh.tab||'', row:String(e.sh.row||''), car:e.sh.car||'', num:e.sh.num||'', in:e.sh.in||''});
+    return `<br><a class="open" href="${APP_URL.wb}#${q}&act=open" target="_blank" rel="noopener">↗ 作業ボードで開く</a><a class="open in" href="${APP_URL.wb}#${q}&act=in" target="_blank" rel="noopener">✓ 入庫済にする</a>`;
+  }
   if(e.src==='msg') return e.mine ? `<button class="open cdel" data-del="${esc(e.ref||'')}">取り消す</button>` : '';
   if(e.src==='sheet') return '';
   if(e.src==='daily') return '';
@@ -402,6 +408,13 @@ function deskNotify(evs){
   list.forEach(deskShow);
   if(evs.length > 3) deskShow({t:`ほか ${evs.length-3}件の通知`, d:'ARK通知を開いて確認してください', id:'more'});
 }
+// シートの行へ（行番号がない・ずれているときは、お客様名・車種・番号で探す）
+function sheetGo(k){
+  if(!(window.google && google.script && google.script.run)){ toast('シートの行への移動は、パソコンのスプレッドシートのパネルで使えます'); return; }
+  google.script.run.withSuccessHandler(x => toast(x ? `「${x.sheet}」の ${x.row} 行目に移動しました` : 'シートに同じ車が見つかりませんでした', 4000))
+    .withFailureHandler(e => toast('シートを探せませんでした：' + (e&&e.message||e), 5000))
+    .findRowAny(k.tab||'', +k.row||0, k.name||'', k.car||'', k.num||'');
+}
 function hubSend(m){ try{ if(IN_HUB) window.parent.postMessage(m, location.origin); }catch(e){} }
 // リンクを押したとき：hub の中なら、同じ画面の作業ボードに切り替えて開く
 function hubLink(e){
@@ -409,8 +422,9 @@ function hubLink(e){
   e.stopPropagation();
   if(IN_HUB){
     e.preventDefault();
-    const m = a.href.match(/#job=([^&]+)/);
-    if(m) hubSend({ark:'openJob', jid:decodeURIComponent(m[1])}); else hubSend({ark:'openEst'});
+    const h = a.href.split('#')[1] || '';
+    const m = h.match(/(?:^|&)job=([^&]+)/);
+    if(m) hubSend({ark:'openJob', jid:decodeURIComponent(m[1])}); else if(h) hubSend({ark:'openHash', hash:h}); else hubSend({ark:'openEst'});
   }
   return true;
 }
@@ -649,17 +663,18 @@ function start(){
       const d = ch.doc.data() || {};
       if(d.date !== today()) return;          // 今日の分だけ
       const ts = tsOf(d.at) || Date.now();
-      if(d.kind === 'add'){
-        // 当日の追加入庫（8:30のあとにD列へ今日の日付が入った車）
-        const mk = 'dailyadd|' + ch.doc.id;
+      if(d.kind === 'add' || d.kind === 'future'){
+        // 当日の追加入庫（8:30のあとにD列へ今日の日付）＝音あり／先の日付の入庫予定を登録＝音なし
+        const mk = 'dailyadd|' + ch.doc.id, fut = d.kind === 'future', inD = d.inDate || d.date;
         const who_ = [d.name, carName(d.car), d.num].filter(Boolean).join(' ');
-        const e = {src:'daily', ic:'📅', c:'#c5221f', ts,
-          t: `本日の追加入庫：${who_ || '（お客様名・車種 未入力）'}`,
-          d: [[d.work, d.cat, d.loaner?'代車 '+carName(d.loaner):''].filter(Boolean).join('・'), `${d.tab} ${d.row}行目`].filter(Boolean).join(' ／ '),
-          key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, by:who(d.by), mk, ref:'daily/'+ch.doc.id};
+        const e = {src:'daily', ic: fut ? '🗓' : '📅', c:'#c5221f', ts, quiet: fut,
+          t: fut ? `入庫予定を登録（${md(inD)}）：${who_ || '（お客様名・車種 未入力）'}` : `本日の追加入庫：${who_ || '（お客様名・車種 未入力）'}`,
+          d: [d.work && `作業：${d.work}`, d.cat && `区分：${d.cat}`, d.loaner && `代車：${carName(d.loaner)}`, `${d.tab} ${d.row}行目`].filter(Boolean).join('\n'),
+          key:{tab:d.tab, row:d.row, num:d.num, car:d.car, name:d.name}, sh:{tab:d.tab, row:d.row, car:d.car, num:d.num, in:inD},
+          by:who(d.by), mk, ref:'daily/'+ch.doc.id};
         const old = S.events.find(x=>x.mk===mk);
         if(old){                                  // あとから名前・車種を書いた → 同じ通知を書き換える（音なし）
-          if(old.t!==e.t || old.d!==e.d){ Object.assign(old, {t:e.t, d:e.d, key:e.key}); ls.set('ark-ev', S.events.map(({live,...x})=>x)); renderFeed(); }
+          if(old.t!==e.t || old.d!==e.d){ Object.assign(old, {t:e.t, d:e.d, key:e.key, sh:e.sh, ic:e.ic}); ls.set('ark-ev', S.events.map(({live,...x})=>x)); renderFeed(); }
           return;
         }
         out.push(e);
@@ -679,11 +694,12 @@ function start(){
           tab=(d.tabsOf&&d.tabsOf[i])||tab; row=+(d.rows&&d.rows[i])||0;
         } else {                                       // 古い形式（1行の文字）
           const m = String(items[i]).match(/^(.*?)（(.*)）$/); name = m ? m[1] : String(items[i]); work = m ? m[2] : '';
+          const w = name.split(/\s+/); if(w.length >= 3 && /^\d{1,4}$/.test(w[w.length-1])){ num = w.pop(); } if(w.length >= 2){ car = w.pop(); name = w.join(' '); }
         }
         const lines = [ work && `作業：${work}`, kind && `区分：${kind}`, loan && `代車：${carName(loan)}` ].filter(Boolean);
         evs.push({src:'daily', ic:'🚗', c:'#c5221f', ts: ts - (i+1), quiet:true,
           t: `入庫予定 ${i+1}/${n}：${[name, carName(car), num].filter(Boolean).join(' ')}`,
-          d: lines.join('\n'), key:{tab, row, num, car}, by:'', mk:'daily|'+d.date+'|'+i, ref:'daily/'+ch.doc.id});
+          d: lines.join('\n'), key:{tab, row, num, car, name}, sh:{tab, row, car, num, in:d.date}, by:'', mk:'daily|'+d.date+'|'+i, ref:'daily/'+ch.doc.id});
       }
       // 同じ日の入庫予定を送り直したときは、前の分を入れ替える
       if(!first) dropWhere(x => x.ref === 'daily/'+ch.doc.id);
@@ -765,10 +781,7 @@ $('feed').addEventListener('click', e => {
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
   el.classList.remove('new');
-  if((ev.src==='sheet'||ev.src==='daily') && ev.key && ev.key.tab){
-    if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0);
-    return;
-  }
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.name||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 // 過去タブ：リンクはそのまま開く／通知を押すとシートの行へ
@@ -776,7 +789,7 @@ $('pastView').addEventListener('click', e => {
   if(hubLink(e)) return;
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
-  if((ev.src==='sheet'||ev.src==='daily') && ev.key && ev.key.tab && window.google && google.script && google.script.run){ google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0); return; }
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.name||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 $('todayView').addEventListener('click', e => {

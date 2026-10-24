@@ -1845,7 +1845,34 @@ function _woLoanPending(b){
 }
 // 外から作業指示を指定して開く（例：index.html#job=xxxx　ARK通知の「作業ボードで開く」）
 let _woLinkWait='';
+// ARK通知の入庫予定から：#sheet=1&tab=&row=&car=&num=&in=&act=open|in
+let _woSheetLinkWait=null;
+function _woSheetLink(){
+  const h=(location.hash||'').replace(/^#/,'');
+  if(/(^|&)sheet=1/.test(h)){ _woSheetLinkWait=Object.fromEntries(new URLSearchParams(h)); try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+  const q=_woSheetLinkWait; if(!q) return;
+  if(SEC.ok&&!SEC.key) return;                                  // ロック解除を待つ
+  if(CLOUD.user&&!WOC.first.jobs) return;                       // チームの作業指示が届くのを待つ（二重に作らないため）
+  _woSheetLinkWait=null;
+  const key=(q.tab||'')+'-'+(q.row||''), no=_woPlateNo(q.num);
+  let j=JOBS.find(x=>!x.archived&&q.row&&x.sheetKey===key)||(no?JOBS.find(x=>!x.archived&&_woPlateNo(x.plate)===no):null);
+  let made=false;
+  if(!j){
+    const raw=((typeof LB!=='undefined'&&LB.sheetRaw)||[]).find(r=>_woSheetKey(r)===key);
+    const x=raw||{tab:q.tab,row:+q.row||0,model:q.car,plate:q.num,inDate:q.in,kind:'',due:'',car:''};
+    j=_woNew(); j.id='wo-sh-'+_cloudKey(key).slice(0,60)+'-'+Date.now().toString(36); j.inDate='';
+    _woFromSheet(j,{...x,_in:_sheetDate(x.inDate)||q.in||'',_due:_sheetDate(x.due)||_sheetDate(x.out)||''},true);
+    if(!j.inDate) j.inDate=q.in||_woToday();
+    JOBS.unshift(j); made=true;
+  }
+  const msg=[made?'入庫管理表から作業指示を作りました':''];
+  if(q.act==='in'&&j.inChecked!==true){ msg.push(..._woCheckInCore(j)); }
+  else if(q.act==='in') msg.push('すでに入庫済です');
+  woTouch(j,true); WO_FILTER='all';
+  setTimeout(()=>{ woOpen(j.id); toast([_woTitle(j),...msg.filter(Boolean)].join('：'),5000); },0);
+}
 function _woDeepLink(){
+  _woSheetLink();
   const m=(location.hash||'').match(/[#&]job=([^&]+)/);
   const id=m?decodeURIComponent(m[1]):_woLinkWait; if(!id) return;
   if(m){ _woLinkWait=id; try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }

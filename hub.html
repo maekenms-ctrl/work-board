@@ -28,7 +28,7 @@
   <button class="sw" id="b-notify" type="button">📣 ARK通知 <span class="dot" id="dot"></span></button>
 </div>
 <!-- どちらも読み込んだまま切り替える（ARK通知は裏でも受信・通知音あり） -->
-<iframe class="pane" id="board" src="./" title="作業ボード" allow="autoplay; screen-wake-lock; clipboard-write; camera"></iframe>
+<iframe class="pane" id="board" src="./index.html" title="作業ボード" allow="autoplay; screen-wake-lock; clipboard-write; camera"></iframe>
 <iframe class="pane" id="notify" src="./notify.html" title="ARK通知" allow="autoplay; screen-wake-lock"></iframe>
 <script>
 (function(){
@@ -50,7 +50,11 @@
     var m=e.data||{};
     if(m.ark==='new' && cur!=='notify'){ unseen+=m.n||1; badge(); }
     if(m.ark==='openJob' && m.jid){
-      try{ $('board').contentWindow.location.hash='job='+encodeURIComponent(m.jid); }catch(err){ $('board').src='./#job='+encodeURIComponent(m.jid); }
+      try{ $('board').contentWindow.location.hash='job='+encodeURIComponent(m.jid); }catch(err){ $('board').src='./index.html#job='+encodeURIComponent(m.jid); }
+      show('board');
+    }
+    if(m.ark==='openHash' && m.hash){
+      try{ $('board').contentWindow.location.hash=m.hash; }catch(err){ $('board').src='./index.html#'+m.hash; }
       show('board');
     }
     if(m.ark==='openEst'){ window.open('https://maekenms-ctrl.github.io/estimate-tool/','_blank','noopener'); }
