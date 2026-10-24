@@ -487,13 +487,17 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-sp.one>.yd-car.yd-lc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .yd-sp.one>.yd-car{position:static;flex:1 1 auto;min-height:0;width:100%;max-width:none;margin:0;justify-content:center;overflow:hidden;padding:2px 5px;font-size:clamp(9px,19cqh,16px);border-radius:5px;word-break:break-all;line-height:1.1;}
 .yd-sp.one>.yd-car small{font-size:clamp(8px,12cqh,11px);line-height:1.15;}
+.yd-sp.one>.yd-car .pr small.os{font-size:1em;line-height:1.15;}
 .yd-sp.one>.yd-car .yd-left{margin-top:2px;}
 .yd-sp.one>.yd-car .yd-left i{font-size:clamp(7px,9cqh,9px);padding:1px 3px;}
 @container (max-height:58px){ .yd-sp.one>.yd-car small.nt{display:none;} .yd-sp.one>.yd-car .yd-left{display:none;} }
 .yd-car .pn{font-weight:900;}
-.yd-car .os2{display:none;}
-.yd-car small.os{display:flex;gap:2px;flex-wrap:nowrap;overflow:hidden;opacity:1;margin:1px 0;}
-.yd-car small.os i{font-style:normal;font-weight:800;color:#111;border-radius:3px;padding:0 3px;white-space:nowrap;line-height:1.3;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+/* 依頼元：同じ車種を見分けるため、番号の横にできるだけ大きく */
+.yd-car .pr{display:flex;align-items:center;gap:4px;min-width:0;flex:none;}
+.yd-car .pr .pn{flex:none;}
+.yd-car .pdue{display:none;}
+.yd-car small.os{flex:1 1 auto;min-width:0;display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;opacity:1;margin:0;font-size:1em;line-height:1.15;}
+.yd-car small.os i{flex:1 1 auto;min-width:0;text-align:center;font-style:normal;font-weight:900;color:#111;border-radius:4px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:clip;box-shadow:0 0 0 1px rgba(0,0,0,.4);}
 @container (max-width:110px){
   .yd-sp.one>.yd-car small.stl{display:none;}
   .yd-sp.one>.yd-car small.sts{display:block;line-height:1.08;}
@@ -504,10 +508,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .yd-sp.one>.yd-car small.cn{font-weight:700;opacity:.9;font-size:clamp(6px,calc((100cqw - 12px) / var(--w,4)),8.5px);letter-spacing:-.04em;text-overflow:ellipsis;line-height:1.35;min-height:1.35em;display:block;}
   /* 納期がない札は、長い車名を2行で表示 */
   .yd-sp.one>.yd-car small.cn.cn2{font-size:clamp(7px,14.5cqw,8.5px);white-space:normal;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.15;min-height:0;}
-  /* 狭い枠では、依頼元を状態の行（鈑前 など）の横に並べる */
-  .yd-sp.one>.yd-car small.os{display:none;}
-  .yd-sp.one>.yd-car .os2{display:inline;margin-left:2px;}
-  .yd-sp.one>.yd-car .os2 i{font-style:normal;font-weight:800;color:#111;border-radius:2px;padding:0 2px;margin-right:1px;letter-spacing:-.04em;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  /* 狭い枠：依頼元は番号の下に1行使い、番号と同じ大きさ（枠の幅いっぱい） */
+  .yd-sp.one>.yd-car .pr{display:block;}
+  .yd-sp.one>.yd-car .pr .pl1{display:flex;align-items:baseline;gap:2px;min-width:0;}
+  .yd-sp.one>.yd-car .pr .pdue{display:block;flex:1 1 auto;min-width:0;text-align:right;font-weight:900;font-size:clamp(6px,12cqw,8px);white-space:nowrap;overflow:hidden;letter-spacing:-.05em;}
+  .yd-sp.one>.yd-car.hasos small.sts{display:none;}
+  .yd-sp.one>.yd-car .pr small.os{font-size:clamp(10px,20cqw,12px);line-height:1.1;gap:1px;margin:0 0 1px;}
+  .yd-sp.one>.yd-car small.os i{padding:0 1px;letter-spacing:-.04em;border-radius:3px;}
+  .yd-sp.one>.yd-car:not(.yd-lc)>*{flex-shrink:0;}
   .yd-sp.one>.yd-car.yd-lc small{display:none;}
   .yd-sp.one>.yd-car.yd-lc.lout .lsh.lwait{display:block;line-height:1.1;}
   /* レンタカー・その他車両：名前を短くして、コメントを表示 */
@@ -2395,7 +2403,7 @@ function _ydCarHtml(j){
   const due=woDueTag(j);
   const lcn=(()=>{ if(j.archived||j.inChecked===false) return ''; const lc=_woLoanerPiece(j); return lc&&_ydLcOut(lc)?lc:''; })();
   const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
-  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}<b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}${_ydOsHtml(j)}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}${_ydOsHtml(j,true)}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
+  return `<div class="yd-car${(j.outsrc||[]).length?' hasos':''}${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}${(j.outsrc||[]).length?`<span class="pr"><span class="pl1"><b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b><small class="pdue">${j.dueDate?_woMD(j.dueDate):esc(_ydShortLabel(j))}</small></span>${_ydOsHtml(j)}</span>`:`<b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>`}${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}${j.dueDate?' '+_woMD(j.dueDate):''}</small>${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
 // 代車以外の駒（レンタカー・その他車両）。代車カレンダーとは連動しない。メモを付けられる
