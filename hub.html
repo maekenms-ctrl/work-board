@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d21">
+<title>作業ボード＋通知</title>
+<link rel="manifest" href="hub.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{--bar:#1a1d21;--ink:#e8eaed;--sub:#9aa0a6;--acc:#e4ff1a;--red:#ff4d4d}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bar);overflow:hidden;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif}
+  .bar{position:fixed;left:0;right:0;top:0;height:46px;padding:5px 6px env(safe-area-inset-top);display:flex;gap:6px;background:var(--bar);border-bottom:1px solid #2c3036;z-index:2}
+  .sw{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #3a3f46;border-radius:10px;background:#23272d;color:var(--sub);font:inherit;font-size:15px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;position:relative}
+  .sw.on{background:var(--acc);border-color:var(--acc);color:#111}
+  .dot{display:none;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--red);color:#fff;font-size:12px;line-height:20px;font-weight:800}
+  .dot.show{display:inline-block}
+  .sw.on .dot{display:none}
+  .pane{position:fixed;left:0;right:0;top:46px;bottom:0;border:0;width:100%;height:calc(100% - 46px);background:#fff;visibility:hidden}
+  .pane.on{visibility:visible}
+  #board{background:#1a1d21}
+</style>
+</head>
+<body>
+<div class="bar">
+  <button class="sw" id="b-board" type="button">🛠 作業ボード</button>
+  <button class="sw" id="b-notify" type="button">📣 ARK通知 <span class="dot" id="dot"></span></button>
+</div>
+<!-- どちらも読み込んだまま切り替える（ARK通知は裏でも受信・通知音あり） -->
+<iframe class="pane" id="board" src="./" title="作業ボード" allow="autoplay; screen-wake-lock; clipboard-write; camera"></iframe>
+<iframe class="pane" id="notify" src="./notify.html" title="ARK通知" allow="autoplay; screen-wake-lock"></iframe>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var cur='', unseen=0;
+  function show(k){
+    cur=k;
+    $('board').classList.toggle('on',k==='board'); $('notify').classList.toggle('on',k==='notify');
+    $('b-board').classList.toggle('on',k==='board'); $('b-notify').classList.toggle('on',k==='notify');
+    if(k==='notify'){ unseen=0; badge(); }
+    try{ localStorage.setItem('hub-tab',k); }catch(e){}
+  }
+  function badge(){ var d=$('dot'); d.textContent=unseen>99?'99+':unseen; d.classList.toggle('show',unseen>0); }
+  $('b-board').onclick=function(){ show('board'); };
+  $('b-notify').onclick=function(){ show('notify'); };
+  // ARK通知からの合図：新しい通知／作業ボードで開く
+  addEventListener('message',function(e){
+    if(e.origin!==location.origin) return;
+    var m=e.data||{};
+    if(m.ark==='new' && cur!=='notify'){ unseen+=m.n||1; badge(); }
+    if(m.ark==='openJob' && m.jid){
+      try{ $('board').contentWindow.location.hash='job='+encodeURIComponent(m.jid); }catch(err){ $('board').src='./#job='+encodeURIComponent(m.jid); }
+      show('board');
+    }
+    if(m.ark==='openEst'){ window.open('https://maekenms-ctrl.github.io/estimate-tool/','_blank','noopener'); }
+  });
+  var first='board'; try{ first=localStorage.getItem('hub-tab')||'board'; }catch(e){}
+  show(first==='notify'?'notify':'board');
+  if('serviceWorker' in navigator && location.protocol==='https:') addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+})();
+</script>
+</body>
+</html>
