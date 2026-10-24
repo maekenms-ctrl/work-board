@@ -1321,6 +1321,8 @@ function woCloudStart(){
     _woSaveLocal(); woRenderAll(true);
     try{ _woSameDayRun(); }catch(e){ console.warn(e); }
   },err=>_woCloudErr(err,'jobs')));
+  // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
+  WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'estimates'),snap=>{ const L=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); }); WEST.list=L; },err=>{ console.warn('estimates',err); }));
   // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'daily'),snap=>{
     const t=_woToday(); WSD.docs=[];
@@ -1338,6 +1340,19 @@ function woCloudStart(){
   },err=>_woCloudErr(err,'yard')));
   woRenderBadges();
 }
+// ── 見積りツールと車両情報（車台番号・車体色・塗装タイプ）を共有 ──
+// 見積りツールが保存した見積りの要約（estimates）から、同じ登録番号のものを探す
+const WEST={list:[]};
+function _woEstFor(j){
+  const no=_woPlateNo(j.plate); if(!no) return null;
+  const e=WEST.list.filter(x=>_woPlateNo(x.plate)===no&&(x.chassis||x.color||x.ptype)).sort((a,b)=>String(b.savedAt||'')<String(a.savedAt||'')?-1:1)[0];
+  if(!e) return null;
+  const diff=(e.chassis&&e.chassis!==j.chassis)||(e.color&&e.color!==j.color)||(e.ptype&&e.ptype!==j.paintType);
+  return diff?e:null;
+}
+function woEstFill(){ const j=_woCurJob(); if(!j) return; const e=_woEstFor(j); if(!e) return;
+  if(e.chassis) j.chassis=e.chassis; if(e.color) j.color=e.color; if(e.ptype) j.paintType=e.ptype;
+  woTouch(j,true); woRenderDetail(); woRenderList(); toast('見積りツールの車両情報を入れました'); }
 // ── 当日の追加入庫から作業指示を作る（どの端末で作っても同じIDになるので重複しない）──
 const WSD={docs:[]};
 function _woSdCats(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
@@ -1730,6 +1745,9 @@ function _woGlassName(j){ return j.glassVendor==='その他'?(j.glassOther?j.gla
 // 選択ボタン（同じものをもう一度押すと解除）
 // 部品単品（車両を預からない部品だけの注文）：置き場所なし・配置図の未配置にも出さない
 function woPartsOnly(){ const j=_woCurJob(); if(!j) return; j.partsOnly=!j.partsOnly; if(j.partsOnly){ j.slot=''; } woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} toast(j.partsOnly?'部品単品にしました（置き場所なし）':'部品単品を解除しました'); }
+// お支払い区分：自費と保険など、複数を選べる（「自費・車両保険」のように保存）
+function _woPays(j){ return String(j.pay||'').split('・').filter(Boolean); }
+function woPay(k){ const j=_woCurJob(); if(!j) return; const a=_woPays(j); const i=a.indexOf(k); if(i>=0) a.splice(i,1); else a.push(k); j.pay=WO_PAY.filter(x=>a.includes(x)).concat(a.filter(x=>!WO_PAY.includes(x))).join('・'); woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woPick(f,v){ const j=_woCurJob(); if(!j) return; j[f]=j[f]===v?(f==='pay'?'':null):v; woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woFilter(f){ WO_FILTER=f; woRenderList(); }
 // ── 入庫管理表から取り込む：表の行（入庫日・車種・番号・納期・区分）から作業指示を作る ──
@@ -2023,6 +2041,7 @@ function woRenderDetail(){
     ${inp('car','車種')}${inp('color','カラー番号')}
     <div class="field"><label>塗装タイプ</label><select onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
     ${inp('chassis','車台番号')}
+    ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
     ${(()=>{ const x=_woSheetMatch(j); return x?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woSheetFill()">📋 入庫管理表（${esc(x.tab)} ${x.row}行目：${esc([x.model,x.plate].filter(Boolean).join(' '))}${x.inDate?' 入庫 '+esc(x.inDate):''}）から転記</button></div>`:''; })()}
     <div class="field"><label>入庫</label><div class="check-group"><button type="button" class="selbtn rbtn wo-inbtn${j.inChecked!==false?' on':''}" onclick="woCheckIn()">${j.inChecked!==false?'✓ 入庫済':'🚗 入庫済にする'}</button></div>${j.inChecked===false&&j.loanerUse===true&&j.loanerCar?`<div class="sg-note" style="margin:4px 0 0">押すと${/^レンタカー/.test(j.loanerCar)?esc(_lbLabel(j.loanerCar))+'を貸出中にします':'代車（'+esc(_lbLabel(j.loanerCar))+'）を貸出中にして、駒を外します'}</div>`:''}</div>
@@ -2033,7 +2052,7 @@ function woRenderDetail(){
     ${(YARD.spaces.find(s=>s.id===j.slot)||{}).memo?`<div class="field span2"><label>場所のメモ（${esc(_woSlotName(j.slot))}）</label><input value="${v('slotNote')}" placeholder="例：裏の駐車場・提携工場" oninput="woSet('slotNote',this.value);ydRender()"></div>`:''}
   </div>
   <div class="fgrid" style="margin-top:8px">
-    <div class="field half"><label>お支払い区分</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${j.pay===k?' on':''}" onclick="woPick('pay','${k}')">${k}</button>`).join('')}</div></div>
+    <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
     <div class="field half"><label>写真撮影</label><div class="check-group"><button type="button" class="selbtn${j.photoTaken===true?' on':''}" onclick="woPick('photoTaken',true)">あり</button><button type="button" class="selbtn${j.photoTaken===false?' on':''}" onclick="woPick('photoTaken',false)">なし</button></div></div>
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
