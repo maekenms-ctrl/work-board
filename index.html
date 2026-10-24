@@ -1220,8 +1220,13 @@ function woNext(j){
   for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st&&st.need&&!st.done) return {...s,who:st.who||'',date:st.date||''}; }
   return null;
 }
+// 作業前／作業中／完成は、「配置図の表示（区分・段階）」の 前・途中・完成 で決める
+// （鈑金で段階を選んでいないときは、工程から自動。区分が「その他」のときは工程で決める）
+function _woStages(j){ try{ const cats=ydCats(j); if(!cats.length||cats[0]==='その他') return null; return cats.map(c=>_ydStageOf(j,c).stage); }catch(e){ return null; } }
 function woState(j){
   if(j.archived) return 'archived';
+  const st=_woStages(j);
+  if(st) return st.every(x=>x==='完成')?'done':'active';
   return woNext(j)?'active':'done';
 }
 function woPartsWait(j){ return (j.parts||[]).some(p=>p.status==='未発注'||p.status==='発注済'); }
@@ -1319,6 +1324,7 @@ function woCloudStart(){
     snap.forEach(d=>{ const v=d.data(); if(v&&v._sheet&&v.id){ delete v._sheet; delete v.at; shm[v.id]=v; return; } delete v.at; delete v.by; if(v&&v.deleted){ gone.add(String(v.id||d.id)); return; } if(v&&v.id){ if(gone.has(String(v.id))) return; if(_woSanitize(v)) dirty.push(v); m[v.id]=v; } });
     // この端末で削除して、まだ送れていなかったものを送る
     Object.keys(_woTombs()).forEach(id=>{ if(!snap.docs.some(d=>d.id===_cloudKey(id)&&d.data().deleted)) _woTombSend(id); });
+    WOC.gone=gone;   // ほかの端末で削除した作業指示（シートからの自動作成で作り直さない）
     _shSync(shm,!WOC.first.jobs);
     setTimeout(()=>dirty.forEach(_woCloudPut),0);   // お客様名などが残っていた共有データを上書きして消す
     const first=!WOC.first.jobs; WOC.first.jobs=true;
@@ -1377,7 +1383,7 @@ function _woSameDayRun(){
   const tomb=_woTombs(); const made=[];
   for(const d of WSD.docs){
     const id='wo-sd-'+_cloudKey(d.id);
-    if(tomb[id]) continue;                                   // 削除した作業指示は作り直さない
+    if(tomb[id]||(WOC.gone&&WOC.gone.has(id))) continue;     // 削除した作業指示は作り直さない（ほかの端末で削除したものも）
     const ex=JOBS.find(j=>j.id===id);
     if(ex){                                                  // あとから車種・番号が書かれたら足す
       let ch=false;
@@ -1858,14 +1864,16 @@ function woSheetFill(){
 async function woBackToPre(){
   const j=_woCurJob(); if(!j||j.archived) return;
   const done=WO_STEPS.filter(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.done; }).map(s=>s.n);
-  if(!done.length){ toast('すでに作業前です'); return; }
-  if(!await askConfirm(`作業前に戻しますか？\n${_woTitle(j)}\n完了を外す工程：${done.join('・')}`,'作業前に戻す')) return;
+  if(!done.length&&woIsPre(j)){ toast('すでに作業前です'); return; }
+  if(!await askConfirm(`作業前に戻しますか？\n${_woTitle(j)}${done.length?'\n完了を外す工程：'+done.join('・'):''}\n配置図の段階も「前」に戻します`,'作業前に戻す')) return;
   for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st){ st.done=false; st.at=''; st.doneDate=''; } }
   if(j.yStages){ for(const c of Object.keys(j.yStages)) if(j.yStages[c]!=='前') delete j.yStages[c]; }
+  if(j.yStage&&j.yStage!=='前') delete j.yStage;
   woTouch(j,true); WO_FILTER='pre'; woRenderAll(); toast('作業前に戻しました');
 }
-function woIsPre(j){ return !j.archived&&!WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.done; }); }
-function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='pre') return woIsPre(j); return woState(j)===WO_FILTER; }
+function woIsPre(j){ if(j.archived) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.done; }); }
+// 作業前＝工程が1つも完了していない車（入庫待ちを含む）。作業中には入れない
+function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='pre') return woIsPre(j); if(WO_FILTER==='active') return woState(j)==='active'&&!woIsPre(j); return woState(j)===WO_FILTER; }
 
 // ── 表示 ──
 function woRenderBadges(){
