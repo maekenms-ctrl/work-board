@@ -1480,7 +1480,7 @@ function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&
 // ── 編集 ──
 function _woCurJob(){ return _woJob(WO_CUR); }
 function woSet(f,v){ const j=_woCurJob(); if(!j) return; j[f]=v;
-  if(f==='slot'){ const s=YARD.spaces.find(x=>x.id===v); if(!(s&&s.memo)) j.slotNote=''; woTouch(j,true); woRenderList(); ydRender(); woRenderDetail(); return; }
+  if(f==='slot'){ const s=YARD.spaces.find(x=>x.id===v); if(!(s&&s.memo)) j.slotNote=''; const mm=_ydMergeLoaner(j,v); woTouch(j,true); woRenderList(); ydRender(); woRenderDetail(); if(mm.length) toast(mm.join('。'),5000); return; }
   if(f==='dueDate'&&j.loanerUse&&!j.loanerTo){ j.loanerTo=v; woRenderDetail(); }
   if(['plate','car','dueDate','loanerFrom','loanerTo'].includes(f)) lbSync(j);
   if(f==='loanerFrom'||f==='loanerTo') lbRenderCars();
@@ -1786,6 +1786,12 @@ async function woCheckIn(){
     j.inChecked=false; delete j.inAt; woTouch(j,true); woRenderAll(); toast('未入庫に戻しました'); return;
   }
   if(loan&&!await askConfirm(`入庫済にしますか？\n${_woTitle(j)}\n${rent?_lbLabel(j.loanerCar)+'を貸出中にします':'代車（'+_lbLabel(j.loanerCar)+'）を貸出中にして、駒を外します'}`,'入庫済にする')) return;
+  const msg=_woCheckInCore(j);
+  woTouch(j,true); woRenderAll(); toast(msg.join('。'),4500);
+}
+// 入庫済にする（ボタン・配置図に置いたときの共通処理）。代車は貸出中、代車の駒は配置図・駒の欄から外す
+function _woCheckInCore(j){
+  const t=_woToday(), loan=j.loanerUse===true&&j.loanerCar, rent=loan&&/^レンタカー/.test(j.loanerCar);
   j.inChecked=true; j.inAt=new Date().toISOString();
   if(!j.inDate||j.inDate>t) j.inDate=t;
   const msg=['入庫済にしました'];
@@ -1796,7 +1802,22 @@ async function woCheckIn(){
     if(!rent){ YARD.lpos=YARD.lpos||{}; delete YARD.lpos[j.loanerCar]; if(YARD.lret) delete YARD.lret[j.loanerCar]; _ydChanged(); }
     msg.push(`${_lbLabel(j.loanerCar)}を貸出中にしました`);
   }
-  woTouch(j,true); woRenderAll(); toast(msg.join('。'),4500);
+  return msg;
+}
+// この車に付いている代車（他社レンタカーは除く）。作業ボードで選んだ代車、または代車カレンダーの予約
+function _woLoanerPiece(j){
+  if(j.loanerUse===true&&j.loanerCar&&!j.loanerReturned) return /^レンタカー/.test(j.loanerCar)?'':j.loanerCar;
+  const L=typeof woLoanerInfo==='function'?(()=>{ const was=j.inChecked; j.inChecked=true; try{ return woLoanerInfo(j); }finally{ j.inChecked=was; } })():null;
+  return L&&L.car&&!/^レンタカー/.test(L.car)?L.car:'';
+}
+// 預かり車両を置き場所に置いたとき：代車の駒と合体（駒は消える）＋ 入庫済にする
+function _ydMergeLoaner(j,sid){
+  const msg=[]; if(!sid) return msg;
+  const lc=_woLoanerPiece(j), was0=lc&&YARD.lpos?YARD.lpos[lc]:'';
+  if(j.inChecked===false){ msg.push(..._woCheckInCore(j)); }
+  if(lc&&was0&&!(YARD.lpos||{})[lc]) msg.push(was0===sid?`代車 ${lc} と入れ替えました`:`代車 ${lc} の駒を外しました`);
+  if(lc&&YARD.lpos&&YARD.lpos[lc]){ const was=YARD.lpos[lc]; delete YARD.lpos[lc]; _ydChanged(); msg.push(was===sid?`代車 ${lc} と入れ替えました`:`代車 ${lc} の駒を外しました`); }
+  return msg;
 }
 // 作業ボードで予約した代車で、まだ入庫していない（＝お客様に渡していない）ものか
 function _woLoanPending(b){
@@ -2324,16 +2345,20 @@ function _ydFull(sid,selfKey){
   return used>=(s.cap||1)?s:null;
 }
 async function ydMove(jid,sid){
+  if(sid&&!String(jid).startsWith('lc:')){ const jj=_woJob(jid); const lc=jj?_woLoanerPiece(jj):''; if(lc&&(YARD.lpos||{})[lc]===sid&&!_ydJobsIn(sid).some(x=>x.id!==jid)&&_ydLcIn(sid).every(c=>c.n===lc)) return _ydMoveJob(jid,sid); }
   if(sid){ const f=_ydFull(sid,String(jid)); if(f){ toast(`「${f.name}」はいっぱいです（${f.cap||1}台まで）。先に今の車を動かしてください`,4500); YD.carSel=null; ydRender(); return; } }
   if(String(jid).startsWith('lc:')){ const n=jid.slice(3); YARD.lpos=YARD.lpos||{}; if(sid) YARD.lpos[n]=sid; else delete YARD.lpos[n];
     YD.carSel=null; _ydChanged(); const s=YARD.spaces.find(x=>x.id===sid); const lb=YD_XPIECES.some(x=>x.n===n)?n:'代車 '+n; toast(s?`${lb} を「${s.name}」へ置きました`:`${lb} を置き場所から外しました`); ydRender(); return; }
+  return _ydMoveJob(jid,sid);
+}
+async function _ydMoveJob(jid,sid){
   const j=_woJob(jid); if(!j) return;
   const s=YARD.spaces.find(x=>x.id===sid);
   if(s&&s.memo){ const t=await askText(`${s.name}：車の場所をメモしてください`,j.slot===sid?(j.slotNote||''):'','例：裏の駐車場・提携工場'); if(t===null){ YD.carSel=null; ydRender(); return; } j.slotNote=t; }
   else j.slotNote='';
-  j.slot=sid||''; woTouch(j,true); YD.carSel=null;
+  j.slot=sid||''; const mm=_ydMergeLoaner(j,sid); woTouch(j,true); YD.carSel=null;
   if(s&&_ydJobsIn(sid).length>(s.cap||1)) toast(`${s.name}は台数（${s.cap||1}台）を超えています`,4000);
-  else toast(s?`${_woTitle(j)} を「${s.name}」へ移動しました`:'配置から外しました');
+  else toast((s?`${_woTitle(j)} を「${s.name}」へ移動しました`:'配置から外しました')+(mm.length?'。'+mm.join('。'):''),mm.length?5500:3000);
   woRenderList(); ydRender(); if(WO_CUR===jid) woRenderDetail();
 }
 function ydLocate(jid){ YD.carSel=jid; _woGoTab('yard'); ydRender(); const el=document.querySelector(`.yd-car[data-job="${jid}"]`); if(el) el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }
