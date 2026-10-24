@@ -103,12 +103,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 11:50</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 12:05</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 11:50</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 12:05</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -137,7 +137,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 11:50</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 12:05</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -701,9 +701,11 @@ function start(){
           t: `入庫予定 ${i+1}/${n}：${[name, carName(car), num].filter(Boolean).join(' ')}`,
           d: lines.join('\n'), key:{tab, row, num, car, name}, sh:{tab, row, car, num, in:d.date}, by:'', mk:'daily|'+d.date+'|'+i, ref:'daily/'+ch.doc.id});
       }
-      // 同じ日の入庫予定を送り直したときは、前の分を入れ替える
-      if(!first) dropWhere(x => x.ref === 'daily/'+ch.doc.id);
-      for(const e of evs) if(!first || !S.events.some(x=>x.mk===e.mk && Math.abs(x.ts-e.ts)<60000)) out.push(e);
+      // 同じ日の入庫予定は、いつも新しい形で並べ直す（送り直したとき・古い形で残っていたとき）
+      const old = S.events.filter(x => x.ref === 'daily/'+ch.doc.id);
+      dropWhere(x => x.ref === 'daily/'+ch.doc.id);
+      if(first && old.length){ const seen = Math.max(...old.map(x=>x.ts)) <= S.seen; if(seen) evs.forEach(e => { e.ts = Math.min(e.ts, S.seen); }); }   // 既読だった分は既読のまま
+      for(const e of evs) out.push(e);
     });
     push(out, !first);
   });
