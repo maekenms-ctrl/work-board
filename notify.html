@@ -83,6 +83,9 @@ if(/github\.io$/.test(location.hostname)){
   .src.msg{background:#d3e3fd;color:#041e49}
   .ev[style*="#0b57d0"] .t{white-space:pre-wrap;word-break:break-all}
   .cdel{border-color:#dadce0!important;color:#5f6368!important}
+  .evdel{float:right;border:0;background:none;color:#9aa0a6;font:inherit;font-size:13px;padding:0 2px 0 8px;cursor:pointer;line-height:1}
+  .evdel:hover{color:#c5221f}
+  .evdel.ask{color:#fff;background:#c5221f;border-radius:12px;font-size:11px;font-weight:700;padding:2px 9px}
   .open.in{border-color:#ceead6;color:#137333}
   .ev .m br+.open{margin-left:0;margin-top:5px}
   .open{display:inline-block;border:1px solid #a8c7fa;background:#fff;color:#0b57d0;border-radius:14px;padding:2px 9px;margin-left:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;vertical-align:1px;text-decoration:none}
@@ -103,12 +106,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 12:20</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 12:55</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 12:20</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 12:55</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -137,7 +140,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 12:20</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 12:55</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -312,10 +315,24 @@ function dropWhere(fn){
   if(S.events.length !== before){ ls.set('ark-ev', S.events.map(({live,...e})=>e)); renderFeed(); renderBadge(); }
 }
 function dropRef(ref){ dropWhere(e => e.ref === ref); }
+// 削除した通知（全員の画面から消す）。印は daily/hide-… に保存（古い版のパネルや作業ボードは読み飛ばす）
+const hideKey = e => (e.ref||'') + '|' + (e.mk || e.t || '');
+const HIDDEN = new Set(ls.get('ark-hide', []));
+function hideAdd(k){ if(!k || HIDDEN.has(k)) return; HIDDEN.add(k); ls.set('ark-hide', [...HIDDEN].slice(-500)); dropWhere(e => hideKey(e) === k); }
+function hashId(t){ let h1=0x811c9dc5, h2=0x1505; for(let i=0;i<t.length;i++){ const c=t.charCodeAt(i); h1=Math.imul(h1^c,16777619)>>>0; h2=(Math.imul(h2,33)+c)>>>0; } return h1.toString(36)+h2.toString(36); }
+async function delEvent(id){
+  const e = S.events.find(x=>x.id===id); if(!e) return;
+  if(e.src==='msg' && e.ref){ await delComment(e.ref); dropRef(e.ref); return; }   // コメントはコメントそのものを消す
+  const k = hideKey(e); hideAdd(k);
+  if(!e.ref){ toast('この端末から削除しました'); return; }
+  try{ const {F} = fb; await F.setDoc(F.doc(db, 'daily', 'hide-' + hashId(k)), {hide:k, date:'hide', by:(S.user&&S.user.email)||'', at:F.serverTimestamp()}); toast('全員の画面から削除しました'); }
+  catch(err){ toast('この端末からは削除しました（ほかの端末には届きませんでした：' + (err&&err.code||err) + '）', 6000); }
+}
 // 以前の版で出ていた工程・担当・要不要の通知は、履歴からも消す
 try{ const re=/^工程「| の担当：/; const n=S.events.length; S.events=S.events.filter(e=>!(e.src==='wb'&&re.test(e.t||''))); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
 try{ const n=S.events.length; S.events=S.events.filter(e=>e.src!=='sheet'); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
 function push(evs, live){
+  evs = evs.filter(e => !HIDDEN.has(hideKey(e)));
   if(!evs.length) return;
   const now = Date.now();
   evs.forEach((e,i)=>{ e.ts = e.ts || now; e.id = e.id || (now+'-'+Math.random().toString(36).slice(2,7)+i); e.live = !!live; });
@@ -343,7 +360,7 @@ function evHtml(list, past){
     if(day !== lastDay){ lastDay = day; const x=new Date(day+'T00:00:00'); h += `<div class="day">${!past&&day===workDay(Date.now())?'今日':`${x.getMonth()+1}月${x.getDate()}日（${wk[x.getDay()]}）`}${past?`<span class="n"> ${list.filter(y=>workDay(y.ts)===day).length}件</span>`:''}</div>`; }
     h += `<div class="ev ${e.ts>S.seen?'new':''}" data-id="${esc(e.id)}" style="--c:${esc(e.c)}">
       <div class="ic">${e.ic}</div>
-      <div class="bd"><div class="t">${esc(e.t)}</div>${e.d?`<div class="d">${esc(e.d)}</div>`:''}
+      <div class="bd"><button class="evdel" type="button" data-evdel="${esc(e.id)}" title="この通知を削除">🗑</button><div class="t">${esc(e.t)}</div>${e.d?`<div class="d">${esc(e.d)}</div>`:''}
       <div class="m"><span class="src ${e.src}">${srcName[e.src]||''}</span>${pad(d.getHours())}:${pad(d.getMinutes())}${e.by?` ・ ${esc(e.by)}`:''}${openBtn(e)}</div></div></div>`;
   }
   return h;
@@ -369,7 +386,7 @@ function openBtn(e){
     const q = new URLSearchParams({sheet:'1', tab:e.sh.tab||'', row:String(e.sh.row||''), car:e.sh.car||'', num:e.sh.num||'', in:e.sh.in||''});
     return `<br><a class="open" href="${APP_URL.wb}#${q}&act=open" target="_blank" rel="noopener">↗ 作業ボードで開く</a><a class="open in" href="${APP_URL.wb}#${q}&act=in" target="_blank" rel="noopener">✓ 入庫済にする</a>`;
   }
-  if(e.src==='msg') return e.mine ? `<button class="open cdel" data-del="${esc(e.ref||'')}">取り消す</button>` : '';
+  if(e.src==='msg') return '';
   if(e.src==='sheet') return '';
   if(e.src==='daily') return '';
   // ボタンではなくリンクにする（スプレッドシートのパネルでも、新しいタブで確実に開ける）
@@ -665,6 +682,7 @@ function start(){
     snap.docChanges().forEach(ch => {
       if(ch.type === 'removed') return;
       const d = ch.doc.data() || {};
+      if(d.hide){ hideAdd(d.hide); return; }   // 削除された通知の印
       if(d.date !== today()) return;          // 今日の分だけ
       const ts = tsOf(d.at) || Date.now();
       if(d.kind === 'add' || d.kind === 'future'){
@@ -766,6 +784,15 @@ $('cmtForm').addEventListener('submit', e => { e.preventDefault(); sendComment()
 $('cmtText').addEventListener('input', cmtSize);
 $('cmtText').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); sendComment(); } });
 document.addEventListener('click', e => { const b = e.target.closest('button.cdel'); if(b){ e.stopPropagation(); delComment(b.dataset.del); } }, true);
+// 🗑：1回目で「全員から削除」の確認に変わり、もう1回押すと削除（4秒で元に戻る）
+document.addEventListener('click', e => {
+  const b = e.target.closest('button.evdel'); if(!b) return;
+  e.stopPropagation(); e.preventDefault();
+  if(b.classList.contains('ask')){ b.disabled = true; delEvent(b.dataset.evdel); return; }
+  document.querySelectorAll('button.evdel.ask').forEach(x=>{ x.classList.remove('ask'); x.textContent='🗑'; });
+  b.classList.add('ask'); b.textContent = '全員の画面から削除';
+  setTimeout(()=>{ if(b.isConnected && b.classList.contains('ask')){ b.classList.remove('ask'); b.textContent='🗑'; } }, 4000);
+}, true);
 
 // ───────── 操作 ─────────
 $('loginBtn').onclick = login;
