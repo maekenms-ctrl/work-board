@@ -1045,7 +1045,6 @@ function setAutoLock(v){ SETTINGS.autoLockMin=+v; _lsSet('wo-settings',JSON.stri
 // 車両配置のレイアウト・担当者リストは Firestore の yard/layout に置く（お客様情報を含まない）。
 const WO_STEPS=[
   {k:'bankin',   n:'板金・取替',    c:'#ffb020'},
-  {k:'shitaji',  n:'下地',          c:'#a78bfa'},
   {k:'toso',     n:'塗装',          c:'#FF2BD6'},
   {k:'kumitsuke',n:'組付',          c:'#00E5FF'},
   {k:'migaki',   n:'磨き・仕上げ',  c:'#5ec98f'},
@@ -2272,7 +2271,7 @@ const YD_PAL={
 };
 const YD_OTHER=['#e5e7eb','#111'];
 // 鈑金で段階が未設定なら、鈑金系の工程（板金〜磨き）の進み具合から決める
-const YD_BODY_STEPS=['bankin','shitaji','toso','kumitsuke','migaki'];
+const YD_BODY_STEPS=['bankin','toso','kumitsuke','migaki'];   // 下地は塗装にまとめた
 function _ydAutoStage(j){ const st=YD_BODY_STEPS.map(k=>j.steps&&j.steps[k]).filter(x=>x&&x.need); if(!st.length) return '前'; const d=st.filter(x=>x.done).length; return d===0?'前':d===st.length?'完成':'途中'; }
 // 区分は複数選べる（鈑金＋整備など）。「その他」は単独
 function ydCats(j){ const a=Array.isArray(j.yCats)&&j.yCats.length?j.yCats:[j.yCat||'鈑金']; return a.includes('その他')?['その他']:YD_CATS.filter(c=>a.includes(c)); }
