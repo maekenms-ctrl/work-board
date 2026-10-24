@@ -431,6 +431,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tag.ext{background:#4ea1ff;color:#111;}
 .wo-tag.coat{background:#34d399;color:#111;}
 .wo-tag.p1{background:#f59e0b;color:#111;}
+.wo-pinbtn{background:#188038;border-color:#188038;color:#fff;margin-left:6px}
 .selbtn.wo-p1btn.on{background:#f59e0b;border-color:#f59e0b;color:#111;}
 .wo-tag.inwait{background:transparent;color:var(--text);border:1px dashed var(--muted);}
 .wo-tag.sameday{background:#ff4d4d;color:#fff;}
@@ -1745,6 +1746,15 @@ function _woGlassName(j){ return j.glassVendor==='その他'?(j.glassOther?j.gla
 // 選択ボタン（同じものをもう一度押すと解除）
 // 部品単品（車両を預からない部品だけの注文）：置き場所なし・配置図の未配置にも出さない
 function woPartsOnly(){ const j=_woCurJob(); if(!j) return; j.partsOnly=!j.partsOnly; if(j.partsOnly){ j.slot=''; } woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} toast(j.partsOnly?'部品単品にしました（置き場所なし）':'部品単品を解除しました'); }
+// 部品入荷：まだ入荷済でない部品を入荷済にして、ARK通知で音付きで知らせる
+async function woPartsIn(){
+  const j=_woCurJob(); if(!j) return;
+  const wait=(j.parts||[]).filter(p=>p.status==='未発注'||p.status==='発注済');
+  if(!await askConfirm(`部品の入荷をARK通知で全員に知らせますか？${wait.length?'\n（'+wait.map(p=>p.name||'部品').join('・')+' を入荷済にします）':''}`,'知らせる')) return;
+  wait.forEach(p=>{ p.status='入荷済'; });
+  j.partsInAt=new Date().toISOString(); woTouch(j,true); woRenderDetail(); woRenderList();
+  toast('部品入荷を知らせました');
+}
 // お支払い区分：自費と保険など、複数を選べる（「自費・車両保険」のように保存）
 function _woPays(j){ return String(j.pay||'').split('・').filter(Boolean); }
 function woPay(k){ const j=_woCurJob(); if(!j) return; const a=_woPays(j); const i=a.indexOf(k); if(i>=0) a.splice(i,1); else a.push(k); j.pay=WO_PAY.filter(x=>a.includes(x)).concat(a.filter(x=>!WO_PAY.includes(x))).join('・'); woTouch(j,true); woRenderDetail(); woRenderList(); }
@@ -2087,6 +2097,7 @@ function woRenderDetail(){
       <td><button type="button" class="row-del" onclick="woPartDel('${p.id}')" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty" style="padding:10px">部品はありません</td></tr>'}
   </table></div>
   <button type="button" class="btn btn-add" onclick="woPartAdd()">＋ 部品を追加</button>
+  <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
   <div class="wo-sub">部品発注のPDF <span>（この端末のみ・複数選べます）</span></div>
   <div id="wo-files"></div>
   <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
