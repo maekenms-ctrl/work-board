@@ -106,12 +106,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 14:10</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 15:30</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 14:10</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 15:30</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -140,7 +140,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 14:10</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 15:30</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -237,28 +237,33 @@ function diffJob(prev, cur, id=''){
       if(nx) ev.push({...base, ic:'✅', c:s.c, t:`${s.n} 完了：${L}`, d:[b.who?`担当 ${b.who}`:'', `次は「${nx.n}」`].filter(Boolean).join(' ／ ')});
       else justDone.push(s.n + (b.who?`（${b.who}）`:''));
     } else if(a.done && !b.done){
-      ev.push({...base, ic:'↩️', c:'#9aa0a6', t:`${s.n} の完了を取消：${L}`, d:''});
+      ev.push({...base, ic:'↩️', c:'#9aa0a6', quiet:true, t:`${s.n} の完了を取消：${L}`, d:''});
     }
   }
   // 最後の工程が終わったら「全工程完了」を1件だけ
   if(justDone.length) ev.push({...base, ic:'🏁', c:DONE_C, t:`全工程完了：${L}`, d:`${justDone.join('・')} 完了 ／ 納車準備OK`});
+  // 部品入荷ボタン（作業ボード）：音付きで全員に知らせる。押した端末でも1回鳴らす
+  const pIn = cur.partsInAt && prev.partsInAt !== cur.partsInAt;
+  if(pIn){ const names=(cur.parts||[]).filter(p=>p.status==='入荷済').map(p=>p.name).filter(Boolean);
+    ev.push({...base, mine:false, ic:'📦', c:'#188038', t:`部品入荷：${L}`, d:names.length?names.join('・'):'', ts:Date.parse(cur.partsInAt)||base.ts}); }
+  // 部品の状況の変更（発注済・入荷済など）は音なし
   const pa = {}; (prev.parts||[]).forEach(p=>pa[p.id||p.name]=p);
   for(const p of (cur.parts||[])){
     const o = pa[p.id||p.name];
-    if(o && o.status!==p.status){
+    if(o && o.status!==p.status && !pIn){
       const ic = p.status==='入荷済'?'📦':p.status==='発注済'?'🛒':'📋';
-      ev.push({...base, ic, c:p.status==='入荷済'?'#188038':'#f29900', t:`部品 ${p.status}：${p.name}`,
+      ev.push({...base, ic, c:p.status==='入荷済'?'#188038':'#f29900', quiet:true, t:`部品 ${p.status}：${p.name}`,
         d:`${L}${p.eta&&p.status==='発注済'?` ／ 入荷予定 ${md(p.eta)}`:''}`});
     }
   }
   if(!prev.archived && cur.archived) ev.push({...base, ic:'🚗', c:DONE_C, t:`納車済：${L}`, d:''});
-  if(prev.archived && !cur.archived) ev.push({...base, ic:'↩️', c:'#9aa0a6', t:`納車済を取消：${L}`, d:''});
+  if(prev.archived && !cur.archived) ev.push({...base, ic:'↩️', c:'#9aa0a6', quiet:true, t:`納車済を取消：${L}`, d:''});
   if(prev.dueDate !== cur.dueDate && cur.dueDate)
-    ev.push({...base, ic:'📅', c:'#d93025', t:`納期${prev.dueDate?'変更':'決定'}：${L}`, d:prev.dueDate?`${md(prev.dueDate)} → ${md(cur.dueDate)}`:md(cur.dueDate), mk:'due|'+id});
+    ev.push({...base, ic:'📅', c:'#d93025', quiet:true, t:`納期${prev.dueDate?'変更':'決定'}：${L}`, d:prev.dueDate?`${md(prev.dueDate)} → ${md(cur.dueDate)}`:md(cur.dueDate), mk:'due|'+id});
   if(!prev.loanerCar && cur.loanerCar)
-    ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', t:`代車を手配：${carName(cur.loanerCar)}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
+    ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', quiet:true, t:`代車を手配：${carName(cur.loanerCar)}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
   if((prev.caution||'') !== (cur.caution||'') && cur.caution)
-    ev.push({...base, ic:'⚠️', c:'#d93025', t:`注意事項を更新：${L}`, d:cur.caution, mk:'caution|'+id});
+    ev.push({...base, ic:'⚠️', c:'#d93025', quiet:true, t:`注意事項を更新：${L}`, d:cur.caution, mk:'caution|'+id});
   return ev;
 }
 
@@ -269,6 +274,8 @@ function todayFromJob(j){
     if(st&&st.done&&st.at&&ymd(new Date(st.at))===t)
       ev.push({src:'wb', ic:'✅', c:s.c, t:`${s.n} 完了：${L}`, d:st.who?`担当 ${st.who}`:'', ts:Date.parse(st.at), key:{num:plateNum(j.plate),car:j.car||''}, by:''});
   }
+  if(j.partsInAt && ymd(new Date(j.partsInAt))===t)
+    ev.push({src:'wb', ic:'📦', c:'#188038', t:`部品入荷：${L}`, d:(j.parts||[]).filter(p=>p.status==='入荷済').map(p=>p.name).filter(Boolean).join('・'), ts:Date.parse(j.partsInAt), key:{num:plateNum(j.plate),car:j.car||''}, by:''});
   if(j.createdAt && ymd(new Date(j.createdAt))===t)
     ev.push({src:'wb', ic:'🆕', c:'#0b57d0', t:`作業指示を登録：${L}`, d:'', ts:Date.parse(j.createdAt), key:{num:plateNum(j.plate),car:j.car||''}, by:''});
   return ev;
