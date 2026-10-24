@@ -469,6 +469,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-sp.one .nm{position:static;flex:none;}
 .yd-car .lic{font-style:normal;}
 .yd-car .lsh{display:none;}
+.yd-car{position:relative;}
+.yd-car .lk{position:absolute;right:2px;top:2px;font-style:normal;font-size:10px;line-height:1;background:#111;color:#fff;border-radius:6px;padding:2px 4px;display:flex;gap:2px;align-items:center;max-width:60%;overflow:hidden;white-space:nowrap;}
+.yd-car .lk span{font-weight:800;overflow:hidden;text-overflow:ellipsis;}
+@container (max-width:110px){ .yd-sp.one>.yd-car .lk span{display:none;} .yd-sp.one>.yd-car .lk{padding:1px 2px;font-size:9px;} }
+@container (max-height:58px){ .yd-sp.one>.yd-car .lk span{display:none;} }
 .yd-car small.sts{display:none;font-weight:900;opacity:1;}
 .yd-sp.one>.yd-car.yd-lc span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .yd-sp.one>.yd-car{position:static;flex:1 1 auto;min-height:0;width:100%;max-width:none;margin:0;justify-content:center;overflow:hidden;padding:2px 5px;font-size:clamp(9px,19cqh,16px);border-radius:5px;word-break:break-all;line-height:1.1;}
@@ -1810,6 +1815,12 @@ function _woLoanerPiece(j){
   const L=typeof woLoanerInfo==='function'?(()=>{ const was=j.inChecked; j.inChecked=true; try{ return woLoanerInfo(j); }finally{ j.inChecked=was; } })():null;
   return L&&L.car&&!/^レンタカー/.test(L.car)?L.car:'';
 }
+// 貸出中の代車と、それを使っているお客様の車（作業ボードにある・入庫済・納車前）
+function _ydLoanJobs(){
+  const m={};
+  for(const j of JOBS){ if(j.archived||j.inChecked===false) continue; const lc=_woLoanerPiece(j); if(lc&&_ydLcOut(lc)&&!m[lc]) m[lc]=j; }
+  return m;
+}
 // 預かり車両を置き場所に置いたとき：代車の駒と合体（駒は消える）＋ 入庫済にする
 function _ydMergeLoaner(j,sid){
   const msg=[]; if(!sid) return msg;
@@ -2268,8 +2279,9 @@ function _ydTextW(t){ let w=0; for(const ch of String(t||'')) w+=/[\x20-\x7e\uff
 function _ydShortLabel(j){ const st=ydState(j); if(st.cats[0]==='その他') return 'その他'; return st.parts.map(p=>p.cat.slice(0,1)+(st.parts.length>1?'':p.stage)).join('・'); }
 function _ydCarHtml(j){
   const due=woDueTag(j);
+  const lcn=(()=>{ if(j.archived||j.inChecked===false) return ''; const lc=_woLoanerPiece(j); return lc&&_ydLcOut(lc)?lc:''; })();
   const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
-  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')"><b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
+  return `<div class="yd-car${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}<b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}</small>${j.dueDate?`<small class="sts">${_woMD(j.dueDate)}</small>`:''}${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
 // 代車以外の駒（回送・回送レンタカー）。代車カレンダーとは連動しない。メモを付けられる
@@ -2303,7 +2315,7 @@ function ydRender(){
   const lp=document.getElementById('yd-lpool');
   if(lp){
     const ids=new Set(YARD.spaces.map(s=>s.id)); const P=YARD.lpos||{};
-    const cars=_ydLcCars(); const wait=cars.filter(c=>!_ydLcOut(c.n)&&!(P[c.n]&&ids.has(P[c.n]))); const out=cars.filter(c=>_ydLcOut(c.n));
+    const cars=_ydLcCars(); const LJ=_ydLoanJobs(); const wait=cars.filter(c=>!_ydLcOut(c.n)&&!(P[c.n]&&ids.has(P[c.n]))); const out=cars.filter(c=>_ydLcOut(c.n)&&!LJ[c.n]);
     lp.classList.toggle('target',!!YD.carSel&&!YD.edit);
     lp.onclick=e=>{ if(e.target===lp&&YD.carSel) ydMove(YD.carSel,''); };
     lp.innerHTML=locked?'<span class="sg-note">ロック中です</span>':(wait.length?wait.map(_ydLcHtml).join(''):'<span class="sg-note">置き場所に置いていない駒はありません</span>')
