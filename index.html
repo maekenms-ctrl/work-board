@@ -2625,7 +2625,7 @@ ${act.map(j=>{ const n=woNext(j); return `<tr><td>${esc(ids.has(j.slot)?_woSlotF
 //  ・作業指示で代車を選ぶと「wb-作業指示ID」の予約を入れる（見積りツールのカレンダーに表示される）
 // お客様名は扱わない：予約の名前欄には「車種 登録番号」を入れ、他の予約の名前は表示しない。
 const OPEN_END='9999-12-31';
-const RENTAL_ROWS=[{n:'レンタカー1',lab:'他社レンタカー①',ext:1},{n:'レンタカー2',lab:'他社レンタカー②',ext:1},{n:'レンタカー3',lab:'他社レンタカー③',ext:1}];
+const RENTAL_ROWS=[{n:'レンタカー1',lab:'他社レンタカー①',ext:1},{n:'レンタカー2',lab:'他社レンタカー②',ext:1}];
 const LOANER_CARS=[{n:'N-BOX'},{n:'ラパン',low:1},{n:'フィット',low:1},{n:'フリード'},{n:'プリウス',low:1},{n:'ミライース',low:1},{n:'ムーブ'}];
 function _sheetDate(v){
   v=String(v||'').normalize('NFKC').trim(); if(!v) return '';
