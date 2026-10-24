@@ -875,6 +875,8 @@ try{ SETTINGS={...SETTINGS,...JSON.parse(localStorage.getItem('wo-settings')||'{
 const _b64=u=>{ const a=new Uint8Array(u); let t=''; for(let i=0;i<a.length;i+=0x8000) t+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000)); return btoa(t); };
 const _ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 function _lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+// この端末の印（ARK通知が「この端末での操作」を見分けて、音を鳴らさないために使う）
+const WO_DEV=(()=>{ try{ let d=localStorage.getItem('ark-dev'); if(!d){ d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); localStorage.setItem('ark-dev',d); } return d; }catch(e){ return ''; } })();
 function _lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
 function _lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
 async function _deriveKey(pin,salt,iter){
@@ -1264,7 +1266,7 @@ function _woCloudOk(){ return CLOUD.started&&WOC.live&&!WOC.err; }
 function _woCloudPut(j){
   if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb; const d=_woClean(j); _woSanitize(d);
-  fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),{...d,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()}).catch(e=>_woCloudErr(e,'jobs'));
+  fs.setDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),{...d,by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()}).catch(e=>_woCloudErr(e,'jobs'));
 }
 // 削除は「削除済みの印」をクラウドに残す（別の端末が持っていた古いデータで復活しないように）
 // つながっていないときは端末に覚えておき、次につながったときに送る
@@ -2653,7 +2655,7 @@ function _lbSyncNow(j){
     const id=_lbDocId(j);
     const name=[j.car,j.plate].filter(Boolean).join(' ')||'作業ボード';
     fs.setDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id)),{car:j.loanerCar,from:j.loanerFrom<=j.loanerTo?j.loanerFrom:j.loanerTo,to:j.loanerFrom<=j.loanerTo?j.loanerTo:j.loanerFrom,
-      name,kinds:['鈑金塗装'],kind:'鈑金塗装',memo:j.loanerReturned?'作業ボードから登録・返却済':'作業ボードから登録',src:'wb',returned:!!j.loanerReturned,code:id,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()})
+      name,kinds:['鈑金塗装'],kind:'鈑金塗装',memo:j.loanerReturned?'作業ボードから登録・返却済':'作業ボードから登録',src:'wb',returned:!!j.loanerReturned,code:id,by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()})
       .then(()=>{ if(j.loanerBook!==_cloudKey(id)){ j.loanerBook=_cloudKey(id); woTouch(j,true); if(j.id===WO_CUR) lbRenderCars(); } })
       .catch(e=>toast('代車カレンダーに登録できませんでした：'+_netMsg(e),6000));
   } else if(j.loanerBook){

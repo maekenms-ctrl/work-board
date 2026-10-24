@@ -103,12 +103,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 12:05</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 12:20</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 12:05</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 12:20</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -137,7 +137,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 12:05</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 12:20</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -217,7 +217,7 @@ function tsOf(v){ if(!v) return 0; if(typeof v.toMillis==='function') return v.t
 // ───────── 変更の見分け（作業ボード） ─────────
 function diffJob(prev, cur, id=''){
   const ev = [], L = carLabel(cur), by = who(cur.by);
-  const base = {src:'wb', key:{num:plateNum(cur.plate), car:cur.car||''}, by};
+  const base = {src:'wb', key:{num:plateNum(cur.plate), car:cur.car||''}, by, mine: isMyDev(cur.dev)};
   const named = j => !!(j && (j.plate || j.car));
   // 登録直後は番号・車種が空なので、入力されたときに「登録」として知らせる
   if(!prev || (!named(prev) && named(cur))){
@@ -276,7 +276,7 @@ function isBooking(id, v){ return v && !v.sheet && !v.shop && v.car && v.from &&
 function diffLoaner(prev, cur, id){
   const b = cur || prev, by = who(b.by), kinds = (b.kinds||[]).join('・');
   const d = [b.name, `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
-  const base = {src:'loan', key:{num:'', car:''}, by};
+  const base = {src:'loan', key:{num:'', car:''}, by, mine: isMyDev(b.dev)};
   if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${carName(b.car)}`, d}];
   if(!cur)  return [{...base, ic:'🗑️', c:'#9aa0a6', t:`代車予約を取消：${carName(b.car)}`, d}];
   if(prev.car!==cur.car || prev.from!==cur.from || prev.to!==cur.to)
@@ -326,9 +326,9 @@ function push(evs, live){
   S.events = evs.concat(keep).filter(e=>e.ts>=lim).sort((a,b)=>b.ts-a.ts).slice(0, MAX_EV);
   ls.set('ark-ev', S.events.map(({live,...e})=>e));
   // 音を鳴らすのは「音なし」でない通知が1件でもあるときだけ
-  const loud = evs.filter(e=>!e.quiet);
+  const loud = evs.filter(e=>!e.quiet && !e.mine);   // この端末での操作から生まれた通知は音を鳴らさない
   if(live && loud.length){ beep(loud); }
-  if(live) hubSend({ark:'new', n:evs.length});
+  if(live){ const n = evs.filter(e=>!e.mine).length; if(n) hubSend({ark:'new', n}); }   // この端末での操作は数えない
   if(live && loud.length) deskNotify(loud);
   renderFeed(); renderBadge();
 }
@@ -415,10 +415,14 @@ function sheetGo(k){
     .withFailureHandler(e => toast('シートを探せませんでした：' + (e&&e.message||e), 5000))
     .findRowAny(k.tab||'', +k.row||0, k.name||'', k.car||'', k.num||'');
 }
+// この端末の印（作業ボードと同じ。hub・同じアドレスのタブで共通）
+const MY_DEV = (()=>{ try{ return localStorage.getItem('ark-dev')||''; }catch(e){ return ''; } })();
+function isMyDev(d){ const me = MY_DEV || (()=>{ try{ return localStorage.getItem('ark-dev')||''; }catch(e){ return ''; } })(); return !!(d && me && d === me); }
 function hubSend(m){ try{ if(IN_HUB) window.parent.postMessage(m, location.origin); }catch(e){} }
 // リンクを押したとき：hub の中なら、同じ画面の作業ボードに切り替えて開く
 function hubLink(e){
   const a = e.target.closest('a.open'); if(!a) return false;
+  if(a.classList.contains('in')) playSound('wb', true);   // 入庫済にする：押したときに1回だけ鳴らす
   e.stopPropagation();
   if(IN_HUB){
     e.preventDefault();
