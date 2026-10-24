@@ -2,6 +2,16 @@
 <html>
 <head>
 <base target="_top">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b57d0">
+<script>
+// GitHub に置いた「ARK通知」ページのときだけ、アプリとしてインストールできるようにする
+if(/github\.io$/.test(location.hostname)){
+  var l=document.createElement('link'); l.rel='manifest'; l.href='notify.webmanifest'; document.head.appendChild(l);
+  var i=document.createElement('link'); i.rel='icon'; i.href='icon-192.png'; document.head.appendChild(i);
+  if('serviceWorker' in navigator) addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
 <meta charset="utf-8">
 <style>
   :root{
@@ -65,7 +75,7 @@
   .menu.on{display:block}
   .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 14px;font:inherit;cursor:pointer}
   .menu button:hover{background:#f1f3f4}
-  .open{border:1px solid #a8c7fa;background:#fff;color:#0b57d0;border-radius:14px;padding:2px 9px;margin-left:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;vertical-align:1px}
+  .open{display:inline-block;border:1px solid #a8c7fa;background:#fff;color:#0b57d0;border-radius:14px;padding:2px 9px;margin-left:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;vertical-align:1px;text-decoration:none}
   .open:hover{background:#d3e3fd}
   .tapnote{position:fixed;left:10px;right:10px;bottom:10px;z-index:30;background:#0b57d0;color:#fff;border-radius:12px;padding:12px 14px;font-weight:600;text-align:center;line-height:1.5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
   .tapnote span{font-weight:400;font-size:12px;opacity:.85}
@@ -83,12 +93,12 @@
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-23 19:00</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 09:55</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-23 19:00</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 09:55</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -113,10 +123,11 @@
     </div>
     <div class="menu" id="menu">
       <button data-act="read">すべて既読にする</button>
+      <button data-act="desk" id="deskBtn">🖥 画面の右下に通知を出す</button>
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-23 19:00</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 09:55</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -302,6 +313,8 @@ function push(evs, live){
   // 音を鳴らすのは「音なし」でない通知が1件でもあるときだけ
   const loud = evs.filter(e=>!e.quiet);
   if(live && loud.length){ beep(loud); }
+  if(live) hubSend({ark:'new', n:evs.length});
+  if(live && loud.length) deskNotify(loud);
   renderFeed(); renderBadge();
 }
 
@@ -339,8 +352,53 @@ const APP_URL = {wb:'https://maekenms-ctrl.github.io/work-board/', est:'https://
 function openBtn(e){
   if(e.src==='sheet') return '';
   if(e.src==='daily') return '';
-  if(e.src==='wb') return e.jid ? `<button class="open" data-open="wb" data-jid="${esc(e.jid)}">↗ 作業ボードで開く</button>` : '';
-  return `<button class="open" data-open="est">↗ 見積りツールを開く</button>`;
+  // ボタンではなくリンクにする（スプレッドシートのパネルでも、新しいタブで確実に開ける）
+  if(e.src==='wb') return e.jid ? `<a class="open" href="${APP_URL.wb}#job=${encodeURIComponent(e.jid)}" target="_blank" rel="noopener">↗ 作業ボードで開く</a>` : '';
+  return `<a class="open" href="${APP_URL.est}" target="_blank" rel="noopener">↗ 見積りツールを開く</a>`;
+}
+// 「作業ボード＋通知」（hub.html）の中で開いているか
+const IN_HUB = (()=>{ try{ return window.parent!==window && window.parent.location.origin===location.origin && /hub\.html/.test(window.parent.location.pathname); }catch(e){ return false; } })();
+// ── パソコン・タブレットの画面の端に出す通知（このページを開いている間）──
+const DESK_OK = typeof Notification !== 'undefined';
+function deskOn(){ return DESK_OK && Notification.permission === 'granted' && ls.get('ark-desk', false); }
+function deskLabel(){ const b=$('deskBtn'); if(!b) return; b.textContent = !DESK_OK ? '🖥 画面の端の通知（この画面では使えません）' : deskOn() ? '🖥 画面の右下の通知：オン（押すとオフ）' : '🖥 画面の右下に通知を出す'; }
+async function deskToggle(){
+  if(!DESK_OK){ toast('この画面では使えません。Chromeで notify.html を開いて設定してください', 5000); return; }
+  if(deskOn()){ ls.set('ark-desk', false); deskLabel(); toast('画面の右下の通知をオフにしました'); return; }
+  let p = Notification.permission;
+  if(p === 'default'){ try{ p = await Notification.requestPermission(); }catch(e){} }
+  if(p !== 'granted'){ toast('通知が許可されていません。アドレスバー左のアイコン →「通知」を「許可」にしてください', 7000); return; }
+  ls.set('ark-desk', true); deskLabel();
+  deskShow({t:'ARK通知', d:'通知が届くと、ここに表示されます', id:'test'}); toast('画面の右下の通知をオンにしました');
+}
+function deskShow(e){
+  const title = e.t || 'ARK通知', opt = {body: e.d || '', tag: 'ark-'+(e.mk||e.id||Date.now()), icon:'icon-192.png', badge:'icon-192.png', renotify:true,
+    data:{url: e.jid ? APP_URL.wb + '#job=' + encodeURIComponent(e.jid) : location.href}};
+  try{
+    const n = new Notification(title, opt);
+    n.onclick = () => { try{ window.focus(); }catch(_){} if(e.jid){ if(IN_HUB) hubSend({ark:'openJob', jid:e.jid}); else window.open(opt.data.url, 'ark-wb'); } n.close(); };
+  }catch(err){
+    // Android などは、サービスワーカー経由で出す
+    if(navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification(title, opt)).catch(()=>{});
+  }
+}
+function deskNotify(evs){
+  if(!deskOn()) return;
+  const list = evs.slice(0, 3);
+  list.forEach(deskShow);
+  if(evs.length > 3) deskShow({t:`ほか ${evs.length-3}件の通知`, d:'ARK通知を開いて確認してください', id:'more'});
+}
+function hubSend(m){ try{ if(IN_HUB) window.parent.postMessage(m, location.origin); }catch(e){} }
+// リンクを押したとき：hub の中なら、同じ画面の作業ボードに切り替えて開く
+function hubLink(e){
+  const a = e.target.closest('a.open'); if(!a) return false;
+  e.stopPropagation();
+  if(IN_HUB){
+    e.preventDefault();
+    const m = a.href.match(/#job=([^&]+)/);
+    if(m) hubSend({ark:'openJob', jid:decodeURIComponent(m[1])}); else hubSend({ark:'openEst'});
+  }
+  return true;
 }
 function openApp(kind, jid){
   const url = APP_URL[kind] + (jid ? '#job=' + encodeURIComponent(jid) : '');
@@ -631,7 +689,7 @@ document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
   S.filter = b.dataset.f; document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on', x===b)); renderFeed();
 });
 $('feed').addEventListener('click', e => {
-  const ob = e.target.closest('button.open'); if(ob){ e.stopPropagation(); openApp(ob.dataset.open, ob.dataset.jid); return; }
+  if(hubLink(e)) return;   // リンクはそのまま開く（hub の中なら作業ボードに切り替え）
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
   el.classList.remove('new');
@@ -639,6 +697,14 @@ $('feed').addEventListener('click', e => {
     if(window.google && google.script && google.script.run) google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0);
     return;
   }
+  jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
+});
+// 過去タブ：リンクはそのまま開く／通知を押すとシートの行へ
+$('pastView').addEventListener('click', e => {
+  if(hubLink(e)) return;
+  const el = e.target.closest('.ev'); if(!el) return;
+  const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && ev.key.tab && window.google && google.script && google.script.run){ google.script.run.withSuccessHandler(x=>toast(`「${x.sheet}」の ${x.row} 行目に移動しました`)).selectRowIn(ev.key.tab, +ev.key.row||0); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 $('todayView').addEventListener('click', e => {
@@ -694,10 +760,12 @@ if(!IN_SHEET){
   document.body.appendChild(n);
 }
 $('soundBtn').textContent = S.sound ? '🔔' : '🔕';
+deskLabel();
 $('menuBtn').onclick = e => { e.stopPropagation(); $('menu').classList.toggle('on'); };
 document.addEventListener('click', () => { $('menu').classList.remove('on'); $('sndPanel').classList.remove('on'); });
 $('menu').addEventListener('click', async e => {
   const a = e.target.dataset.act; if(!a) return;
+  if(a==='desk'){ await deskToggle(); return; }
   if(a==='log'){
     const L = ['jobs','loaner','estimates'].map(n=>{ const st=S.stat[n]; return `■ ${n}：${st?st.n+'件':'未受信'}\n` + (st&&st.log.length?st.log.join('\n'):'（パネルを開いてから変更なし）'); }).join('\n\n');
     alert(L);

@@ -20,3 +20,13 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match(req).then(r => r || (req.mode === 'navigate' ? caches.match('./') : undefined)))
   );
 });
+// 通知を押したとき：開いている画面を前に出す（作業指示の通知なら作業ボードを開く）
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './notify.html';
+  e.waitUntil(self.clients.matchAll({type:'window', includeUncontrolled:true}).then(cs => {
+    const want = new URL(url, self.location.href).href.split('#')[0];
+    for (const c of cs) { if (c.url.split('#')[0] === want && 'focus' in c) { if (url.includes('#')) c.navigate(url).catch(()=>{}); return c.focus(); } }
+    return self.clients.openWindow(url);
+  }));
+});
