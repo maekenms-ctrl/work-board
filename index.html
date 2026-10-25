@@ -430,6 +430,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 .wo-tag.ext{background:#4ea1ff;color:#111;}
 .wo-tag.coat{background:#34d399;color:#111;}
+.wo-sbsub{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;padding-left:4px;}
+.wo-sbsub>span{min-width:76px;font-size:12px;font-weight:700;color:var(--muted,#9aa0a6);}
+.wo-sb .selbtn{font-size:14px;}
 .wo-tag.p1{background:#f59e0b;color:#111;}
 .wo-pinbtn{background:#188038;border-color:#188038;color:#fff;margin-left:6px}
 .selbtn.wo-p1btn.on{background:#f59e0b;border-color:#f59e0b;color:#111;}
@@ -784,6 +787,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="sg"><h3>セキュリティ</h3>
       <div class="sg-note">作業指示（登録番号・作業内容など）と写真は、暗証番号で暗号化してこの端末に保存しています。</div>
       <div class="fgrid">
+        <div class="field span2"><label>暗証番号の入力</label><div class="check-group"><button type="button" class="selbtn" id="s-pinskip1" onclick="setPinSkip(true)">ログイン中は省略する</button><button type="button" class="selbtn" id="s-pinskip0" onclick="setPinSkip(false)">毎回入力する</button></div><div class="sg-note" style="margin:4px 0 0">省略すると、チーム共有にログインしている間は暗証番号なしで開きます（自動ロックもしません）。端末をなくしたときは、ほかの端末からパスワードを変えてください。</div></div>
         <div class="field"><label>自動ロック（操作がないとき）</label><select id="s-autolock" onchange="setAutoLock(this.value)"><option value="1">1分</option><option value="3">3分</option><option value="5">5分</option><option value="10">10分</option><option value="30">30分</option></select></div>
         <div class="field" style="display:flex;gap:8px;align-items:flex-end"><button type="button" class="btn" onclick="changePin()">🔑 暗証番号を変更</button><button type="button" class="btn" onclick="lockNow()">🔒 今すぐロック</button></div>
       </div>
@@ -926,6 +930,21 @@ async function _setupPin(pin){
   if(oldKey){ JOBS=keep; _woSaveLocal(); await _woChain; await _woRekey(oldKey,key); }
   else { JOBS=[]; _lsDel('wo-jobs-enc'); await _woRekey(null,null); }
 }
+// ── ログイン中は暗証番号を省略：鍵（取り出せない形）をこの端末に保存し、次から自動で開く ──
+function _pinSkipOn(){ return SETTINGS.skipPin!==false; }
+function _kdb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('wo-keydb',1); r.onupgradeneeded=()=>r.result.createObjectStore('k'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function _keySave(key){ try{ const db=await _kdb(); await new Promise((res,rej)=>{ const t=db.transaction('k','readwrite'); t.objectStore('k').put(key,'main'); t.oncomplete=res; t.onerror=()=>rej(t.error); }); }catch(e){ console.warn('keySave',e); } }
+async function _keyLoad(){ try{ const db=await _kdb(); return await new Promise((res,rej)=>{ const q=db.transaction('k').objectStore('k').get('main'); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error); }); }catch(e){ return null; } }
+async function _keyClear(){ try{ const db=await _kdb(); await new Promise(res=>{ const t=db.transaction('k','readwrite'); t.objectStore('k').delete('main'); t.oncomplete=res; t.onerror=res; }); }catch(e){} }
+function _keyKeep(){ if(_pinSkipOn()&&SEC.key&&CLOUD.user) _keySave(SEC.key); }
+async function _tryAutoUnlock(){
+  if(!_pinSkipOn()) return false;
+  const L=_lockInfo(); if(!L) return false;
+  const key=await _keyLoad(); if(!key) return false;
+  try{ const v=await _dec(key,L.chk); if(v!=='ARK-OK') return false; }catch(e){ await _keyClear(); return false; }
+  SEC.key=key; await _woLoadLocal(); return true;
+}
+function setPinSkip(on){ SETTINGS.skipPin=!!on; _lsSet('wo-settings',JSON.stringify(SETTINGS)); if(on){ _keyKeep(); toast(CLOUD.user?'次からは暗証番号なしで開きます（ログイン中）':'ログインすると、次から暗証番号なしで開きます'); } else { _keyClear(); toast('毎回、暗証番号を入力します'); } renderSettings(); }
 function lockNow(){
   if(!SEC.ok||!_lockInfo()) return;
   cloudStop(); SEC.key=null; SEC.locked=true;
@@ -983,22 +1002,27 @@ function _showLock(mode){
     const cp=askConfirm('暗証番号を忘れた場合は、この端末の作業指示（写真を含む）を削除して、新しい暗証番号を設定し直します。\n（チーム共有中なら、作業指示はログイン後に共有から戻ります）','削除して再設定');
     {const o=document.querySelectorAll('.cf-ov');if(o.length)o[o.length-1].style.zIndex='20001';}
     if(!await cp) return;
-    _lsDel('wo-jobs-enc'); _lsDel('wo-lock'); _lsDel('wo-lock-fail'); JOBS=[]; await _woRekey(null,null);
+    _lsDel('wo-jobs-enc'); _lsDel('wo-lock'); _lsDel('wo-lock-fail'); JOBS=[]; await _woRekey(null,null); await _keyClear();
     pin='';step='setup';mode='setup';paint();
   });
   paint();
 }
-function _unlocked(ov){ SEC.locked=false; SEC.lastAct=Date.now(); ov.remove(); woRenderAll(); renderSettings(); try{ if(CLOUD.user) cloudStart(); else cloudInit(); }catch(e){} }
+function _unlocked(ov){ SEC.locked=false; SEC.lastAct=Date.now(); ov.remove(); _keyKeep(); woRenderAll(); renderSettings(); try{ if(CLOUD.user) cloudStart(); else cloudInit(); }catch(e){} }
 function changePin(){ if(!SEC.ok){toast('この画面では暗証番号を使えません',5000);return;} _showLock('change-old'); }
 function _secInit(){
   if(!SEC.ok){ SEC.locked=false; _woLoadLocal().then(()=>{ woRenderAll(); cloudInit(); }); return; }
-  _showLock(_lockInfo()?'unlock':'setup');
+  if(_lockInfo()&&_pinSkipOn()){
+    // 保存した鍵で開けるか先に試す（だめなら暗証番号の画面）
+    _showLock('unlock'); const ov0=document.getElementById('lock-ov'); if(ov0) ov0.style.visibility='hidden';
+    _tryAutoUnlock().then(ok=>{ const ov=document.getElementById('lock-ov'); if(ok&&ov) _unlocked(ov); else if(ov) ov.style.visibility=''; });
+  } else _showLock(_lockInfo()?'unlock':'setup');
   ['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{SEC.lastAct=Date.now();},{passive:true,capture:true}));
   const lim=()=>(+SETTINGS.autoLockMin||5)*60000;
-  setInterval(()=>{ if(!SEC.locked && Date.now()-SEC.lastAct>lim()) lockNow(); },15000);
+  const autoOk=()=>!(_pinSkipOn()&&CLOUD.user);   // 暗証番号を省略しているときは、自動ロックしない
+  setInterval(()=>{ if(!SEC.locked && autoOk() && Date.now()-SEC.lastAct>lim()) lockNow(); },15000);
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){ SEC.hiddenAt=Date.now(); }
-    else if(!SEC.locked && SEC.hiddenAt && Date.now()-SEC.hiddenAt>lim()){ lockNow(); }
+    else if(!SEC.locked && autoOk() && SEC.hiddenAt && Date.now()-SEC.hiddenAt>lim()){ lockNow(); }
   });
 }
 
@@ -1022,7 +1046,7 @@ async function cloudInit(showErr){
     CLOUD.auth=auth.getAuth(CLOUD.app);
     CLOUD.db=fs.getFirestore(CLOUD.app);
     CLOUD.ready=true;
-    auth.onAuthStateChanged(CLOUD.auth,u=>{ CLOUD.user=u||null; if(u&&!SEC.locked) cloudStart(); else if(!u) cloudStop(); renderSettings(); woRenderBadges(); });
+    auth.onAuthStateChanged(CLOUD.auth,u=>{ CLOUD.user=u||null; if(u) _keyKeep(); if(u&&!SEC.locked) cloudStart(); else if(!u) cloudStop(); renderSettings(); woRenderBadges(); });
   }catch(e){ if(showErr) toast('チーム共有に接続できませんでした：'+_netMsg(e),7000); }
 }
 function cloudStart(){ if(!CLOUD.user||!CLOUD.db||SEC.locked) return; CLOUD.started=true; woCloudStart(); renderSettings(); }
@@ -1038,6 +1062,7 @@ async function cloudLogin(){
 async function cloudLogout(){
   if(!await askConfirm('ログアウトしますか？','ログアウト')) return;
   cloudStop(); try{ if(CLOUD.auth) await CLOUD.fb.auth.signOut(CLOUD.auth); }catch(e){}
+  await _keyClear();   // ログアウトしたら、次からは暗証番号が必要
   CLOUD.user=null; renderSettings(); woRenderBadges(); toast('ログアウトしました（この端末だけで使います）');
 }
 
@@ -1053,6 +1078,7 @@ function renderSettings(){
   const ss=document.getElementById('sheet-st');
   if(ss){ ss.textContent=typeof LB==='undefined'||!LB.live?'チーム共有にログインすると使えます':!LB.sheetUrl?'入庫管理表が設定されていません（見積りツールの設定で連動してください）':LB.sheetErr?LB.sheetErr:!LB.sheetAt?'読み込み中…':!LB.hasPlate?'⚠ スプレッドシートの読み取りが登録番号（H列）に対応していません。Apps Scriptの更新が必要です':(WSC.last||'読み込み済み'); }
   const al=document.getElementById('s-autolock'); if(al) al.value=String(SETTINGS.autoLockMin||5);
+  { const a=document.getElementById('s-pinskip1'), b=document.getElementById('s-pinskip0'); if(a&&b){ a.classList.toggle('on',_pinSkipOn()); b.classList.toggle('on',!_pinSkipOn()); } }
 }
 function setAutoLock(v){ SETTINGS.autoLockMin=+v; _lsSet('wo-settings',JSON.stringify(SETTINGS)); toast('自動ロックを'+v+'分にしました'); }
 
@@ -1361,6 +1387,55 @@ function woCloudStart(){
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
   woRenderBadges();
+}
+// 入出庫管理表から自動で作った作業指示を削除したとき：元の知らせ（daily/job-…）も消す（古い版の端末が作り直さないように）
+function _woDelSheetDoc(j){
+  if(!String(j.id).startsWith('wo-sd-')||!_woCloudOk()) return;
+  const d=WSD.docs.find(x=>'wo-sd-'+_cloudKey(x.id)===j.id); if(!d||d.kind!=='job') return;
+  try{ const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'daily',d.id)).catch(()=>{}); }catch(e){}
+}
+// ── 整備内容（区分で「整備」を選んだとき）──
+const WO_SEIBI=[
+  {k:'oil',  ic:'🛢', n:'エンジンオイル交換'},
+  {k:'ac',   ic:'❄️', n:'AC点検'},
+  {k:'water',ic:'💧', n:'水漏れ'},
+  {k:'susp', ic:'🔩', n:'足回り'},
+  {k:'batt', ic:'🔋', n:'バッテリー交換'},
+];
+const WO_AC_SYM=['ガス漏れ','異音','風量','冷風が出ない','その他'];
+function _woSb(j){ if(!j.seibi||typeof j.seibi!=='object') j.seibi={}; return j.seibi; }
+function woSeibiHtml(j){
+  const S=j.seibi||{}, b=(on,label,fn,extra='')=>`<button type="button" class="selbtn${on?' on':''}" ${extra} onclick="${fn}">${label}</button>`;
+  let h=`<div class="check-group wo-sb">${WO_SEIBI.map(x=>b(S[x.k]&&S[x.k].on,`${x.ic} ${x.n}`,`woSeibi('${x.k}')`)).join('')}</div>`;
+  if(S.oil&&S.oil.on) h+=`<div class="wo-sbsub"><span>🛢 エレメント</span>${['要','不要'].map(v=>b(S.oil.elem===v,v,`woSeibiSet('oil','elem','${v}')`)).join('')}</div>`;
+  if(S.ac&&S.ac.on){
+    const sym=S.ac.sym||[];
+    h+=`<div class="wo-sbsub"><span>❄️ 症状</span>${WO_AC_SYM.map(v=>b(sym.includes(v),v,`woSeibiAc('${v}')`)).join('')}</div>`;
+    if(sym.includes('その他')) h+=`<div class="wo-sbsub"><span></span><input class="wo-search" style="flex:1;min-width:160px" value="${esc(S.ac.other||'')}" placeholder="症状を入力" oninput="woSeibiText(this.value)" onblur="woRenderList()"></div>`;
+    h+=`<div class="wo-sbsub"><span>❄️ 蛍光剤</span>${['あり','なし'].map(v=>b(S.ac.dye===v,v,`woSeibiSet('ac','dye','${v}')`)).join('')}</div>`;
+  }
+  return h;
+}
+function woSeibi(k){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S[k]=S[k]&&S[k].on?{...S[k],on:false}:{...(S[k]||{}),on:true}; woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSeibiSet(k,f,v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S[k]=S[k]||{on:true}; S[k][f]=S[k][f]===v?'':v; woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSeibiAc(v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S.ac=S.ac||{on:true}; const a=S.ac.sym||[]; S.ac.sym=a.includes(v)?a.filter(x=>x!==v):WO_AC_SYM.filter(x=>x===v||a.includes(x)); woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSeibiText(v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S.ac=S.ac||{on:true}; S.ac.other=v; woTouch(j); }
+// ── 点検・車検の内容（区分で「車検」を選んだとき）──
+const WO_SHAKEN=[{k:'pre',ic:'🔍',n:'事前点検'},{k:'m3',ic:'📋',n:'3カ月点検'},{k:'m6',ic:'📋',n:'6カ月点検'},{k:'m12',ic:'📋',n:'12カ月点検'},{k:'m24',ic:'📋',n:'24カ月点検'},{k:'sha',ic:'🚘',n:'車検'}];
+function woShakenHtml(j){ const a=Array.isArray(j.shaken)?j.shaken:[]; return `<div class="check-group wo-sb">${WO_SHAKEN.map(x=>`<button type="button" class="selbtn${a.includes(x.k)?' on':''}" onclick="woShaken('${x.k}')">${x.ic} ${x.n}</button>`).join('')}</div>`; }
+function woShaken(k){ const j=_woCurJob(); if(!j) return; const a=Array.isArray(j.shaken)?j.shaken:[]; j.shaken=a.includes(k)?a.filter(x=>x!==k):WO_SHAKEN.map(x=>x.k).filter(x=>x===k||a.includes(x)); woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woShakenText(j){ if(!ydCats(j).includes('車検')||!Array.isArray(j.shaken)) return ''; return WO_SHAKEN.filter(x=>j.shaken.includes(x.k)).map(x=>x.ic+x.n).join('・'); }
+// 一覧・作業指示書に出す文（例：オイル交換（エレメント要）・AC点検（ガス漏れ／蛍光剤あり））
+function woSeibiText_(j){
+  if(!ydCats(j).includes('整備')) return '';
+  const S=j.seibi||{}; const out=[];
+  for(const x of WO_SEIBI){ const v=S[x.k]; if(!v||!v.on) continue;
+    let d=[];
+    if(x.k==='oil'&&v.elem) d.push('エレメント'+v.elem);
+    if(x.k==='ac'){ (v.sym||[]).forEach(t=>d.push(t==='その他'?(v.other||'その他'):t)); if(v.dye) d.push('蛍光剤'+v.dye); }
+    out.push(x.ic+x.n+(d.length?'（'+d.join('／')+'）':''));
+  }
+  return out.join('・');
 }
 // ── 見積りツールと車両情報（車台番号・車体色・塗装タイプ）を共有 ──
 // 見積りツールが保存した見積りの要約（estimates）から、同じ登録番号のものを探す
@@ -1738,7 +1813,7 @@ async function woDelete(){
   const j=_woCurJob(); if(!j) return;
   if(!await askConfirm(`この作業指示を削除しますか？\n${_woTitle(j)}${_woCloudOk()?'\n（チーム全員の端末から消えます）':''}`)) return;
   JOBS=JOBS.filter(x=>x.id!==j.id); clearTimeout(WOC.timer[j.id]); delete WOC.timer[j.id];
-  _woSaveLocal(); _woCloudDel(j.id); lbRemove(j); woPhotosPut(j.id,[]); woFilesDelAll(j.id); WO_CUR=null; woRenderAll(); toast('削除しました');
+  _woSaveLocal(); _woCloudDel(j.id); lbRemove(j); _woDelSheetDoc(j); woPhotosPut(j.id,[]); woFilesDelAll(j.id); WO_CUR=null; woRenderAll(); toast('削除しました');
 }
 async function woPhotoAdd(input){
   const j=_woCurJob(); const files=[...(input.files||[])]; input.value=''; if(!j||!files.length) return;
@@ -2036,7 +2111,7 @@ function woRenderList(){
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
+      ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
 }
 function _woMapHtml(j){
@@ -2082,6 +2157,8 @@ function woRenderDetail(){
     <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
     <div class="field span2"><label>置き場所</label><div style="display:flex;gap:6px;align-items:stretch"><select style="flex:1;min-width:0" onchange="woSet('slot',this.value)"${j.partsOnly?' disabled':''}>${j.partsOnly?'<option>車両なし</option>':slotOpts}</select><button type="button" class="selbtn wo-p1btn${j.partsOnly?' on':''}" style="white-space:nowrap" onclick="woPartsOnly()">📦 部品単品</button></div></div>
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
+    ${ydCats(j).includes('整備')?`<div class="field span2"><label>整備内容（複数選べます）</label>${woSeibiHtml(j)}</div>`:''}
+    ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}</div>`:''}
     ${(YARD.spaces.find(s=>s.id===j.slot)||{}).memo?`<div class="field span2"><label>場所のメモ（${esc(_woSlotName(j.slot))}）</label><input value="${v('slotNote')}" placeholder="例：裏の駐車場・提携工場" oninput="woSet('slotNote',this.value);ydRender()"></div>`:''}
   </div>
   <div class="fgrid" style="margin-top:8px">
@@ -2198,7 +2275,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
-${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
+${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
