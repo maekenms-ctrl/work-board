@@ -1841,7 +1841,9 @@ function woCoat(v){ const j=_woCurJob(); if(!j) return; j.coating=!!v; woTouch(j
 function _woGlassName(j){ return j.glassVendor==='その他'?(j.glassOther?j.glassOther:'その他'):(j.glassVendor||''); }
 // 選択ボタン（同じものをもう一度押すと解除）
 // 部品単品（車両を預からない部品だけの注文）：置き場所なし・配置図の未配置にも出さない
-function woPartsOnly(){ const j=_woCurJob(); if(!j) return; j.partsOnly=!j.partsOnly; if(j.partsOnly){ j.slot=''; } woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} toast(j.partsOnly?'部品単品にしました（置き場所なし）':'部品単品を解除しました'); }
+// 外注作業（車を外注先へ出している）：置き場所なし・配置図の未配置にも出さない
+function woOutWork(){ const j=_woCurJob(); if(!j) return; j.outWork=!j.outWork; if(j.outWork){ j.slot=''; j.partsOnly=false; } woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} toast(j.outWork?'外注作業にしました（置き場所なし）':'外注作業を解除しました'); }
+function woPartsOnly(){ const j=_woCurJob(); if(!j) return; j.partsOnly=!j.partsOnly; if(j.partsOnly){ j.slot=''; j.outWork=false; } woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} toast(j.partsOnly?'部品単品にしました（置き場所なし）':'部品単品を解除しました'); }
 // 部品入荷：まだ入荷済でない部品を入荷済にして、ARK通知で音付きで知らせる
 async function woPartsIn(){
   const j=_woCurJob(); if(!j) return;
@@ -2110,7 +2112,7 @@ function woRenderList(){
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
-      ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
+      ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.outWork?`<div class="sub">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
       ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
 }
@@ -2155,7 +2157,7 @@ function woRenderDetail(){
     <div class="field"><label>入庫</label><div class="check-group"><button type="button" class="selbtn rbtn wo-inbtn${j.inChecked!==false?' on':''}" onclick="woCheckIn()">${j.inChecked!==false?'✓ 入庫済':'🚗 入庫済にする'}</button></div>${j.inChecked===false&&j.loanerUse===true&&j.loanerCar?`<div class="sg-note" style="margin:4px 0 0">押すと${/^レンタカー/.test(j.loanerCar)?esc(_lbLabel(j.loanerCar))+'を貸出中にします':'代車（'+esc(_lbLabel(j.loanerCar))+'）を貸出中にして、駒を外します'}</div>`:''}</div>
     <div class="field"><label>納車予定日</label><input type="date" value="${v('dueDate')}" onchange="woSet('dueDate',this.value)"></div>
     <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
-    <div class="field span2"><label>置き場所</label><div style="display:flex;gap:6px;align-items:stretch"><select style="flex:1;min-width:0" onchange="woSet('slot',this.value)"${j.partsOnly?' disabled':''}>${j.partsOnly?'<option>車両なし</option>':slotOpts}</select><button type="button" class="selbtn wo-p1btn${j.partsOnly?' on':''}" style="white-space:nowrap" onclick="woPartsOnly()">📦 部品単品</button></div></div>
+    <div class="field span2"><label>置き場所</label><div style="display:flex;gap:6px;align-items:stretch"><select style="flex:1;min-width:0" onchange="woSet('slot',this.value)"${j.partsOnly||j.outWork?' disabled':''}>${j.partsOnly?'<option>車両なし</option>':j.outWork?'<option>外注先へ</option>':slotOpts}</select><button type="button" class="selbtn wo-p1btn${j.partsOnly?' on':''}" style="white-space:nowrap" onclick="woPartsOnly()">📦 部品単品</button><button type="button" class="selbtn wo-p1btn${j.outWork?' on':''}" style="white-space:nowrap" onclick="woOutWork()">🏭 外注作業</button></div>${j.outWork?`<input style="margin-top:6px" value="${v('outWorkTo')}" placeholder="外注先・内容（例：〇〇ボデー　フレーム修正）" oninput="woSet('outWorkTo',this.value)" onblur="woRenderList()">`:''}</div>
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
     ${ydCats(j).includes('整備')?`<div class="field span2"><label>整備内容（複数選べます）</label>${woSeibiHtml(j)}</div>`:''}
     ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}</div>`:''}
@@ -2275,7 +2277,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
-${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
+${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
@@ -2518,7 +2520,7 @@ function ydRender(){
   const pool=document.getElementById('yd-pool');
   if(pool){
     const ids=new Set(YARD.spaces.map(s=>s.id));
-    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&(!j.slot||!ids.has(j.slot)));
+    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&!j.outWork&&(!j.slot||!ids.has(j.slot)));
     pool.classList.toggle('target',!!YD.carSel&&!YD.edit);
     pool.onclick=e=>{ if(e.target===pool&&YD.carSel) ydMove(YD.carSel,''); };
     pool.innerHTML=locked?'<span class="sg-note">ロック中です</span>':un.length?un.map(_ydCarHtml).join(''):'<span class="sg-note">未配置の車両はありません（作業中の車両はすべて配置済み）</span>';
