@@ -457,9 +457,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 /* 作業箇所の車体図：画面の幅いっぱいに大きく（縦横の比率はそのまま） */
 .wo-mapwrap{width:100%;}
 .wo-mapcol{width:100%;max-width:640px;margin:0 auto;}
-#wo-detail .wo-mapcol .wo-map{max-width:none;width:100%;grid-template-columns:30px 40px 1fr 1.15fr 1fr 40px 30px;grid-template-rows:84px 104px 54px 144px 144px 144px 68px 54px 104px 84px;gap:6px;}
+/* 画面の高さに収まる大きさ（縦横の比率はそのまま）。幅・高さのどちらか小さい方に合わせる */
+#wo-detail .wo-mapcol .wo-map{max-width:none;width:min(100%,640px,calc((100vh - 150px) * 0.66));aspect-ratio:0.66;height:auto;margin:0 auto;grid-template-columns:5fr 6.5fr 16fr 18fr 16fr 6.5fr 5fr;grid-template-rows:46fr 58fr 30fr 80fr 80fr 80fr 38fr 30fr 58fr 46fr;gap:5px;}
 #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:15px;}
-@media(max-width:700px){ #wo-detail .wo-mapcol .wo-map{grid-template-columns:20px 28px 1fr 1.15fr 1fr 28px 20px;grid-template-rows:60px 76px 40px 104px 104px 104px 50px 40px 76px 60px;gap:4px;} #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:12px;} }
+@media(max-width:700px){ #wo-detail .wo-mapcol .wo-map{gap:4px;} #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:12px;} }
+@media(max-height:760px){ #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:12px;} }
 .wo-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
 .wo-row>.btn-add{flex:1 1 220px;margin:0;}
 .wo-row>.wo-pinbtn{flex:0 0 auto;margin:0;}
