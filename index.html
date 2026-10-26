@@ -532,30 +532,31 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-sp.one>.yd-car .yd-left{margin-top:2px;}
 .yd-sp.one>.yd-car .yd-left i{font-size:clamp(7px,9cqh,9px);padding:1px 3px;}
 @container (max-height:58px){ .yd-sp.one>.yd-car small.nt{display:none;} .yd-sp.one>.yd-car .yd-left{display:none;} }
-.yd-car .pn{font-weight:900;}
-/* 依頼元：同じ車種を見分けるため、番号の横にできるだけ大きく */
-.yd-car .pr{display:flex;align-items:center;gap:4px;min-width:0;flex:none;}
-.yd-car .pr .pn{flex:none;}
-.yd-car .pdue{display:none;}
-.yd-car small.os{flex:1 1 auto;min-width:0;display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;opacity:1;margin:0;font-size:1em;line-height:1.15;}
-.yd-car small.os i{flex:1 1 auto;min-width:0;text-align:center;font-style:normal;font-weight:900;color:#111;border-radius:4px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:clip;box-shadow:0 0 0 1px rgba(0,0,0,.4);}
+.yd-car .pn{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.yd-car small.cn{font-weight:800;opacity:.9;}
+.yd-car .cdue{display:none;}
+/* 車種の下に依頼元（同じ車種を見分けるため、枠の幅いっぱいに大きく。文字が長いときは自動で縮める） */
+.yd-car .pr{display:flex;flex-direction:column;align-items:stretch;gap:2px;min-width:0;flex:none;}
+.yd-car small.os{display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;opacity:1;margin:0;font-size:1em;line-height:1.2;}
+.yd-car small.os i{flex:1 1 auto;min-width:0;text-align:center;font-style:normal;font-weight:900;color:#111;border-radius:.4em;padding:.08em .35em;white-space:nowrap;overflow:hidden;text-overflow:clip;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+/* 1台の枠：車種と依頼元は、枠の幅に合わせて文字の大きさを自動で決める */
+.yd-sp.one>.yd-car .pn{font-size:clamp(9px,calc((100cqw - 16px) / var(--w,4)),1.2em);line-height:1.15;}
+.yd-sp.one>.yd-car small.os{font-size:clamp(7px,calc((100cqw - 16px) / var(--ow,4)),1.05em);}
 @container (max-width:110px){
   .yd-sp.one>.yd-car small.stl{display:none;}
   .yd-sp.one>.yd-car small.sts{display:block;line-height:1.08;}
   /* 番号・車名・状態・納期の4行が入るように */
   .yd-sp.one>.yd-car:not(.yd-lc){justify-content:flex-start;padding:2px 2px 1px 3px;}
-  .yd-sp.one>.yd-car .pn{font-size:clamp(10px,20cqw,12px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:clip;}
+  .yd-sp.one>.yd-car .pn{font-size:clamp(6px,calc((100cqw - 7px) / var(--w,4)),12.5px);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.03em;}
+  .yd-sp.one>.yd-car .pn.long{font-size:clamp(6px,calc((100cqw - 8px) / var(--w2,4)),11px);white-space:normal;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.08;}
   .yd-sp.one>.yd-car small.cn,.yd-sp.one>.yd-car small.sts{font-size:clamp(7px,14.5cqw,8.5px);line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.03em;}
-  .yd-sp.one>.yd-car small.cn{font-weight:700;opacity:.9;font-size:clamp(6px,calc((100cqw - 12px) / var(--w,4)),8.5px);letter-spacing:-.04em;text-overflow:ellipsis;line-height:1.35;min-height:1.35em;display:block;}
-  /* 納期がない札は、長い車名を2行で表示 */
-  .yd-sp.one>.yd-car small.cn.cn2{font-size:clamp(7px,14.5cqw,8.5px);white-space:normal;word-break:break-all;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.15;min-height:0;}
-  /* 狭い枠：依頼元は番号の下に1行使い、番号と同じ大きさ（枠の幅いっぱい） */
-  .yd-sp.one>.yd-car .pr{display:block;}
-  .yd-sp.one>.yd-car .pr .pl1{display:flex;align-items:baseline;gap:2px;min-width:0;}
-  .yd-sp.one>.yd-car .pr .pdue{display:block;flex:1 1 auto;min-width:0;text-align:right;font-weight:900;font-size:clamp(6px,12cqw,8px);white-space:nowrap;overflow:hidden;letter-spacing:-.05em;}
+  .yd-sp.one>.yd-car small.cn{font-weight:800;line-height:1.2;display:block;}
+  .yd-sp.one>.yd-car .cdue{display:inline;}
+  /* 狭い枠：車種 → 依頼元（枠の幅いっぱい）→ ナンバー・納期 の順 */
+  .yd-sp.one>.yd-car .pr{gap:1px;}
   .yd-sp.one>.yd-car.hasos small.sts{display:none;}
-  .yd-sp.one>.yd-car .pr small.os{font-size:clamp(10px,20cqw,12px);line-height:1.1;gap:1px;margin:0 0 1px;}
-  .yd-sp.one>.yd-car small.os i{padding:0 1px;letter-spacing:-.04em;border-radius:3px;}
+  .yd-sp.one>.yd-car .pr small.os{font-size:clamp(6px,calc((100cqw - 8px) / var(--ow,4)),10.5px);line-height:1.12;gap:1px;margin:0 0 1px;}
+  .yd-sp.one>.yd-car small.os i{padding:.05em .2em;letter-spacing:-.04em;border-radius:.35em;}
   .yd-sp.one>.yd-car:not(.yd-lc)>*{flex-shrink:0;}
   .yd-sp.one>.yd-car.yd-lc small{display:none;}
   .yd-sp.one>.yd-car.yd-lc.lout .lsh.lwait{display:block;line-height:1.1;}
@@ -596,6 +597,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .yd-lg{display:inline-flex;gap:2px;margin-right:6px;}
 .selbtn.yd-stg{border-color:var(--bg);color:var(--text);}
 .selbtn.yd-stg.on{background:var(--bg);color:var(--fg);border-color:var(--bg);}
+.selbtn.yd-stg-ro{cursor:default;opacity:.4;pointer-events:none;}
+.selbtn.yd-stg-ro.on{opacity:1;}
+.yd-stg-sep{display:inline-block;width:10px;}
 .yd-bar-st{flex-basis:100%;order:5;}
 .yd-bar .yd-stb .selbtn{min-height:34px;}
 .yd-car{position:relative;}
@@ -725,6 +729,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 <div id="tab-wo" class="tab-panel active">
   <div class="wo-top">
     <div class="check-group" id="wo-filter">
+      <button class="selbtn rbtn" data-f="before" onclick="woFilter('before')">入庫前</button>
       <button class="selbtn rbtn" data-f="pre" onclick="woFilter('pre')">作業前</button>
       <button class="selbtn rbtn on" data-f="active" onclick="woFilter('active')">作業中</button>
       <button class="selbtn rbtn" data-f="done" onclick="woFilter('done')">完成・納車待ち</button>
@@ -1128,8 +1133,8 @@ function setAutoLock(v){ SETTINGS.autoLockMin=+v; _lsSet('wo-settings',JSON.stri
 const WO_STEPS=[
   {k:'bankin',   n:'板金・取替',    c:'#ffb020'},
   {k:'toso',     n:'塗装',          c:'#FF2BD6'},
-  {k:'kumitsuke',n:'組付',          c:'#00E5FF'},
   {k:'migaki',   n:'磨き・仕上げ',  c:'#5ec98f'},
+  {k:'kumitsuke',n:'組付',          c:'#00E5FF'},
   {k:'seibi',    n:'整備',          c:'#14b8a6'},
   {k:'obd',      n:'OBDコンピュータチェック',c:'#fb7185'},
   {k:'kensa',    n:'洗車・完成検査',c:'#4ea1ff'},
@@ -1145,7 +1150,7 @@ const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
 const WO_PHOTO_MAX=10;
-const YD_COLS=24, YD_ROWS=24, YD_VER=5;
+const YD_COLS=24, YD_ROWS=24, YD_VER=6;
 const YD_KINDS=[
   {k:'kita',  n:'北',      c:'#4ea1ff'},
   {k:'naka',  n:'中',      c:'#5ec98f'},
@@ -1163,7 +1168,7 @@ function _ydDefault(){
   for(let i=1;i<=4;i++){ add('kita'+i,'北'+i,'kita',0,(i-1)*2,4,2); add('naka'+i,'中'+i,'naka',4,(i-1)*2,4,2); add('minami'+i,'南'+i,'minami',8,(i-1)*2,4,2); }
   add('tsuro-ato','通路後','tsuro',8,8,4,2); add('tsuro-mae','通路前','tsuro',8,10,4,2);
   add('tera-kita','寺北','tera',0,13,4,2); add('tera-kitaoku','寺北奥','tera',4,13,4,2); add('tera-yoko','寺横','tera',0,15,4,2);
-  add('f2-oku','2F奥','f2',9,13,4,2); add('chuo','中央','f2',13,13,4,2); add('comp-mae','コンプレッサー前','f2',17,13,4,2);
+  add('f2-oku','2F奥','f2',9,13,4,2); add('chuo','中央','f2',13,13,4,2); add('comp-mae','コンプ前','f2',17,13,4,2);
   add('f2-temae','2F手前','f2',9,15,4,2); add('tana','棚','f2',17,15,4,2);
   add('booth','ブース','booth',9,18,4,2); add('f1-oku','1F奥','f1',13,18,4,2);
   add('f1-a','1F-1','f1',9,20,4,2); add('pit','ピット','f1',13,20,4,2);
@@ -1176,7 +1181,7 @@ let JOBS=[];
 const WO_STAFF_DEF=[{a:'徹',n:'中島徹'},{a:'浩',n:'中島浩'},{a:'國',n:'國川'},{a:'姉',n:'姉﨑'},{a:'陣',n:'陣内'},{a:'前',n:'前嶋'},{a:'吉',n:'吉田'}];
 // 古いレイアウトを今の版に合わせる（編集した内容は残し、変更のあった置き場所だけ動かす）
 function _ydMigrate(spaces,v){
-  if(![2,3,4,5].includes(v)) return _ydDefault();
+  if(![2,3,4,5,6].includes(v)) return _ydDefault();
   if(v===2){ const pos={'tera-kita':[0,13],'tera-kitaoku':[4,13],'tera-yoko':[0,15]};
     spaces.forEach(s=>{ const q=pos[s.id]; if(q){ s.x=q[0]; s.y=q[1]; } }); }
   if(v<5){
@@ -1185,6 +1190,7 @@ function _ydMigrate(spaces,v){
     spaces.forEach(s=>{ if(s.id in ox&&s.x===ox[s.id]) s.x+=1;
       if(s.id==='f1-a'&&s.name==='1F（左）') s.name='1F-1'; if(s.id==='f1-b'&&s.name==='1F（右）') s.name='1F-2'; });
   }
+  if(v<6) spaces.forEach(s=>{ if(s.id==='comp-mae'&&s.name==='コンプレッサー前') s.name='コンプ前'; });   // 名前を短く（枠に収まるように）
   return spaces;
 }
 let YARD={spaces:_ydDefault(),lpos:{},staff:WO_STAFF_DEF.map(x=>({...x})),updated:'',v:YD_VER};
@@ -2132,20 +2138,22 @@ function woSheetFill(){
   woTouch(j,true); woRenderAll(); toast(`入庫管理表（${x.tab} ${x.row}行目）から転記しました`,4500);
 }
 // 作業前：納車済でなく、まだどの工程も完了していない車（入庫待ちを含む）
-// 作業前に戻す：工程の「完了」をすべて外す（担当・予定・要/不要はそのまま）
+// 作業前に戻す：工程の「完了」と「開始日」をすべて外す（担当・要/不要はそのまま）
 async function woBackToPre(){
   const j=_woCurJob(); if(!j||j.archived) return;
-  const done=WO_STEPS.filter(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.done; }).map(s=>s.n);
+  const done=WO_STEPS.filter(s=>{ const st=j.steps&&j.steps[s.k]; return st&&(st.done||st.date); }).map(s=>s.n);
   if(!done.length&&woIsPre(j)){ toast('すでに作業前です'); return; }
-  if(!await askConfirm(`作業前に戻しますか？\n${_woTitle(j)}${done.length?'\n完了を外す工程：'+done.join('・'):''}\n配置図の段階も「前」に戻します`,'作業前に戻す')) return;
-  for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st){ st.done=false; st.at=''; st.doneDate=''; } }
+  if(!await askConfirm(`作業前に戻しますか？\n${_woTitle(j)}${done.length?'\n完了・開始日を外す工程：'+done.join('・'):''}\n配置図の段階も「前」に戻ります`,'作業前に戻す')) return;
+  for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st){ st.done=false; st.at=''; st.doneDate=''; st.date=''; } }
   if(j.yStages){ for(const c of Object.keys(j.yStages)) if(j.yStages[c]!=='前') delete j.yStages[c]; }
   if(j.yStage&&j.yStage!=='前') delete j.yStage;
   woTouch(j,true); WO_FILTER='pre'; woRenderAll(); toast('作業前に戻しました');
 }
-function woIsPre(j){ if(j.archived) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.done; }); }
+// 入庫前：入出庫管理表の入庫日（D列）が明日以降で、まだ「入庫済」を押していない車（先の予定）。入庫日になると作業前へ移る
+function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
+function woIsPre(j){ if(j.archived||woIsBefore(j)) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&(st.done||st.date); }); }
 // 作業前＝工程が1つも完了していない車（入庫待ちを含む）。作業中には入れない
-function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='pre') return woIsPre(j); if(WO_FILTER==='active') return woState(j)==='active'&&!woIsPre(j); return woState(j)===WO_FILTER; }
+function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='before') return woIsBefore(j); if(WO_FILTER==='pre') return woIsPre(j); if(WO_FILTER==='active') return woState(j)==='active'&&!woIsPre(j)&&!woIsBefore(j); return woState(j)===WO_FILTER&&!woIsBefore(j); }
 
 // ── 表示 ──
 function woRenderBadges(){
@@ -2291,9 +2299,11 @@ function woRenderList(){
   if(SEC.ok&&!SEC.key){ list.innerHTML='<div class="empty">ロック中です</div>'; empty.style.display='none'; return; }
   const q=(document.getElementById('wo-q').value||'').normalize('NFKC').toLowerCase().replace(/\s/g,'');
   { const pb=document.querySelector('#wo-filter [data-f="pre"]'); if(pb){ const n=JOBS.filter(woIsPre).length; pb.textContent=n?`作業前 ${n}`:'作業前'; } }
+  { const bb=document.querySelector('#wo-filter [data-f="before"]'); if(bb){ const n=JOBS.filter(woIsBefore).length; bb.textContent=n?`入庫前 ${n}`:'入庫前'; } }
   const lf=document.getElementById('wo-loanf'); if(lf){ const n=JOBS.filter(j=>{ const L=woLoanerInfo(j); return L&&L.now; }).length; lf.classList.toggle('on',WO_LOANF); lf.innerHTML=`🔑 代車・レンタカー貸出中 ${n}台`; }
   const rows=JOBS.filter(j=>(!WO_LOANF||(woLoanerInfo(j)||{}).now)&&_woInFilter(j)&&(!q||[j.plate,j.car,j.color,j.chassis].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)));
-  if(WO_FILTER!=='archived') _woSortRows(rows);
+  if(WO_FILTER==='before') rows.sort((a,b)=>(a.inDate||'9999')<(b.inDate||'9999')?-1:(a.inDate||'9999')>(b.inDate||'9999')?1:0);   // 入庫日が近い順
+  else if(WO_FILTER!=='archived') _woSortRows(rows);
   WO_ROWS=rows.map(j=>j.id);
   const sel=document.getElementById('wo-sort'); if(sel&&sel.value!==WO_SORT) sel.value=WO_SORT;
   empty.style.display=JOBS.length?'none':'block';
@@ -2304,7 +2314,7 @@ function woRenderList(){
     let head='';
     if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     return head+`<div class="wo-card${j.id===WO_CUR?' cur':''}" data-id="${j.id}" style="--sc:${j.archived?'var(--border)':woColor(j)}" onclick="woOpen('${j.id}')">${canDrag?`<button type="button" class="wo-drag" title="ドラッグで並べ替え" aria-label="並べ替え" onclick="event.stopPropagation()">⠿</button>`:''}
-      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${_woSheetName(j)?`<span class="wo-nm">${esc(_woSheetName(j))}</span>`:''}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${!j.archived&&_woDupOf(j)?'<span class="wo-tag dup">重複？</span>':''}${j.inChecked===false&&!j.archived&&!j.partsOnly?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor||_woHasGlass(j)?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
+      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${_woSheetName(j)?`<span class="wo-nm">${esc(_woSheetName(j))}</span>`:''}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${!j.archived&&_woDupOf(j)?'<span class="wo-tag dup">重複？</span>':''}${woIsBefore(j)?`<span class="wo-tag inwait">入庫前${j.inDate?' '+_woMD(j.inDate):''}</span>`:j.inChecked===false&&!j.archived&&!j.partsOnly?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor||_woHasGlass(j)?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
@@ -2402,11 +2412,11 @@ function woRenderDetail(){
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
   <div class="wo-sec"><span class="bar"></span>工程・担当</div>
   <div class="wo-steps">
-    <div class="wo-st hd"><span>工程</span><span>担当（タップで選択）</span><span>予定日</span><span>完了・完成日</span></div>
+    <div class="wo-st hd"><span>工程</span><span>担当（タップで選択）</span><span>開始日</span><span>完了・完成日</span></div>
     ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; const off=!st.need; return `<div class="wo-st${off?' skip':''}${st.done?' done':''}" style="--sc:${s.c}">
       <div class="nm"><button type="button" class="need${st.need?' on':''}" onclick="woStep('${s.k}','need',${!st.need})" title="要否">${st.need?'要':'不要'}</button><b>${s.n}</b></div>
       ${woWhoHtml(st.who||'',`woWhoStep('${s.k}',`,off)}
-      <label class="dt"><span>予定</span><input type="date" value="${esc(st.date||'')}" onchange="woStep('${s.k}','date',this.value)"${off?' disabled':''}></label>
+      <label class="dt"><span>開始</span><input type="date" value="${esc(st.date||'')}" onchange="woStep('${s.k}','date',this.value)"${off?' disabled':''} title="開始日を入れると、配置図で「途中」になります"></label>
       <div class="fin"><button type="button" class="ok${st.done?' on':''}" onclick="woStep('${s.k}','done',${!st.done})"${off?' disabled':''}>${st.done?'✓ 完了':'完了'}</button>${st.done?`<input type="date" value="${esc(st.doneDate||'')}" onchange="woStep('${s.k}','doneDate',this.value)" title="完成日">`:''}</div>
     </div>`; }).join('')}
   </div>
@@ -2506,7 +2516,7 @@ ${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row
 ${(j.tasks||[]).map(t=>`<tr><td>${esc(t.part)}</td><td>${_woTypes(t).map(k=>`<span class="ty" style="background:${WO_TYPE_COLOR[k]||'#ddd'}">${esc(k)}</span>`).join(' ')}</td><td class="w" style="width:60%">${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan="3">&nbsp;</td></tr>'}
 </table>
 <h2>工程・担当</h2>
-<table><tr><th>工程</th><th style="width:auto">担当</th><th>予定日</th><th>完成日</th><th>完了</th><th style="width:22%">確認印・メモ</th></tr>
+<table><tr><th>工程</th><th style="width:auto">担当</th><th>開始日</th><th>完成日</th><th>完了</th><th style="width:22%">確認印・メモ</th></tr>
 ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; return `<tr class="${st.need?'':'skip'}"><td style="font-weight:700;border-left:6px solid ${s.c}">${s.n}${st.need?'':'（不要）'}</td><td class="w" style="width:25%">${esc(st.who||'')}</td><td>${esc(_woMD(st.date))}</td><td>${esc(_woMD(st.doneDate||''))}</td><td style="text-align:center">${st.need?`<span class="ck">${st.done?'✓':''}</span>`:'—'}</td><td class="w" style="width:30%"></td></tr>`; }).join('')}
 </table>
 ${(j.parts||[]).length?`<h2>部品</h2><table><tr><th style="width:auto">部品名</th><th>数</th><th>状況</th><th>入荷予定</th><th>入荷確認</th></tr>${j.parts.map(p=>`<tr><td class="w">${esc(p.name)}</td><td class="n">${esc(p.qty)}</td><td>${esc(p.status)}</td><td>${esc(_woMD(p.eta))}</td><td style="text-align:center"><span class="ck">${p.status==='入荷済'?'✓':''}</span></td></tr>`).join('')}</table>`:''}
@@ -2662,12 +2672,22 @@ const YD_PAL={
   '車検':{'前':['#c2f2dc','#111'],'途中':['#34d399','#111'],'完成':['#0f7a52','#fff']},
 };
 const YD_OTHER=['#e5e7eb','#111'];
-// 鈑金で段階が未設定なら、鈑金系の工程（板金〜磨き）の進み具合から決める
-const YD_BODY_STEPS=['bankin','toso','kumitsuke','migaki'];   // 下地は塗装にまとめた
+// 段階は工程から自動で決める（手で選ばない）
+//  前：その区分の「要」の工程に、開始日も完了も1つもない／途中：1つでも開始日が入るか完了した／完成：その区分の「要」の工程がすべて完了
+//  鈑金＝板金・塗装・磨き・組付、整備・車検＝整備。OBD・洗車（完成検査）は最後の区分に入れる（鈑金だけの車なら鈑金に入る）
+const YD_BODY_STEPS=['bankin','toso','migaki','kumitsuke'];   // 下地は塗装にまとめた
 function _ydAutoStage(j){ const st=YD_BODY_STEPS.map(k=>j.steps&&j.steps[k]).filter(x=>x&&x.need); if(!st.length) return '前'; const d=st.filter(x=>x.done).length; return d===0?'前':d===st.length?'完成':'途中'; }
 // 区分は複数選べる（鈑金＋整備など）。「その他」は単独
 function ydCats(j){ const a=Array.isArray(j.yCats)&&j.yCats.length?j.yCats:[j.yCat||'鈑金']; return a.includes('その他')?['その他']:YD_CATS.filter(c=>a.includes(c)); }
-function _ydStageOf(j,c){ const m=j.yStages||{}; if(m[c]) return {stage:m[c],auto:false}; if(!j.yStages&&j.yStage&&(j.yCat||'鈑金')===c) return {stage:j.yStage,auto:false}; return c==='鈑金'?{stage:_ydAutoStage(j),auto:true}:{stage:'前',auto:false}; }
+function _ydGroup(j,c){ const cats=ydCats(j); const mech=cats.includes('整備')||cats.includes('車検');
+  if(c==='鈑金') return mech?YD_BODY_STEPS:[...YD_BODY_STEPS,'obd','kensa'];
+  return ['seibi','obd','kensa']; }
+function _ydStageOf(j,c){
+  const st=_ydGroup(j,c).map(k=>j.steps&&j.steps[k]).filter(x=>x&&x.need);
+  if(!st.length) return {stage:'前',auto:true};
+  if(st.every(x=>x.done)) return {stage:'完成',auto:true};
+  return {stage:st.some(x=>x.done||x.date)?'途中':'前',auto:true};
+}
 function _ydBg(cols){ if(cols.length===1) return cols[0]; const st=100/cols.length; return `linear-gradient(135deg,${cols.map((x,i)=>`${x} ${i*st}%,${x} ${(i+1)*st}%`).join(',')})`; }
 function ydState(j){
   const cats=ydCats(j);
@@ -2697,7 +2717,7 @@ function _woStepsForCats(j){
   if(!a.includes('鈑金')&&(a.includes('整備')||a.includes('車検'))){ body.forEach(k=>set(k,false)); ['seibi','obd','kensa'].forEach(k=>set(k,true)); }
   else if(a.includes('整備')) set('seibi',true);
 }
-function ydSetStage(id,c,s){ const j=_woJob(id); if(!j) return; _ydNorm(j); j.yStages[c]=j.yStages[c]===s?'':s; if(!j.yStages[c]) delete j.yStages[c]; _ydAfter(id); }
+function ydSetStage(id,c,s){ return; /* 段階は工程から自動（手で選ばない） */ const j=_woJob(id); if(!j) return; _ydNorm(j); j.yStages[c]=j.yStages[c]===s?'':s; if(!j.yStages[c]) delete j.yStages[c]; _ydAfter(id); }
 // 入力中は画面を描き直さない（日本語入力が途切れないように）。入力欄を離れたときに反映
 function ydSetNote(id,v){ const j=_woJob(id); if(!j) return; j.yNote=v; woTouch(j); }
 // 状態の選択ボタン（配置図のバーと作業指示画面で共通）
@@ -2705,7 +2725,8 @@ function ydStateButtons(j,idp){
   const s=ydState(j);
   return `<div class="yd-stb"><div class="check-group">${YD_CATS.map(c=>`<button type="button" class="selbtn rbtn${s.cats.includes(c)?' on':''}" onclick="ydSetCat('${j.id}','${c}')">${c}</button>`).join('')}<span class="sg-note" style="margin:0 0 0 4px;align-self:center">鈑金・整備・車検は複数選べます</span></div>
   ${s.cats[0]==='その他'?`<input id="${idp}-note" class="wo-search" style="width:100%;margin-top:6px" value="${esc(j.yNote||'')}" placeholder="コメント（例：お客様引取待ち）" oninput="ydSetNote('${j.id}',this.value)" onblur="ydRender();if(WO_CUR==='${j.id}')woRenderList()">`
-   :s.parts.map(pt=>`<div class="check-group" style="margin-top:6px">${YD_STAGES.map(t=>{ const c=YD_PAL[pt.cat][t]; return `<button type="button" class="selbtn rbtn yd-stg${pt.stage===t?' on':''}" style="--bg:${c[0]};--fg:${c[1]}" onclick="ydSetStage('${j.id}','${pt.cat}','${t}')">${pt.cat}${t}</button>`; }).join('')}${pt.cat==='鈑金'?`<span class="sg-note" style="margin:0 0 0 4px;align-self:center">${pt.auto?'工程から自動':'もう一度押すと工程から自動'}</span>`:''}</div>`).join('')}</div>`;
+   :`<div class="check-group" style="margin-top:6px">${s.parts.map(pt=>YD_STAGES.map(t=>{ const c=YD_PAL[pt.cat][t]; return `<span class="selbtn rbtn yd-stg yd-stg-ro${pt.stage===t?' on':''}" style="--bg:${c[0]};--fg:${c[1]}">${pt.cat}${t}</span>`; }).join('')).join('<i class="yd-stg-sep"></i>')}</div>
+   <div class="sg-note" style="margin:4px 0 0">段階は工程から自動：開始日が入ると「途中」、要の工程がすべて完了すると「完成」</div>`}</div>`;
 }
 // 残り作業の札（OBD・洗車／完成検査が「要」で未完了）
 function _ydLeft(j){ const L=[]; const o=j.steps&&j.steps.obd, k=j.steps&&j.steps.kensa; if(o&&o.need&&!o.done) L.push('obd'); if(k&&k.need&&!k.done) L.push('wash'); return L; }
@@ -2716,12 +2737,19 @@ function _ydTextW(t){ let w=0; for(const ch of String(t||'')) w+=/[\x20-\x7e\uff
 function _ydShortLabel(j){ const st=ydState(j); if(st.cats[0]==='その他') return 'その他'; return st.parts.map(p=>p.cat.slice(0,1)+(st.parts.length>1?'':p.stage)).join('・'); }
 // 依頼元（同じ車種を見分けるため）。系列の色で、短い名前を出す
 function _ydOsShort(n,j){ if(n==='その他') return (j.outsrcOther||'その他').slice(0,6); return String(n).replace(/^ホンダカーズ|^ネッツゾナ/,'').replace(/^一般（(.+)）$/,'$1').replace('カーズコレクション','カーズコレ'); }
-function _ydOsHtml(j,inl){ const a=(j.outsrc||[]); if(!a.length) return ''; const c=a.map(x=>`<i style="background:${_woOutColor(x)}">${esc(_ydOsShort(x,j))}</i>`).join(''); return inl?`<span class="os2">${c}</span>`:`<small class="os">${c}</small>`; }
+function _ydOsHtml(j,inl){ const a=(j.outsrc||[]); if(!a.length) return ''; const c=a.map(x=>`<i style="background:${_woOutColor(x)}">${esc(_ydOsShort(x,j))}</i>`).join('');
+  const ow=a.reduce((w,x)=>w+(+_ydTextW(_ydOsShort(x,j)))+0.75,0).toFixed(2);   // 依頼元の文字の幅（枠に収まる大きさに自動で合わせる）
+  return inl?`<span class="os2">${c}</span>`:`<small class="os" style="--ow:${ow}">${c}</small>`; }
 function _ydCarHtml(j){
   const due=woDueTag(j);
   const lcn=(()=>{ if(j.archived||j.inChecked===false) return ''; const lc=_woLoanerPiece(j); return lc&&_ydLcOut(lc)?lc:''; })();
   const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
-  return `<div class="yd-car${(j.outsrc||[]).length?' hasos':''}${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}${(j.outsrc||[]).length?`<span class="pr"><span class="pl1"><b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b><small class="pdue">${j.dueDate?_woMD(j.dueDate):esc(_ydShortLabel(j))}</small></span>${_ydOsHtml(j)}</span>`:`<b class="pn">${esc(_woPlateShort(j.plate)||j.car||'—')}</b>`}${_woPlateShort(j.plate)&&j.car?`<small class="cn${j.dueDate?'':' cn2'}" style="--w:${_ydTextW(j.car)}">${esc(j.car)}</small>`:''}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}${j.dueDate?' '+_woMD(j.dueDate):''}</small>${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
+  const ps=_woPlateShort(j.plate), name=j.car||ps||'—', sub=j.car?ps:'', hasos=(j.outsrc||[]).length>0;
+  // 上に車種（大きく・枠に合わせて自動で縮める）、その下に依頼元、ナンバーは小さく
+  const nw=+_ydTextW(name);
+  const pn=`<b class="pn${nw>9?' long':''}" style="--w:${nw.toFixed(2)};--w2:${(nw/2+0.6).toFixed(2)}">${esc(name)}</b>`;   // 長い車種は、狭い枠で2行に折り返す
+  const cn=sub||(hasos&&j.dueDate)?`<small class="cn">${esc(sub)}${hasos&&j.dueDate?`<span class="cdue">${sub?' ・':''}${_woMD(j.dueDate)}</span>`:''}</small>`:'';
+  return `<div class="yd-car${hasos?' hasos':''}${woPartsWait(j)?' pw':''}${due==='late'?' late':''}${YD.carSel===j.id?' sel':''}${dim?' dim':''}${YD.filter&&!dim?' hl':''}" style="--sc:${ydState(j).bg};color:${ydState(j).fg}" data-multi="${ydState(j).multi?1:''}" data-job="${j.id}" onclick="ydTapCar(event,'${j.id}')">${lcn?`<i class="lk" title="代車 ${esc(lcn)} を貸出中">🔑<span>${esc(lcn)}</span></i>`:''}${hasos?`<span class="pr">${pn}${_ydOsHtml(j)}</span>`:pn}${cn}<small class="stl">${esc(ydState(j).label)}${j.dueDate?' ・'+_woMD(j.dueDate):''}</small><small class="sts">${esc(_ydShortLabel(j))}${j.dueDate?' '+_woMD(j.dueDate):''}</small>${j.slotNote?`<small class="nt">📝 ${esc(j.slotNote)}</small>`:''}${left.length?`<span class="yd-left">${left.includes('obd')?'<i class="b-obd">OBD</i>':''}${left.includes('wash')?'<i class="b-wash">洗</i>':''}</span>`:''}</div>`;
 }
 // ── 代車の駒：待機中の代車を置き場所に置く。貸出中（代車カレンダーで今日が予約中）の間は消える ──
 // 代車以外の駒（レンタカー・その他車両）。代車カレンダーとは連動しない。メモを付けられる
@@ -2751,7 +2779,7 @@ function ydRender(){
   const pool=document.getElementById('yd-pool');
   if(pool){
     const ids=new Set(YARD.spaces.map(s=>s.id));
-    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&!j.outWork&&(!j.slot||!ids.has(j.slot)));
+    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&!j.outWork&&!woIsBefore(j)&&(!j.slot||!ids.has(j.slot)));   // 入庫前の車は出さない（入庫日になると出る）
     pool.classList.toggle('target',!!YD.carSel&&!YD.edit);
     pool.onclick=e=>{ if(e.target===pool&&YD.carSel) ydMove(YD.carSel,''); };
     pool.innerHTML=locked?'<span class="sg-note">ロック中です</span>':un.length?un.map(_ydCarHtml).join(''):'<span class="sg-note">未配置の車両はありません（作業中の車両はすべて配置済み）</span>';
