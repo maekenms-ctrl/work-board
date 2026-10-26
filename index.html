@@ -449,11 +449,17 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-inl{display:flex;flex-wrap:wrap;gap:4px 22px;align-items:flex-start;}
 .wo-inl>.field{width:auto;flex:0 1 auto;min-width:0;margin:0;}
 .wo-inl>.field input{min-width:200px;}
-.wo-mapwrap{display:flex;gap:28px;align-items:flex-start;}
-.wo-mapcol{flex:0 0 300px;min-width:0;}
-.wo-side{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px;}
-.wo-side .wo-inl{flex-direction:column;gap:6px;}
-@media(max-width:760px){ .wo-mapwrap{flex-direction:column;gap:10px;} .wo-mapcol{flex:none;width:100%;} .wo-side .wo-inl{flex-direction:row;} }
+.wo-two{display:flex;gap:24px;align-items:flex-start;margin-top:6px;}
+.wo-two-l{flex:1 1 55%;min-width:0;}
+.wo-two-r{flex:1 1 45%;min-width:0;display:flex;flex-direction:column;gap:6px;border-left:1px solid var(--border,#3a3f46);padding-left:18px;}
+.wo-two-r .wo-inl{flex-direction:column;gap:6px;}
+@media(max-width:900px){ .wo-two{flex-direction:column;gap:6px;} .wo-two-r{border-left:0;padding-left:0;} .wo-two-r .wo-inl{flex-direction:row;} }
+/* 作業箇所の車体図：画面の幅いっぱいに大きく（縦横の比率はそのまま） */
+.wo-mapwrap{width:100%;}
+.wo-mapcol{width:100%;max-width:640px;margin:0 auto;}
+#wo-detail .wo-mapcol .wo-map{max-width:none;width:100%;grid-template-columns:30px 40px 1fr 1.15fr 1fr 40px 30px;grid-template-rows:84px 104px 54px 144px 144px 144px 68px 54px 104px 84px;gap:6px;}
+#wo-detail .wo-mapcol .wo-map .panel-btn{font-size:15px;}
+@media(max-width:700px){ #wo-detail .wo-mapcol .wo-map{grid-template-columns:20px 28px 1fr 1.15fr 1fr 28px 20px;grid-template-rows:60px 76px 40px 104px 104px 104px 50px 40px 76px 60px;gap:4px;} #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:12px;} }
 .wo-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
 .wo-row>.btn-add{flex:1 1 220px;margin:0;}
 .wo-row>.wo-pinbtn{flex:0 0 auto;margin:0;}
@@ -2349,6 +2355,8 @@ function woRenderDetail(){
     <div class="field"><label>納車予定日</label><input type="date" value="${v('dueDate')}" onchange="woSet('dueDate',this.value)"></div>
     <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
     <div class="field span2"><label>置き場所</label><div style="display:flex;gap:6px;align-items:stretch"><select style="flex:1;min-width:0" onchange="woSet('slot',this.value)"${j.partsOnly||j.outWork?' disabled':''}>${j.partsOnly?'<option>車両なし</option>':j.outWork?'<option>外注先へ</option>':slotOpts}</select><button type="button" class="selbtn wo-p1btn${j.partsOnly?' on':''}" style="white-space:nowrap" onclick="woPartsOnly()">📦 部品単品</button><button type="button" class="selbtn wo-p1btn${j.outWork?' on':''}" style="white-space:nowrap" onclick="woOutWork()">🏭 外注作業</button></div>${j.outWork?`<input style="margin-top:6px" value="${v('outWorkTo')}" placeholder="外注先・内容（例：〇〇ボデー　フレーム修正）" oninput="woSet('outWorkTo',this.value)" onblur="woRenderList()">`:''}</div>
+  </div>
+  <div class="wo-two"><div class="wo-two-l"><div class="fgrid">
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
     ${ydCats(j).includes('整備')?`<div class="field span2"><label>整備内容（複数選べます）</label>${woSeibiHtml(j)}</div>`:''}
     ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}</div>`:''}
@@ -2360,9 +2368,7 @@ function woRenderDetail(){
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
-  <div class="wo-sec"><span class="bar"></span>作業箇所</div>
-  <div class="wo-mapwrap"><div class="wo-mapcol">${_woMapHtml(j)}</div>
-  <div class="wo-side">
+  </div><div class="wo-two-r">
   <div class="wo-sub" style="margin-top:0">部品発注元・ガラス・コーティング</div>
   <div class="wo-inl">
     <div class="field span2"><label>部品発注元（複数選べます）</label>
@@ -2382,6 +2388,8 @@ function woRenderDetail(){
   <div id="wo-files"></div>
   <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
   </div></div>
+  <div class="wo-sec"><span class="bar"></span>作業箇所</div>
+  <div class="wo-mapwrap"><div class="wo-mapcol">${_woMapHtml(j)}</div></div>
   <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl">
     <tr><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
     ${(j.tasks||[]).map((t,i)=>`<tr><td>${t.area?esc(t.part):`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}</td>
