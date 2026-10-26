@@ -784,7 +784,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
       <button type="button" class="btn" onclick="if(LB.sheetUrl){_lbSheetLoad();toast('入庫管理表を確認しています…');}else toast('入庫管理表が設定されていません（見積りツールの設定で連動してください）',6000)">🔄 今すぐ確認</button>
     </div>
     <div class="sg"><h3>チーム共有 <span id="cloud-badge" style="font-size:12px;color:var(--muted)"></span></h3>
-      <div class="sg-note">ログインすると、同じチームの全端末で作業指示と車両配置を共有します（写真は共有しません）。</div>
+      <div class="sg-note">ログインすると、同じチームの全端末で作業指示・車両配置・写真を共有します（部品発注のPDFとお客様名は共有しません）。</div>
       <div id="cloud-login-box">
         <div class="fgrid">
           <div class="field"><label>メールアドレス</label><input id="cloud-email" type="email" autocomplete="username" placeholder="staff@example.com"></div>
@@ -1282,6 +1282,8 @@ function woColor(j){ const n=woNext(j); return n?n.c:WO_DONE_COLOR; }
 function woLabel(j){ if(j.archived) return '納車済'; const n=woNext(j); return n?n.n:'完成'; }
 function _woPlateShort(p){ p=String(p||'').trim(); const m=p.match(/(\d{1,2}[-‐－ー]?\d{2})\s*$/); return m?m[1]:p; }
 function _woTitle(j){ return j.plate||j.car||'（未入力）'; }
+// 入出庫管理表のI列（内容）：表を書き直したら、それに合わせて表示する（読めないときは覚えている内容）
+function _woWork(j){ const x=_woSheetMatch(j); const w=x&&String(x.work||'').trim(); return w||j.sheetWork||''; }
 // お客様名：入出庫管理表（F列）から読んで、画面に出すだけ（作業指示・端末・クラウドには保存しない）
 function _woSheetName(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return '';
@@ -1499,7 +1501,7 @@ function _woSameDayRun(){
     const isJob=d.kind==='job', sRow=(d.tab||'')+' '+(d.row||'')+'行目', sKey=(d.tab||'')+'-'+d.row;
     const no=_woPlateNo(d.num);
     // すでに作業ボードにある車（番号・シートの行・入庫日と車種で照合）。シートから作ったものは納車済も含めて見る
-    const rowSame=j=>{ const jn=_woPlateNo(j.plate); return (j.sheetRow===sRow||j.sheetKey===sKey)&&!(no&&jn&&no!==jn)&&!(d.car&&j.car&&_woCarNorm(d.car)!==_woCarNorm(j.car)); };   // 行を動かして別の車が入ったときは別の車
+    const rowSame=j=>{ const jn=_woPlateNo(j.plate); return (j.sheetRow===sRow||j.sheetKey===sKey)&&!(no&&jn&&no!==jn)&&!!(d.car&&j.car&&_woCarNorm(d.car)===_woCarNorm(j.car)); };   // 行を動かして別の車が入ったときは別の車
     const same=JOBS.find(j=>(!j.archived||rowSame(j))&&((no&&_woPlateNo(j.plate)===no)||rowSame(j)||(isJob&&d.inDate&&d.car&&j.inDate===d.inDate&&j.car===d.car)));
     if(same){ if(!isJob&&!same.sameDay&&!same.archived){ same.sameDay=true; woTouch(same,true); } continue; }
     const j=_woNew(); j.id=id; j.plate=d.num||''; j.car=d.car||''; j.inDate=isJob?(d.inDate||''):d.date; j.inChecked=false;
@@ -2023,6 +2025,7 @@ function _woFromSheet(j,x,overwrite){
   const cats=_woSdCats2(x.kind); if(cats.length&&(overwrite||!j.yCatsSet)) { j.yCats=cats; j.yCatsSet=true; }
   if(!j.inDate||j.inDate>t){ if(j.inChecked!==true) j.inChecked=false; }
   if(x.car) j.sheetLoaner=x.car;
+  set('sheetWork',String(x.work||'').trim());   // I列（内容）
   j.sheetKey=_woSheetKey(x); j.sheetRow=`${x.tab} ${x.row}行目`; if(x.sid) j.sheetId=x.sid;
 }
 function woSheetPick(){
@@ -2074,16 +2077,24 @@ function woSheetImport(i){
 // 入出庫管理表のどの行の車か：行が動いても追いかける
 //  ① 登録番号が同じ行（いくつかあれば、前と同じ行→入庫日が新しい行）
 //  ② 番号がないときだけ、前と同じ行（車種が同じときだけ）
+function _woSameCar(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !x||!y||x===y||x.includes(y)||y.includes(x); }
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
-  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId); if(x) return x; if(raw.some(r=>r.sid)) return null; }   // ⓪ Z列のIDで探す（いちばん確実）
+  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId); if(x&&_woSameCar(j.car,x.model)) return x; if(raw.some(r=>r.sid)) return null; }   // ⓪ Z列のIDで探す（いちばん確実。車種が違えば別の車）
   if(no){
     const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
     return c.find(r=>_woSheetKey(r)===j.sheetKey)||c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
   }
   if(j.sheetKey){ const x=raw.find(r=>_woSheetKey(r)===j.sheetKey); const k=_woCarNorm(j.car), m=x&&_woCarNorm(x.model);
-    if(x&&(!k||!m||k===m||k.includes(m)||m.includes(k))) return x; }
+    if(x&&k&&m&&(k===m||k.includes(m)||m.includes(k))) return x; }   // 番号がないときは、車種が両方あって同じときだけ
   return null;
+}
+// 入庫管理表の違う行とつながってしまったとき：つながりを外す（番号を入れておけば、次の確認で正しい行につながり直す）
+async function woSheetUnlink(){
+  const j=_woCurJob(); if(!j) return;
+  if(!await askConfirm(`この作業指示と入庫管理表の行のつながりを外しますか？\n${_woTitle(j)}\n（登録番号が入っていれば、約5分後に同じ番号の行につながり直します）`,'外す')) return;
+  delete j.sheetId; delete j.sheetKey; delete j.sheetRow; delete j.sheetWork; delete j.sheetPlateDiff; j.sameDay=false;
+  woTouch(j,true); woRenderDetail(); woRenderList(); toast('つながりを外しました');
 }
 function woSheetFill(){
   const j=_woCurJob(); if(!j) return; const x=_woSheetMatch(j); if(!x){ toast('入庫管理表に同じ番号の車が見つかりません'); return; }
@@ -2177,7 +2188,8 @@ function _woSheetLink(){
   if(CLOUD.user&&!WOC.first.jobs) return;                       // チームの作業指示が届くのを待つ（二重に作らないため）
   _woSheetLinkWait=null;
   const key=(q.tab||'')+'-'+(q.row||''), no=_woPlateNo(q.num);
-  let j=JOBS.find(x=>!x.archived&&q.row&&x.sheetKey===key)||(no?JOBS.find(x=>!x.archived&&_woPlateNo(x.plate)===no):null);
+  // 番号が同じ車 → シートの行が同じで車種も同じ車（行を動かすと、行だけでは別の車のことがある）
+  let j=(no?JOBS.find(x=>!x.archived&&_woPlateNo(x.plate)===no):null)||JOBS.find(x=>!x.archived&&q.row&&x.sheetKey===key&&q.car&&x.car&&_woCarNorm(x.car)===_woCarNorm(q.car));
   let made=false;
   if(!j){
     const raw=((typeof LB!=='undefined'&&LB.sheetRaw)||[]).find(r=>_woSheetKey(r)===key);
@@ -2267,7 +2279,7 @@ function woRenderList(){
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.outWork?`<div class="sub">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${j.sheetWork&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(j.sheetWork)}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
+      ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
 }
 function _woMapHtml(j){
@@ -2309,6 +2321,7 @@ function woRenderDetail(){
     ${inp('chassis','車台番号')}
     ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
+    ${j.sheetId||j.sheetKey?`<div class="field span2" style="text-align:right;margin-top:-4px"><button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="woSheetUnlink()">🔗 入庫管理表とのつながりを外す</button></div>`:''}
     ${(()=>{ const x=_woSheetMatch(j); return x?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woSheetFill()">📋 入庫管理表（${esc(x.tab)} ${x.row}行目：${esc([x.model,x.plate].filter(Boolean).join(' '))}${x.inDate?' 入庫 '+esc(x.inDate):''}）から転記</button></div>`:''; })()}
     <div class="field"><label>入庫</label><div class="check-group"><button type="button" class="selbtn rbtn wo-inbtn${j.inChecked!==false?' on':''}" onclick="woCheckIn()">${j.inChecked!==false?'✓ 入庫済':'🚗 入庫済にする'}</button></div>${j.inChecked===false&&j.loanerUse===true&&j.loanerCar?`<div class="sg-note" style="margin:4px 0 0">押すと${/^レンタカー/.test(j.loanerCar)?esc(_lbLabel(j.loanerCar))+'を貸出中にします':'代車（'+esc(_lbLabel(j.loanerCar))+'）を貸出中にして、駒を外します'}</div>`:''}</div>
     <div class="field"><label>納車予定日</label><input type="date" value="${v('dueDate')}" onchange="woSet('dueDate',this.value)"></div>
