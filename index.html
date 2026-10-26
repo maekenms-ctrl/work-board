@@ -1366,6 +1366,8 @@ function woCloudStart(){
       for(const j of JOBS){ if(!m[j.id] && !gone.has(String(j.id))){ next.push(j); _woCloudPut(j); } }
     }
     JOBS=next.sort((a,b)=>(b.createdAt||'')<(a.createdAt||'')?-1:1);
+    // Apps Script が「表から消えた」と納車済にした車：この端末で代車の返却・駒の片付けをする（1回だけ）
+    for(const j of JOBS){ if(j.archived&&j.needReturn){ try{ j.archived=false; const m=_woReturnLoaner(j); j.archived=true; delete j.needReturn; woTouch(j,true); if(m) toast(`入庫管理表から消えたため納車済：${j.car||j.plate}（${m}）`,7000); }catch(e){ j.archived=true; console.warn(e); } } }
     _woSaveLocal(); woRenderAll(true);
     try{ _woSameDayRun(); }catch(e){ console.warn(e); }
   },err=>_woCloudErr(err,'jobs')));
@@ -1770,6 +1772,8 @@ function _woSheetNear(j){
   return null;
 }
 function woSheetCheck(){
+  // 納車済の自動判定・番号違いの表示・間違いの戻しは、入出庫管理表の Apps Script（約5分ごと）が行う
+  WSC.last='入出庫管理表の Apps Script が約5分ごとに確認しています'; return;
   if(!LB.nos||!LB.hasPlate||SEC.locked) return;
   if(LB.nos.size===0){ WSC.last='入庫管理表に登録番号（H列）が1件もないため、確認していません'; return; }
   const gone=[]; let seen=0;
@@ -1909,7 +1913,7 @@ function woSheetPickRender(){
   WSP.rows=rows;
   el.innerHTML=rows.length?rows.map((x,i)=>`<button type="button" class="wo-sp-row" onclick="woSheetImport(${i})">
       <span class="d">${x._in?_woMD(x._in):'入庫日なし'}</span>
-      <span class="m"><b>${esc(x.model||'（車種なし）')}</b> ${esc(x.plate||'')}<small>${esc([x.name,x.kind,x.car?'代車 '+x.car:'',x._due?'納期 '+_woMD(x._due):''].filter(Boolean).join(' ／ '))}</small></span>
+      <span class="m"><b>${esc(x.model||'（車種なし）')}</b> ${esc(x.plate||'')}<small>${esc([x.kind,x.car?'代車 '+x.car:'',x._due?'納期 '+_woMD(x._due):''].filter(Boolean).join(' ／ '))}</small></span>
       <span class="g">＋</span></button>`).join('')
     :'<div class="empty">取り込める車はありません<br><small>（作業ボードにすでにある車・出庫済の車は出しません）</small></div>';
 }
@@ -2900,6 +2904,30 @@ _ydPointer();
 woRenderAll();
 renderSettings();
 _secInit();
+</script>
+<script>
+// ── 新しい版のお知らせ：GitHubのファイルが新しくなったら、画面の下に「更新する」を出す ──
+(function(){
+  if(!/github\.io$/.test(location.hostname) || !window.fetch) return;
+  var base=null, shown=false;
+  function show(){
+    if(shown) return; shown=true;
+    var b=document.createElement('div');
+    b.setAttribute('style','position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:2147483000;background:#0b57d0;color:#fff;border-radius:22px;padding:8px 8px 8px 16px;font:700 14px/1.4 "Noto Sans JP",sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:calc(100% - 24px)');
+    b.innerHTML='<span>新しい版があります</span><button type="button" style="border:0;border-radius:16px;background:#fff;color:#0b57d0;font:inherit;padding:6px 14px;cursor:pointer">更新する</button>';
+    b.querySelector('button').onclick=function(){ location.reload(); };
+    document.body.appendChild(b);
+  }
+  function check(){
+    fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'}).then(function(r){
+      var v=r.headers.get('etag')||r.headers.get('last-modified'); if(!r.ok||!v) return;
+      if(base===null){ base=v; return; }
+      if(v!==base) show();
+    }).catch(function(){});
+  }
+  check(); setInterval(check, 5*60*1000);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') check(); });
+})();
 </script>
 </body>
 </html>

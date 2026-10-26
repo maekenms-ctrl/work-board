@@ -5,6 +5,27 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b57d0">
 <script>
+// パソコンのスプレッドシートのパネル（NotifyPanel.html の中）で開いたとき：
+// シートの行へ移動するなどの操作を、入れ物（Apps Script）に頼む橋渡し
+(function(){
+  if(new URLSearchParams(location.search).get('gas')!=='1' || window.parent===window || window.google) return;
+  var pend={}, seq=0;
+  window.addEventListener('message',function(e){
+    if(e.source!==window.parent) return; var m=e.data||{}; if(m.arkGas!==1||!pend[m.id]) return;
+    var h=pend[m.id]; delete pend[m.id];
+    if(m.ok){ if(h.s) h.s(m.v); } else if(h.f) h.f(new Error(m.err||'エラー'));
+  });
+  function runner(){
+    var h={s:null,f:null}, o={};
+    o.withSuccessHandler=function(fn){ h.s=fn; return p; };
+    o.withFailureHandler=function(fn){ h.f=fn; return p; };
+    var p=new Proxy(o,{get:function(t,k){ if(k in t) return t[k]; return function(){ var id=++seq; pend[id]=h; window.parent.postMessage({arkGas:1,id:id,fn:String(k),args:[].slice.call(arguments)},'*'); }; }});
+    return p;
+  }
+  window.google={script:{get run(){ return runner(); }}};
+})();
+</script>
+<script>
 // GitHub に置いた「ARK通知」ページのときだけ、アプリとしてインストールできるようにする
 if(/github\.io$/.test(location.hostname)){
   var l=document.createElement('link'); l.rel='manifest'; l.href='notify.webmanifest'; document.head.appendChild(l);
@@ -106,12 +127,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-24 17:05</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-26 10:00</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-24 17:05</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-26 10:00</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -140,7 +161,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-24 17:05</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-26 10:00</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -285,7 +306,8 @@ function todayFromJob(j){
 function isBooking(id, v){ return v && !v.sheet && !v.shop && v.car && v.from && !String(id).startsWith('_'); }
 function diffLoaner(prev, cur, id){
   const b = cur || prev, by = who(b.by), kinds = (b.kinds||[]).join('・');
-  const d = [b.name, `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
+  // 名前欄は、作業ボードからの予約（車種・番号）だけ出す。見積りツールの名前欄はお客様名が入ることがあるので出さない
+  const d = [b.src === 'wb' ? b.name : '', `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
   // 作業ボードで代車を選んだときの予約（src:'wb'）は「代車を手配」と同じく音なし。見積りツールの予約は音あり
   const base = {src:'loan', key:{num:'', car:''}, by, mine: isMyDev(b.dev), quiet: b.src === 'wb'};
   if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${carName(b.car)}`, d}];
@@ -305,7 +327,7 @@ function diffEst(prev, cur){
 
 // ───────── 入出庫管理表（シートへの書き込み） ─────────
 function diffSheet(d){
-  const who_ = [d.name, carName(d.car), d.num].filter(Boolean).join(' ') || `${d.tab} ${d.row}行目`;
+  const who_ = [carName(d.car), d.num].filter(Boolean).join(' ') || `${d.tab} ${d.row}行目`;
   const fix = /車種|代車/.test(d.cols||'') ? carName : (x => x);
   const ch = d.before || d.after ? `${d.cols}：${d.before?fix(d.before)+' → ':''}${fix(d.after)||'（空欄）'}` : `${d.cols} を変更`;
   return [{src:'sheet', ic:'📋', c:'#1a56c4', t:`シート更新：${who_}`, d:`${ch} ／ ${d.tab}`,
@@ -339,6 +361,8 @@ async function delEvent(id){
 // 以前の版で出ていた工程・担当・要不要の通知は、履歴からも消す
 try{ const re=/^工程「| の担当：/; const n=S.events.length; S.events=S.events.filter(e=>!(e.src==='wb'&&re.test(e.t||''))); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
 try{ const n=S.events.length; S.events=S.events.filter(e=>e.src!=='sheet'); if(S.events.length!==n) ls.set('ark-ev', S.events); }catch(e){}
+// お客様名はスプレッドシートだけ：この端末に残っている入庫予定の通知（名前入り）を消し、代車予約の名前欄も消す（1回だけ）
+try{ if(!ls.get('ark-noname-1', false)){ S.events=S.events.filter(e=>e.src!=='daily').map(e=>e.src==='loan'?{...e, d:String(e.d||'').split(' ／ ').filter(x=>/〜|・|^$/.test(x)).join(' ／ ')}:e); ls.set('ark-ev', S.events); ls.set('ark-noname-1', true); } }catch(e){}
 function push(evs, live){
   evs = evs.filter(e => !HIDDEN.has(hideKey(e)));
   if(!evs.length) return;
@@ -438,7 +462,7 @@ function sheetGo(k){
   if(!(window.google && google.script && google.script.run)){ toast('シートの行への移動は、パソコンのスプレッドシートのパネルで使えます'); return; }
   google.script.run.withSuccessHandler(x => toast(x ? `「${x.sheet}」の ${x.row} 行目に移動しました` : 'シートに同じ車が見つかりませんでした', 4000))
     .withFailureHandler(e => toast('シートを探せませんでした：' + (e&&e.message||e), 5000))
-    .findRowAny(k.tab||'', +k.row||0, k.name||'', k.car||'', k.num||'');
+    .findRowAny(k.tab||'', +k.row||0, '', k.car||'', k.num||'');
 }
 // この端末の印（作業ボードと同じ。hub・同じアドレスのタブで共通）
 const MY_DEV = (()=>{ try{ let d=localStorage.getItem('ark-dev'); if(!d){ d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('ark-dev',d); } return d; }catch(e){ return ''; } })();
@@ -479,7 +503,7 @@ function sheetHtml(){
   if(!S.sheet) return `<div class="d" style="padding:10px;color:var(--sub)">シートを読み込み中…</div>`;
   const r = S.sheet;
   const one = (x, pill, pc) => `<div class="row" data-row="${x.row}"><span class="pill" style="background:${pc}">${esc(pill)}</span>
-    <span class="x"><b>${esc(x.name)}</b> ${esc(carName(x.car))} ${esc(x.num)}<br><span class="d">${esc(x.work)}${x.loaner?` ／ 代車 ${esc(carName(x.loaner))}`:''}${x.staff?` ／ ${esc(x.staff)}`:''}</span></span></div>`;
+    <span class="x"><b>${esc(carName(x.car))}</b> ${esc(x.num)}<br><span class="d">${esc(x.work)}${x.loaner?` ／ 代車 ${esc(carName(x.loaner))}`:''}${x.staff?` ／ ${esc(x.staff)}`:''}</span></span></div>`;
   const sec = (title, list, pill, pc) => `<div class="sec">${title}<span class="n">${list.length}台</span></div>` +
     (list.length ? list.map(x=>one(x, x.kind||pill, pc)).join('') : `<div class="d" style="padding:2px 10px;color:var(--sub)">なし</div>`);
   return `<div class="sec" style="color:var(--sub)">── 入出庫管理表「${esc(r.sheet)}」 <button class="chip" id="sheetReload" style="margin-left:auto">更新</button></div>`
@@ -696,11 +720,11 @@ function start(){
       if(d.kind === 'add' || d.kind === 'future'){
         // 当日の追加入庫（8:30のあとにD列へ今日の日付）＝音あり／先の日付の入庫予定を登録＝音なし
         const mk = 'dailyadd|' + ch.doc.id, fut = d.kind === 'future', inD = d.inDate || d.date;
-        const who_ = [d.name, carName(d.car), d.num].filter(Boolean).join(' ');
+        const who_ = [carName(d.car), d.num].filter(Boolean).join(' ');   // お客様名はスプレッドシートだけ
         const e = {src:'daily', ic: fut ? '🗓' : '📅', c:'#c5221f', ts, quiet: fut,
           t: fut ? `入庫予定を登録（${md(inD)}）：${who_ || '（お客様名・車種 未入力）'}` : `本日の追加入庫：${who_ || '（お客様名・車種 未入力）'}`,
           d: [d.work && `作業：${d.work}`, d.cat && `区分：${d.cat}`, d.loaner && `代車：${carName(d.loaner)}`, `${d.tab} ${d.row}行目`].filter(Boolean).join('\n'),
-          key:{tab:d.tab, row:d.row, num:d.num, car:d.car, name:d.name}, sh:{tab:d.tab, row:d.row, car:d.car, num:d.num, in:inD},
+          key:{tab:d.tab, row:d.row, num:d.num, car:d.car}, sh:{tab:d.tab, row:d.row, car:d.car, num:d.num, in:inD},
           by:who(d.by), mk, ref:'daily/'+ch.doc.id};
         const old = S.events.find(x=>x.mk===mk);
         if(old){                                  // あとから名前・車種を書いた → 同じ通知を書き換える（音なし）
@@ -718,18 +742,16 @@ function start(){
         d: n ? `${d.tab||''}${d.tab?' ／ ':''}下に1台ずつ表示しています` : (d.tab||''),
         key:{}, by:'', mk:'daily|'+d.date, ref:'daily/'+ch.doc.id}];
       for(let i=0;i<n;i++){
-        let name='', car='', num='', work='', kind='', loan='', tab=d.tab||'', row=0;
+        // お客様名はスプレッドシートだけ（送られてきても表示しない）
+        let car='', num='', work='', kind='', loan='', tab=d.tab||'', row=0;
         if(Array.isArray(d.cars)){
-          name=d.names[i]||''; car=d.cars[i]||''; num=d.nums[i]||''; work=d.works[i]||''; kind=d.kinds[i]||''; loan=d.loaners[i]||'';
+          car=d.cars[i]||''; num=d.nums[i]||''; work=d.works[i]||''; kind=d.kinds[i]||''; loan=d.loaners[i]||'';
           tab=(d.tabsOf&&d.tabsOf[i])||tab; row=+(d.rows&&d.rows[i])||0;
-        } else {                                       // 古い形式（1行の文字）
-          const m = String(items[i]).match(/^(.*?)（(.*)）$/); name = m ? m[1] : String(items[i]); work = m ? m[2] : '';
-          const w = name.split(/\s+/); if(w.length >= 3 && /^\d{1,4}$/.test(w[w.length-1])){ num = w.pop(); } if(w.length >= 2){ car = w.pop(); name = w.join(' '); }
-        }
+        } else continue;                               // 古い形式（名前を含む1行の文字）は出さない
         const lines = [ work && `作業：${work}`, kind && `区分：${kind}`, loan && `代車：${carName(loan)}` ].filter(Boolean);
         evs.push({src:'daily', ic:'🚗', c:'#c5221f', ts: ts - (i+1), quiet:true,
-          t: `入庫予定 ${i+1}/${n}：${[name, carName(car), num].filter(Boolean).join(' ')}`,
-          d: lines.join('\n'), key:{tab, row, num, car, name}, sh:{tab, row, car, num, in:d.date}, by:'', mk:'daily|'+d.date+'|'+i, ref:'daily/'+ch.doc.id});
+          t: `入庫予定 ${i+1}/${n}：${[carName(car), num].filter(Boolean).join(' ') || `${tab} ${row}行目`}`,
+          d: lines.join('\n'), key:{tab, row, num, car}, sh:{tab, row, car, num, in:d.date}, by:'', mk:'daily|'+d.date+'|'+i, ref:'daily/'+ch.doc.id});
       }
       // 同じ日の入庫予定は、いつも新しい形で並べ直す（送り直したとき・古い形で残っていたとき）
       const old = S.events.filter(x => x.ref === 'daily/'+ch.doc.id);
@@ -823,7 +845,7 @@ $('feed').addEventListener('click', e => {
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
   el.classList.remove('new');
-  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.name||ev.key.car)){ sheetGo(ev.key); return; }
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 // 過去タブ：リンクはそのまま開く／通知を押すとシートの行へ
@@ -831,7 +853,7 @@ $('pastView').addEventListener('click', e => {
   if(hubLink(e)) return;
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
-  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.name||ev.key.car)){ sheetGo(ev.key); return; }
+  if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
 $('todayView').addEventListener('click', e => {
@@ -911,6 +933,30 @@ setInterval(() => { if(S.tab==='today'){ loadSheetToday(); renderToday(); } }, 6
 
 window.__ARK = {diffJob, diffLoaner, diffEst, todayFromJob, plateNum, carLabel, S, push};
 boot();
+</script>
+<script>
+// ── 新しい版のお知らせ：GitHubのファイルが新しくなったら、画面の下に「更新する」を出す ──
+(function(){
+  if(!/github\.io$/.test(location.hostname) || !window.fetch) return;
+  var base=null, shown=false;
+  function show(){
+    if(shown) return; shown=true;
+    var b=document.createElement('div');
+    b.setAttribute('style','position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:2147483000;background:#0b57d0;color:#fff;border-radius:22px;padding:8px 8px 8px 16px;font:700 14px/1.4 "Noto Sans JP",sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:calc(100% - 24px)');
+    b.innerHTML='<span>新しい版があります</span><button type="button" style="border:0;border-radius:16px;background:#fff;color:#0b57d0;font:inherit;padding:6px 14px;cursor:pointer">更新する</button>';
+    b.querySelector('button').onclick=function(){ location.reload(); };
+    document.body.appendChild(b);
+  }
+  function check(){
+    fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'}).then(function(r){
+      var v=r.headers.get('etag')||r.headers.get('last-modified'); if(!r.ok||!v) return;
+      if(base===null){ base=v; return; }
+      if(v!==base) show();
+    }).catch(function(){});
+  }
+  check(); setInterval(check, 5*60*1000);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') check(); });
+})();
 </script>
 </body>
 </html>
