@@ -2097,7 +2097,12 @@ function woSheetImport(i){
 function _woSameCar(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !x||!y||x===y||x.includes(y)||y.includes(x); }
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
-  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId); if(x&&_woSameCar(j.car,x.model)) return x; if(raw.some(r=>r.sid)) return null; }   // ⓪ Z列のIDで探す（いちばん確実。車種が違えば別の車）
+  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId);
+    if(x&&_woSameCar(j.car,x.model)){
+      const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
+      if(no&&xn&&xn!==no){ const y=raw.find(r=>r!==x&&_woPlateNo(r.plate)===no&&_woSameCar(j.car,r.model)); if(y) return y; }
+      return x; }
+    if(raw.some(r=>r.sid)&&!no) return null; }   // ⓪ Z列のIDで探す（車種が違えば別の車。見つからなければ番号で探す）
   if(no){
     const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
     return c.find(r=>_woSheetKey(r)===j.sheetKey)||c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
