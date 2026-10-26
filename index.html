@@ -1278,8 +1278,7 @@ function _woTitle(j){ return j.plate||j.car||'（未入力）'; }
 // お客様名：入出庫管理表（F列）から読んで、画面に出すだけ（作業指示・端末・クラウドには保存しない）
 function _woSheetName(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return '';
-  let x=j.sheetKey?raw.find(r=>(r.tab||'')+'-'+r.row===j.sheetKey):null;
-  if(!x){ const no=_woPlateNo(j.plate); if(no){ const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(c.length) x=c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0]; } }
+  const x=_woSheetMatch(j);
   const n=x&&String(x.name||'').trim(); if(!n) return '';
   const shop=WO_OUTSRC.some(o=>o.n===n||o.n.replace(/^ホンダカーズ|^ネッツゾナ/,'')===n);   // 依頼元（中央・三宮など）の名前には「様」を付けない
   return shop||/様$/.test(n)?n:n+' 様';
@@ -1493,7 +1492,8 @@ function _woSameDayRun(){
     const isJob=d.kind==='job', sRow=(d.tab||'')+' '+(d.row||'')+'行目', sKey=(d.tab||'')+'-'+d.row;
     const no=_woPlateNo(d.num);
     // すでに作業ボードにある車（番号・シートの行・入庫日と車種で照合）。シートから作ったものは納車済も含めて見る
-    const same=JOBS.find(j=>(!j.archived||j.sheetKey===sKey)&&((no&&_woPlateNo(j.plate)===no)||j.sheetRow===sRow||j.sheetKey===sKey||(isJob&&d.inDate&&d.car&&j.inDate===d.inDate&&j.car===d.car)));
+    const rowSame=j=>{ const jn=_woPlateNo(j.plate); return (j.sheetRow===sRow||j.sheetKey===sKey)&&!(no&&jn&&no!==jn)&&!(d.car&&j.car&&_woCarNorm(d.car)!==_woCarNorm(j.car)); };   // 行を動かして別の車が入ったときは別の車
+    const same=JOBS.find(j=>(!j.archived||rowSame(j))&&((no&&_woPlateNo(j.plate)===no)||rowSame(j)||(isJob&&d.inDate&&d.car&&j.inDate===d.inDate&&j.car===d.car)));
     if(same){ if(!isJob&&!same.sameDay&&!same.archived){ same.sameDay=true; woTouch(same,true); } continue; }
     const j=_woNew(); j.id=id; j.plate=d.num||''; j.car=d.car||''; j.inDate=isJob?(d.inDate||''):d.date; j.inChecked=false;
     if(isJob){ j.fromSheet=true; if(d.due) j.dueDate=d.due; j.sheetKey=sKey; } else j.sameDay=true;
@@ -1982,12 +1982,18 @@ function woSheetImport(i){
   toast(`入庫管理表から作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`,5000);
 }
 // 作業指示の画面：番号が入庫管理表にあれば、入庫日・車種・納期を転記できる
+// 入出庫管理表のどの行の車か：行が動いても追いかける
+//  ① 登録番号が同じ行（いくつかあれば、前と同じ行→入庫日が新しい行）
+//  ② 番号がないときだけ、前と同じ行（車種が同じときだけ）
 function _woSheetMatch(j){
-  const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; const no=_woPlateNo(j.plate);
-  if(j.sheetKey){ const x=raw.find(r=>_woSheetKey(r)===j.sheetKey); if(x) return x; }
-  if(!no) return null;
-  const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
-  return c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
+  const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
+  if(no){
+    const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
+    return c.find(r=>_woSheetKey(r)===j.sheetKey)||c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
+  }
+  if(j.sheetKey){ const x=raw.find(r=>_woSheetKey(r)===j.sheetKey); const k=_woCarNorm(j.car), m=x&&_woCarNorm(x.model);
+    if(x&&(!k||!m||k===m||k.includes(m)||m.includes(k))) return x; }
+  return null;
 }
 function woSheetFill(){
   const j=_woCurJob(); if(!j) return; const x=_woSheetMatch(j); if(!x){ toast('入庫管理表に同じ番号の車が見つかりません'); return; }
