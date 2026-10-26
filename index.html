@@ -449,9 +449,20 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-inl{display:flex;flex-wrap:wrap;gap:4px 22px;align-items:flex-start;}
 .wo-inl>.field{width:auto;flex:0 1 auto;min-width:0;margin:0;}
 .wo-inl>.field input{min-width:200px;}
+.wo-mapwrap{display:flex;gap:28px;align-items:flex-start;}
+.wo-mapcol{flex:0 0 300px;min-width:0;}
+.wo-side{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.wo-side .wo-inl{flex-direction:column;gap:6px;}
+@media(max-width:760px){ .wo-mapwrap{flex-direction:column;gap:10px;} .wo-mapcol{flex:none;width:100%;} .wo-side .wo-inl{flex-direction:row;} }
 .wo-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
 .wo-row>.btn-add{flex:1 1 220px;margin:0;}
 .wo-row>.wo-pinbtn{flex:0 0 auto;margin:0;}
+.wo-pv{position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;touch-action:pan-y pinch-zoom;}
+.wo-pv img{width:100vw;height:calc(100vh - 60px);object-fit:contain;}
+.wo-pv .pv-cap{position:absolute;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom));text-align:center;color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 3px #000;}
+.wo-pv .pv-x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:22px;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:22px;cursor:pointer;}
+.wo-pv .pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:72px;border:0;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:40px;line-height:1;cursor:pointer;}
+.wo-pv .pv-l{left:8px;} .wo-pv .pv-r{right:8px;}
 .wo-tag.p1{background:#f59e0b;color:#111;}
 .wo-pinbtn{background:#188038;border-color:#188038;color:#fff;margin-left:6px}
 .selbtn.wo-p1btn.on{background:#f59e0b;border-color:#f59e0b;color:#111;}
@@ -2345,7 +2356,27 @@ function woRenderDetail(){
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
   <div class="wo-sec"><span class="bar"></span>作業箇所</div>
-  ${_woMapHtml(j)}
+  <div class="wo-mapwrap"><div class="wo-mapcol">${_woMapHtml(j)}</div>
+  <div class="wo-side">
+  <div class="wo-sub" style="margin-top:0">部品発注元・ガラス・コーティング</div>
+  <div class="wo-inl">
+    <div class="field span2"><label>部品発注元（複数選べます）</label>
+      <div class="check-group">${WO_SUPPLIERS.map(g=>`<button type="button" class="selbtn${(j.suppliers||[]).includes(g)?' on':''}" onclick="woSupplier('${g}')">${g}</button>`).join('')}</div>
+      ${(j.suppliers||[]).includes('その他')?`<input style="margin-top:8px" value="${v('supplierOther')}" placeholder="発注元の名前" oninput="woSet('supplierOther',this.value)">`:''}
+    </div>
+    <div class="field span2"><label>ガラス業者</label>
+      <div class="check-group">${WO_GLASS_VENDORS.map(g=>`<button type="button" class="selbtn${j.glassVendor===g?' on':''}" onclick="woGlass('${g}')">${g}</button>`).join('')}</div>
+      ${j.glassVendor==='その他'?`<input style="margin-top:8px" value="${v('glassOther')}" placeholder="ガラス業者名" oninput="woSet('glassOther',this.value)">`:''}
+    </div>
+    <div class="field span2"><label>コーティング</label>
+      <div class="check-group"><button type="button" class="selbtn${!j.coating?' on':''}" onclick="woCoat(false)">なし</button><button type="button" class="selbtn${j.coating?' on':''}" onclick="woCoat(true)">あり</button></div>
+      ${j.coating?`<input style="margin-top:8px" value="${v('coatType')}" placeholder="コーティングの種類（例：ガラス系 3年）" oninput="woSet('coatType',this.value)">`:''}
+    </div>
+  </div>
+  <div class="wo-sub">部品発注のPDF <span>（この端末のみ・複数選べます・画面にドラッグでも追加できます）</span></div>
+  <div id="wo-files"></div>
+  <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
+  </div></div>
   <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl">
     <tr><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
     ${(j.tasks||[]).map((t,i)=>`<tr><td>${t.area?esc(t.part):`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}</td>
@@ -2375,24 +2406,6 @@ function woRenderDetail(){
   </table></div>
   <div class="wo-row"><button type="button" class="btn btn-add" onclick="woPartAdd()">＋ 部品を追加</button>
   <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
-  <div class="wo-sub">部品発注のPDF <span>（この端末のみ・複数選べます・画面にドラッグでも追加できます）</span></div>
-  <div id="wo-files"></div>
-  <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
-  <div class="wo-sec"><span class="bar"></span>部品発注元・ガラス・コーティング</div>
-  <div class="wo-inl">
-    <div class="field span2"><label>部品発注元（複数選べます）</label>
-      <div class="check-group">${WO_SUPPLIERS.map(g=>`<button type="button" class="selbtn${(j.suppliers||[]).includes(g)?' on':''}" onclick="woSupplier('${g}')">${g}</button>`).join('')}</div>
-      ${(j.suppliers||[]).includes('その他')?`<input style="margin-top:8px" value="${v('supplierOther')}" placeholder="発注元の名前" oninput="woSet('supplierOther',this.value)">`:''}
-    </div>
-    <div class="field span2"><label>ガラス業者</label>
-      <div class="check-group">${WO_GLASS_VENDORS.map(g=>`<button type="button" class="selbtn${j.glassVendor===g?' on':''}" onclick="woGlass('${g}')">${g}</button>`).join('')}</div>
-      ${j.glassVendor==='その他'?`<input style="margin-top:8px" value="${v('glassOther')}" placeholder="ガラス業者名" oninput="woSet('glassOther',this.value)">`:''}
-    </div>
-    <div class="field span2"><label>コーティング</label>
-      <div class="check-group"><button type="button" class="selbtn${!j.coating?' on':''}" onclick="woCoat(false)">なし</button><button type="button" class="selbtn${j.coating?' on':''}" onclick="woCoat(true)">あり</button></div>
-      ${j.coating?`<input style="margin-top:8px" value="${v('coatType')}" placeholder="コーティングの種類（例：ガラス系 3年）" oninput="woSet('coatType',this.value)">`:''}
-    </div>
-  </div>
   <div class="wo-sec"><span class="bar"></span>注意事項</div>
   <div class="field"><textarea rows="3" placeholder="例：左Fドアはプレスラインに注意／車内に私物あり／ドラレコ配線あり" oninput="woSet('caution',this.value)">${v('caution')}</textarea></div>
   <div class="wo-sec"><span class="bar"></span>写真 <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
@@ -2415,9 +2428,26 @@ function woRenderDetail(){
   else { woRenderPhotos(); if(WOPH.loaded===j.id) _woPhWatch(j.id); }   // 端末の写真を読み終わってから共有と合わせる
   _woDropInit();
 }
+// 写真を押すと、その写真だけを画面いっぱいに表示（◀▶・左右にスワイプで前後の写真、✕・背景・Escで閉じる）
+function woPhotoView(i){
+  if(!WO_PHOTOS.length) return; let k=Math.max(0,Math.min(i,WO_PHOTOS.length-1));
+  document.getElementById('wo-pv')?.remove();
+  const ov=document.createElement('div'); ov.id='wo-pv'; ov.className='wo-pv';
+  ov.innerHTML=`<img alt=""><div class="pv-cap"></div><button type="button" class="pv-x" aria-label="閉じる">✕</button><button type="button" class="pv-nav pv-l" aria-label="前の写真">‹</button><button type="button" class="pv-nav pv-r" aria-label="次の写真">›</button>`;
+  const img=ov.querySelector('img'), cap=ov.querySelector('.pv-cap');
+  const show=()=>{ const p=WO_PHOTOS[k]; if(!p){ close(); return; } img.src=p.d; cap.textContent=`${k+1}／${WO_PHOTOS.length}${p.tag?'　'+p.tag:''}`; ov.querySelector('.pv-l').style.visibility=k>0?'':'hidden'; ov.querySelector('.pv-r').style.visibility=k<WO_PHOTOS.length-1?'':'hidden'; };
+  const go=d=>{ const n=k+d; if(n<0||n>=WO_PHOTOS.length) return; k=n; show(); };
+  const key=e=>{ if(e.key==='Escape') close(); else if(e.key==='ArrowLeft') go(-1); else if(e.key==='ArrowRight') go(1); };
+  const close=()=>{ ov.remove(); document.removeEventListener('keydown',key); };
+  ov.querySelector('.pv-x').onclick=close; ov.querySelector('.pv-l').onclick=e=>{ e.stopPropagation(); go(-1); }; ov.querySelector('.pv-r').onclick=e=>{ e.stopPropagation(); go(1); };
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  let sx=null; ov.addEventListener('touchstart',e=>{ sx=e.touches.length===1?e.touches[0].clientX:null; },{passive:true});
+  ov.addEventListener('touchend',e=>{ if(sx==null) return; const dx=e.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>50) go(dx<0?1:-1); });
+  document.addEventListener('keydown',key); document.body.appendChild(ov); show();
+}
 function woRenderPhotos(){
   const g=document.getElementById('wo-ph'); if(!g) return;
-  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it"><img src="${p.d}" alt=""><button type="button" class="x" onclick="woPhotoDel(${i})" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
+  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it"><img src="${p.d}" alt="" style="cursor:zoom-in" onclick="woPhotoView(${i})"><button type="button" class="x" onclick="woPhotoDel(${i})" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
   const c=document.getElementById('wo-ph-n'); if(c) c.textContent=`${WO_PHOTOS.length}／${WO_PHOTO_MAX}枚`;
   clearTimeout(WO_SHARE._t); WO_SHARE._t=setTimeout(()=>_woPrepShare().catch(()=>{}),400);
 }
