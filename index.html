@@ -441,6 +441,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-nmbox{padding:8px 10px;border-radius:8px;background:var(--surface2,#2a2f36);font-weight:800;font-size:15px;}
 .wo-drop{outline:3px dashed var(--accent,#e4ff1a);outline-offset:-6px;}
 .wo-drop::after{content:'ここに落とすと、写真・PDFを追加します';position:sticky;bottom:12px;display:block;margin:10px auto 0;width:max-content;max-width:90%;padding:8px 14px;border-radius:20px;background:var(--accent,#e4ff1a);color:#111;font-weight:800;}
+.wo-sp-wrap{display:flex;gap:6px;align-items:stretch;}
+.wo-sp-wrap .wo-sp-row{flex:1;min-width:0;}
+.wo-sp-wrap.hid .wo-sp-row{opacity:.45;}
+.wo-sp-del{flex:none;width:46px;border:1px solid var(--border,#3a3f46);border-radius:10px;background:var(--surface2,#2a2f36);color:var(--text,#e8eaed);font-size:18px;cursor:pointer;}
+.wo-sp-del:hover{border-color:#ff5c5c;}
 .wo-tag.p1{background:#f59e0b;color:#111;}
 .wo-pinbtn{background:#188038;border-color:#188038;color:#fff;margin-left:6px}
 .selbtn.wo-p1btn.on{background:#f59e0b;border-color:#f59e0b;color:#111;}
@@ -1323,7 +1328,7 @@ async function _woLoadLocal(){
 }
 function _ydSaveLocal(){ _lsSet('wo-yard',JSON.stringify(YARD)); }
 function _ydRenameKeys(y){ for(const f of ['lpos','pmemo']){ const o=y[f]; if(!o) continue; for(const i of [1,2]){ const a='返却レンタカー'+i, b='回送レンタカー'+i; if(a in o&&!(b in o)){ o[b]=o[a]; delete o[a]; } } } return y; }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1404,7 +1409,7 @@ function woCloudStart(){
   WOC.unsubs.push(fs.onSnapshot(fs.doc(CLOUD.db,'yard','layout'),d=>{
     const first=!WOC.first.yard; WOC.first.yard=true;
     if(YD._pend) return;   // この端末の変更を送る前に届いた古い内容は使わない
-    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
+    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
     else if(first){ _ydCloudPut(); }
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
@@ -1997,6 +2002,7 @@ function _woSheetRows(){
   const t=_woToday(), old=_ymd(new Date(Date.now()-60*864e5));
   return raw.filter(x=>{
     if(!(x.model||x.plate)) return false;
+    if(!WSP.showHidden&&_woSpHidden(x)) return false;         // 取り込み一覧から消した車
     if(x.sid&&sids.has(x.sid)) return false;                  // Z列のIDで、もう作業ボードにある車
     if(keys.has(_woSheetKey(x))&&!x.sid) return false;
     const no=_woPlateNo(x.plate); if(no&&onBoard.has(no)) return false;
@@ -2029,7 +2035,7 @@ function woSheetPick(){
     <input class="wo-search" id="wo-sp-q" placeholder="🔍 お客様・車種・番号" style="width:100%;margin:8px 0" oninput="woSheetPickRender()">
     <div class="sg-note" style="margin:0 0 6px">作業ボードにまだない車だけを、入庫日が新しい順に表示します。押すと作業指示を作ります（お客様名は作業ボードには保存しません）。</div>
     <div id="wo-sp-list" class="wo-sp-list"></div>
-    <div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn" onclick="_lbSheetLoad().then(woSheetPickRender);toast('入庫管理表を読み直しています…')">🔄 読み直す</button></div></div>`;
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" onclick="_lbSheetLoad().then(woSheetPickRender);toast('入庫管理表を読み直しています…')">🔄 読み直す</button><button type="button" class="btn" id="wo-sp-hid" onclick="WSP.showHidden=!WSP.showHidden;woSheetPickRender()"></button></div></div>`;
   ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
   document.body.appendChild(ov); woSheetPickRender();
 }
@@ -2038,13 +2044,23 @@ function woSheetPickRender(){
   const q=((document.getElementById('wo-sp-q')||{}).value||'').normalize('NFKC').toLowerCase().replace(/\s/g,'');
   const rows=_woSheetRows().filter(x=>!q||[x.name,x.model,x.plate].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q));
   WSP.rows=rows;
-  el.innerHTML=rows.length?rows.map((x,i)=>`<button type="button" class="wo-sp-row" onclick="woSheetImport(${i})">
+  const hb=document.getElementById('wo-sp-hid'); if(hb){ const n=Object.keys((YARD&&YARD.shide)||{}).length; hb.style.display=n?'':'none'; hb.textContent=WSP.showHidden?'消した車を隠す':`🗑 消した車を見る（${n}）`; }
+  el.innerHTML=rows.length?rows.map((x,i)=>{ const hid=_woSpHidden(x); return `<div class="wo-sp-wrap${hid?' hid':''}"><button type="button" class="wo-sp-row" onclick="woSheetImport(${i})">
       <span class="d">${x._in?_woMD(x._in):'入庫日なし'}</span>
       <span class="m"><b>${esc(x.model||'（車種なし）')}</b> ${esc(x.plate||'')}<small>${esc([x.name,x.kind,x.car?'代車 '+x.car:'',x._due?'納期 '+_woMD(x._due):''].filter(Boolean).join(' ／ '))}</small></span>
-      <span class="g">＋</span></button>`).join('')
+      <span class="g">＋</span></button><button type="button" class="wo-sp-del" onclick="woSpHide(${i})" title="${hid?'一覧に戻す':'一覧から消す'}">${hid?'↩':'🗑'}</button></div>`; }).join('')
     :'<div class="empty">取り込める車はありません<br><small>（作業ボードにすでにある車・出庫済の車は出しません）</small></div>';
 }
-const WSP={rows:[]};
+const WSP={rows:[],showHidden:false};
+// 取り込みの一覧から消す（入出庫管理表の行はそのまま。チーム全員の一覧から消える。もう一度押すと戻す）
+function _woSpKey(x){ return x.sid?'id:'+x.sid:'row:'+_woSheetKey(x)+'|'+_woPlateNo(x.plate)+'|'+_woCarNorm(x.model); }
+function _woSpHidden(x){ return !!(YARD&&YARD.shide&&YARD.shide[_woSpKey(x)]); }
+function woSpHide(i){
+  const x=WSP.rows[i]; if(!x) return; YARD.shide=YARD.shide||{}; const k=_woSpKey(x);
+  if(YARD.shide[k]){ delete YARD.shide[k]; toast('一覧に戻しました'); } else { YARD.shide[k]=_woToday(); toast(`「${x.model||x.plate||'車'}」を取り込みの一覧から消しました（入出庫管理表はそのままです）`,5000); }
+  const lim=_ymd(new Date(Date.now()-90*864e5)); for(const kk of Object.keys(YARD.shide)) if(YARD.shide[kk]<lim) delete YARD.shide[kk];   // 90日たったものは整理
+  _ydChanged(); woSheetPickRender();
+}
 function woSheetImport(i){
   const x=WSP.rows[i]; if(!x) return;
   const j=_woNew(); j.id='wo-sh-'+_cloudKey(_woSheetKey(x)).slice(0,60)+'-'+Date.now().toString(36);
