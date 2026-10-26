@@ -1940,6 +1940,7 @@ function _woCarKey(v){ return String(v||'').normalize('NFKC').toUpperCase().repl
 function _woDupOf(j){
   if(!j||j.archived) return null; const no=_woPlateNo(j.plate), c=_woCarKey(j.car);
   return JOBS.find(o=>{ if(o===j||o.id===j.id||o.archived) return false;
+    if(j.sheetId&&o.sheetId) return j.sheetId===o.sheetId;            // Z列のIDが両方にあれば、IDで決める
     const on=_woPlateNo(o.plate), oc=_woCarKey(o.car);
     if(no&&on) return no===on;                                         // 番号が同じ
     if(!c||!oc||c!==oc) return false;                                   // 番号がどちらか空：車種が同じで
@@ -1962,7 +1963,7 @@ async function woMergeDup(oid){
   for(const k of Object.keys(o)){ if(skip.includes(k)||k==='steps') continue; if(empty(j[k])&&!empty(o[k])) j[k]=JSON.parse(JSON.stringify(o[k])); }
   if(o.steps){ j.steps=j.steps||{}; for(const k of Object.keys(o.steps)){ const a=j.steps[k], b=o.steps[k]; if(!a){ j.steps[k]={...b}; continue; } if(b&&b.done&&!a.done){ Object.assign(a,{done:true,at:b.at||'',doneDate:b.doneDate||'',who:a.who||b.who||''}); } if(b&&b.who&&!a.who) a.who=b.who; } }
   if(o.inChecked!==false&&j.inChecked===false) j.inChecked=o.inChecked;
-  ['sheetKey','sheetRow','sheetWork'].forEach(k=>{ if(!j[k]&&o[k]) j[k]=o[k]; });   // 入庫管理表の行は引き継ぐ（同じ行から作り直さないように）
+  ['sheetKey','sheetRow','sheetWork','sheetId'].forEach(k=>{ if(!j[k]&&o[k]) j[k]=o[k]; });   // 入庫管理表の行は引き継ぐ（同じ行から作り直さないように）
   if(o.fromSheet) j.fromSheet=true;
   const keepBook=o.loanerBook&&j.loanerBook===o.loanerBook;
   JOBS=JOBS.filter(x=>x.id!==o.id); clearTimeout(WOC.timer[o.id]); delete WOC.timer[o.id];
@@ -1992,11 +1993,12 @@ function _woSheetKey(x){ return (x.tab||'')+'-'+x.row; }
 function _woSheetRows(){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[];
   const onBoard=new Set(JOBS.filter(j=>!j.archived).map(j=>_woPlateNo(j.plate)).filter(Boolean));
-  const keys=new Set(JOBS.map(j=>j.sheetKey).filter(Boolean));
+  const keys=new Set(JOBS.map(j=>j.sheetKey).filter(Boolean)), sids=new Set(JOBS.map(j=>j.sheetId).filter(Boolean));
   const t=_woToday(), old=_ymd(new Date(Date.now()-60*864e5));
   return raw.filter(x=>{
     if(!(x.model||x.plate)) return false;
-    if(keys.has(_woSheetKey(x))) return false;
+    if(x.sid&&sids.has(x.sid)) return false;                  // Z列のIDで、もう作業ボードにある車
+    if(keys.has(_woSheetKey(x))&&!x.sid) return false;
     const no=_woPlateNo(x.plate); if(no&&onBoard.has(no)) return false;
     const out=_sheetDate(x.out); if(out&&out<t) return false;            // 出庫済の車は出さない
     const ind=_sheetDate(x.inDate); if(ind&&ind<old) return false;        // 60日より前の入庫は出さない
@@ -2015,7 +2017,7 @@ function _woFromSheet(j,x,overwrite){
   const cats=_woSdCats2(x.kind); if(cats.length&&(overwrite||!j.yCatsSet)) { j.yCats=cats; j.yCatsSet=true; }
   if(!j.inDate||j.inDate>t){ if(j.inChecked!==true) j.inChecked=false; }
   if(x.car) j.sheetLoaner=x.car;
-  j.sheetKey=_woSheetKey(x); j.sheetRow=`${x.tab} ${x.row}行目`;
+  j.sheetKey=_woSheetKey(x); j.sheetRow=`${x.tab} ${x.row}行目`; if(x.sid) j.sheetId=x.sid;
 }
 function woSheetPick(){
   if(!_woCheckReady()) return;
@@ -2058,6 +2060,7 @@ function woSheetImport(i){
 //  ② 番号がないときだけ、前と同じ行（車種が同じときだけ）
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
+  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId); if(x) return x; if(raw.some(r=>r.sid)) return null; }   // ⓪ Z列のIDで探す（いちばん確実）
   if(no){
     const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
     return c.find(r=>_woSheetKey(r)===j.sheetKey)||c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
