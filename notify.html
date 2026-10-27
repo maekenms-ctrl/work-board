@@ -127,12 +127,12 @@ if(/github\.io$/.test(location.hostname)){
 </head>
 <body>
 
-<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-27 00:30</span></div>
+<div id="boot" style="padding:28px 16px;color:#5f6368;font-size:13px;line-height:1.7">⏳ ARK通知を読み込み中…<br><span style="font-size:11px">版：2026-10-27 15:00</span></div>
 <script>
 // 読み込みで止まったとき、真っ白にせず理由を表示する
 (function(){
   function show(msg){ var b=document.getElementById('boot'); if(!b) return; b.style.color='#d93025';
-    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-27 00:30</span>'; }
+    b.innerHTML='⚠️ ARK通知を表示できませんでした<br><span style="font-size:12px;color:#5f6368">'+String(msg).replace(/[<>&]/g,'')+'</span><br><span style="font-size:11px;color:#80868b">版：2026-10-27 15:00</span>'; }
   window.addEventListener('error', function(e){ show((e.message||'エラー')+(e.lineno?'（'+e.lineno+'行目）':'')); });
   window.addEventListener('unhandledrejection', function(e){ show(e.reason&&e.reason.message||e.reason); });
   setTimeout(function(){ if(document.getElementById('boot') && !window.__ARK_READY) show('20秒たっても起動しません。貼り付けが途中で切れている可能性があります（最後の行が </html> か確認してください）'); }, 20000);
@@ -161,7 +161,7 @@ if(/github\.io$/.test(location.hostname)){
       <button data-act="log">受信ログを見る（確認用）</button>
       <button data-act="clear">通知履歴を消す</button>
       <button data-act="logout">ログアウト</button>
-      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-27 00:30</div>
+      <div style="padding:6px 14px 2px;font-size:11px;color:#80868b">版：2026-10-27 15:00</div>
     </div>
     <div class="tabs">
       <button class="tab on" data-tab="feed">通知<span class="badge" id="badge" style="display:none"></span></button>
@@ -647,14 +647,15 @@ async function login(){
   }finally{ $('loginBtn').disabled = false; }
 }
 
-function listen(name, onSnap){
-  const {F} = fb;
-  S.first[name] = true;
-  S.unsubs.push(F.onSnapshot(F.collection(db, name), snap => {
-    const first = S.first[name]; S.first[name] = false;
+// q：読む範囲（全件は読まない：速く・無料枠を超えないように）。key：同じ集まりを2つの範囲で読むときの見分け
+function listen(name, onSnap, q, key){
+  const {F} = fb; const k = key || name;
+  S.first[k] = true;
+  S.unsubs.push(F.onSnapshot(q || F.collection(db, name), snap => {
+    const first = S.first[k]; S.first[k] = false;
     onSnap(snap, first);
     // パネルを閉じている間に削除されたものも、開いたときに通知から消す
-    if(first){ const ids = new Set(); snap.docChanges().forEach(ch=>{ const v=ch.doc.data()||{}; if(ch.type!=='removed' && !v.deleted && !v._sheet) ids.add(name+'/'+ch.doc.id); });
+    if(first && !q){ const ids = new Set(); snap.docChanges().forEach(ch=>{ const v=ch.doc.data()||{}; if(ch.type!=='removed' && !v.deleted && !v._sheet) ids.add(name+'/'+ch.doc.id); });
       dropWhere(e => e.ref && e.ref.startsWith(name+'/') && !ids.has(e.ref)); }
     // 受信状況（切り分け用）：件数・最後に変更を受け取った時刻
     S.stat[name] = S.stat[name] || {n:0, last:0, log:[]};
@@ -677,23 +678,38 @@ function listen(name, onSnap){
 
 function start(){
   stop();
+  const {F} = fb;
   bootDone(); $('login').style.display='none'; $('app').style.display='';
   setStatus('接続中…'); renderFeed(); renderBadge();
   const known = new Set(S.events.map(e=>e.src+'|'+e.t+'|'+Math.floor(e.ts/60000)));
   const fresh = e => !known.has(e.src+'|'+e.t+'|'+Math.floor(e.ts/60000));
 
-  listen('jobs', (snap, first) => {
+  // 作業指示：作業中の車と、3日以内に納車済にした車だけを読む。作業中→納車済のときは一方から消えて、もう一方に現れる
+  const JC = F.collection(db, 'jobs'), jin = {act:{}, arch:{}};
+  const onJobs = part => (snap, first) => {
     const out = [];
     snap.docChanges().forEach(ch => {
       const id = ch.doc.id, cur = ch.doc.data(), prev = S.jobs[id];
       if(cur && cur._sheet) return;   // 保存した「作業指示書」は作業指示ではないので通知しない
-      if(ch.type === 'removed' || (cur && cur.deleted)){ dropRef('jobs/'+id); delete S.jobs[id]; return; }
+      if(ch.type === 'removed' || (cur && cur.deleted)){
+        delete jin[part][id];
+        // もう一方の範囲に移っただけかもしれないので、少し待ってから消す（削除・古い納車済）
+        setTimeout(()=>{ if(!jin.act[id] && !jin.arch[id]){ dropRef('jobs/'+id); delete S.jobs[id]; } }, 2500);
+        return;
+      }
+      jin[part][id] = true;
+      if(prev && prev.updatedAt && cur.updatedAt && prev.updatedAt === cur.updatedAt && prev.archived === cur.archived){ S.jobs[id] = cur; return; }   // 同じ内容がもう一方の範囲から届いた
       S.jobs[id] = cur;
-      if(first) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
+      if(first && !prev) todayFromJob(cur).filter(fresh).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
       else diffJob(prev, cur, id).forEach(e=>out.push({...e, ref:'jobs/'+id, jid:cur.id||id}));
     });
     push(out, !first);
-  });
+  };
+  const ago = d => new Date(Date.now() - d*864e5).toISOString();
+  listen('jobs', onJobs('act'), F.query(JC, F.where('archived','==',false)), 'jobs');
+  listen('jobs', onJobs('arch'), F.query(JC, F.where('deliveredAt','>=',ago(3))), 'jobsArch');
+  // 削除された作業指示（閉じている間に削除されたものも、通知から消す）
+  listen('jobs', (snap) => { snap.docChanges().forEach(ch => { if(ch.type !== 'removed'){ dropRef('jobs/'+ch.doc.id); delete S.jobs[ch.doc.id]; } }); }, F.query(JC, F.where('deleted','==',true)), 'jobsDel');
 
   listen('loaner', (snap, first) => {
     const out = [];
@@ -763,6 +779,7 @@ function start(){
     push(out, !first);
   });
   // コメント（ARK通知のコメント欄から）
+  const ymdAgo = d => ymd(new Date(Date.now() - d*864e5));
   listen('comments', (snap, first) => {
     const out = [], me = (S.user && S.user.email) || '';
     snap.docChanges().forEach(ch => {
@@ -777,7 +794,7 @@ function start(){
         t: d.text || '', d: '', key:{}, by: who(d.by), ref:'comments/'+id, id:'c-'+id});
     });
     push(out, !first);
-  });
+  }, F.query(F.collection(db,'comments'), F.where('date','>=',ymdAgo(1))));
 
   listen('estimates', (snap, first) => {
     const out = [];
@@ -789,8 +806,13 @@ function start(){
       else diffEst(prev, cur).forEach(e=>out.push({...e, ref:'estimates/'+id}));
     });
     push(out, !first);
-  });
+  }, F.query(F.collection(db,'estimates'), F.where('savedAt','>=',ago(3))));
 }
+// スリープ・別のアプリから戻ったとき、電波が戻ったとき：すぐつなぎ直す
+let _ntHid = 0;
+function reconnect(){ try{ if(!fb || !db || !S.unsubs.length || !fb.F.disableNetwork) return; fb.F.disableNetwork(db).then(()=>fb.F.enableNetwork(db)).catch(()=>{}); }catch(e){} }
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ _ntHid = Date.now(); return; } if(_ntHid && Date.now()-_ntHid > 8000) reconnect(); _ntHid = 0; });
+window.addEventListener('online', reconnect);
 function stop(){ S.errs = {}; S.unsubs.forEach(f=>{ try{ f(); }catch(e){} }); S.unsubs = []; S.jobs = {}; S.loaner = {}; S.est = {}; }
 
 // ───────── コメント欄 ─────────
