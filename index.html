@@ -346,6 +346,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-badge{font-size:12px;color:var(--muted);padding:4px 10px;border:1px solid var(--border);border-radius:999px;white-space:nowrap;}
 .wo-badge.on{color:var(--accent);border-color:var(--accent);}
 .wo-badge.err{color:#ff6b6b;border-color:#ff6b6b;white-space:normal;}
+#wo-detail,#wo-list{overflow-anchor:none;}   /* 描き直しのときに、ブラウザが勝手にスクロール位置を動かさないように */
 .wo-badge.wait{color:#ffb020;border-color:#ffb020;cursor:pointer;white-space:normal;}
 .wo-search{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:16px;font-family:inherit;min-width:0;width:200px;}
 .wo-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:16px;align-items:start;}
@@ -740,6 +741,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     </div>
     <input class="wo-search" id="wo-q" placeholder="🔍 登録番号・車種・カラー" oninput="woRenderList()">
     <select class="wo-search wo-sort" id="wo-sort" onchange="woSetSort(this.value)" title="並び順">
+      <option value="sheet">並び順：入出庫管理表と同じ（月のタブ・行の順）</option>
       <option value="std">並び順：配置図の表示（区分→段階 前・途中・完成）・入庫が新しい順</option>
       <option value="old">並び順：入庫が古い順</option>
       <option value="due">並び順：納車予定が近い順</option>
@@ -1215,7 +1217,7 @@ let WO_CUR=null, WO_FILTER='active', WO_PHOTOS=[], WO_PHOTOS_FOR=null;
 // ── 一覧の並び順 ──
 // std：区分（鈑金→整備→車検→その他）ごとに、入庫が新しい車が上・古い車が下
 // old：入庫が古い順／due：納車予定が近い順／manual：⠿ をドラッグして自由に並べ替え（チームで共有）
-let WO_SORT=(()=>{ try{ return localStorage.getItem('wo-sort')||'std'; }catch(e){ return 'std'; } })(), WO_ROWS=[];
+let WO_SORT=(()=>{ try{ return localStorage.getItem('wo-sort')||'sheet'; }catch(e){ return 'sheet'; } })(), WO_ROWS=[];
 const WO_CAT_ORDER=['鈑金','整備','車検','その他'];
 function woSetSort(v){ WO_SORT=v; try{ localStorage.setItem('wo-sort',v); }catch(e){} woRenderList(); if(v==='manual') toast('⠿ をドラッグすると、順番を自由に入れ替えられます',4000); }
 function _woCatRank(j){ let c=[]; try{ c=ydCats(j)||[]; }catch(e){} let r=WO_CAT_ORDER.length-1; for(const x of c){ const i=WO_CAT_ORDER.indexOf(x); if(i>=0&&i<r) r=i; } return r; }
@@ -1225,9 +1227,13 @@ function _woStageRank(j){ const c=_woPrimCat(j); if(c==='その他') return 0; t
 function _woGrpName(j){ const c=_woPrimCat(j); if(c==='その他') return 'その他'; return c+'・'+(['前','途中','完成'][_woStageRank(j)]); }
 function _woInKey(j){ return (j.inDate||'')+'|'+(j.createdAt||''); }
 function _woCmpNew(a,b){ const x=_woInKey(a), y=_woInKey(b); return x<y?1:x>y?-1:0; }   // 入庫が新しい順
+// 入出庫管理表の中の位置（タブの順・行の順）。作業ボードが3分ごとに読んでいる表の内容から、この端末の中だけで決める（共有へは何も書かない）
+function _woSheetPos(j){ const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length) return null; const x=_woSheetMatch(j); if(!x) return null; const I=_woSheetIdx(raw); return I.pos?{i:I.pos.get(x),tab:x.tab||''}:null; }
+function _woCmpSheet(a,b){ const x=_woSheetPos(a), y=_woSheetPos(b); if(x&&y) return x.i-y.i; if(x) return -1; if(y) return 1; return -_woCmpNew(a,b); }   // 表にない車（手打ち・部品単品など）は最後に、入庫が古い順
 function _woSortRows(rows){
   const std=(a,b)=>_woCatRank(a)-_woCatRank(b)||_woStageRank(a)-_woStageRank(b)||_woCmpNew(a,b);
-  if(WO_SORT==='old') rows.sort((a,b)=>-_woCmpNew(a,b));
+  if(WO_SORT==='sheet'){ const pos=new Map(rows.map(j=>[j,_woSheetPos(j)])); rows.sort((a,b)=>{ const x=pos.get(a), y=pos.get(b); if(x&&y) return x.i-y.i; if(x) return -1; if(y) return 1; return -_woCmpNew(a,b); }); }
+  else if(WO_SORT==='old') rows.sort((a,b)=>-_woCmpNew(a,b));
   else if(WO_SORT==='due') rows.sort((a,b)=>(a.dueDate||'9999')<(b.dueDate||'9999')?-1:(a.dueDate||'9999')>(b.dueDate||'9999')?1:_woCmpNew(a,b));
   else if(WO_SORT==='manual') rows.sort((a,b)=>{ const x=a.ord==null, y=b.ord==null; if(x!==y) return x?-1:1; if(x&&y) return std(a,b); return a.ord-b.ord||std(a,b); });   // 新しく入った車（順番未設定）は上に
   else rows.sort(std);
@@ -1281,7 +1287,7 @@ function _woMoveTo(id,beforeId){
 }
 document.addEventListener('DOMContentLoaded',_woDragInit);
 if(document.readyState!=='loading') setTimeout(_woDragInit,0);
-const WOC={unsubs:[],live:false,err:'',first:{},timer:{},base:{},part:{},got:{},old:{},ybase:null,conn:''};
+const WOC={unsubs:[],live:false,err:'',first:{},timer:{},pend:{},base:{},part:{},got:{},old:{},ybase:null,conn:''};
 const WO_ARCH_DAYS=45;   // 納車済をリアルタイムで読む日数（それより前は「もっと前の納車済を読む」で読む）
 // 比べるための文字列（項目の順番が違っても同じになるように）
 function _woStab(v){ return JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((o,kk)=>(o[kk]=x[kk],o),{}):x); }
@@ -1308,7 +1314,8 @@ function _woSendDiff(ref,base,d,nest,meta,onErr){
     const args=[]; for(const [p,v] of ops){ args.push(new fs.FieldPath(...p), v===undefined?fs.deleteField():v); }
     for(const k in meta) args.push(k,meta[k]);
     // 違うところだけ送る。うまくいかなければ丸ごと送り直す
-    return fs.updateDoc(ref,...args).catch(e=>{ if(/permission/.test(String(e&&e.code||e))) return onErr(e); return whole(); });
+    // 共有に無かった（消された）ときだけ丸ごと送る。ほかの失敗で丸ごと送ると、ほかの端末の変更を消してしまうため送らない（「未送信」として次に送り直す）
+    return fs.updateDoc(ref,...args).catch(e=>{ if(/not-found/.test(String(e&&e.code||e))) return whole(); return onErr(e); });
   }catch(e){ console.warn('updateDoc',e); return whole(); }
 }
 const YD={edit:false,sel:null,carSel:null,drag:null};
@@ -1413,15 +1420,34 @@ function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
   clearTimeout(WOC.timer[j.id]);
-  const go=()=>{ delete WOC.timer[j.id]; _woCloudPut(j); clearTimeout(WOC._st); WOC._st=setTimeout(_woSaveLocal,400); };   // 共有へはすぐ送る。端末への保存（暗号化）は少しまとめてから
-  if(now) go(); else WOC.timer[j.id]=setTimeout(go,600);
+  const go=()=>{ delete WOC.timer[j.id]; delete WOC.pend[j.id]; _woCloudPut(j); clearTimeout(WOC._st); WOC._st=setTimeout(_woSaveLocal,400); };   // 共有へはすぐ送る。端末への保存（暗号化）は少しまとめてから
+  if(now) go(); else { WOC.pend[j.id]=go; WOC.timer[j.id]=setTimeout(go,600); }
 }
 function _woCloudOk(){ return CLOUD.started&&WOC.live&&!WOC.err; }   // WOC.err は権限がないときだけ（ほかの失敗では止めない）
+// 作業指示ごとに「共有から受け取ったときの内容」を覚える（WO_ORIG）。送るのは、この端末で実際に変えた項目だけ
+//  → ほかの端末や入出庫管理表（Apps Script）が同じ時に直した項目を、古い内容で上書きしない
+const WO_ORIG=new WeakMap();
+const WO_NEST=['steps','seibi','shaken'];
+function _woUnsent(){ try{ return JSON.parse(_lsGet('wo-unsent')||'{}')||{}; }catch(e){ return {}; } }
+function _woUnsentSet(id,on){ try{ const u=_woUnsent(); if(on) u[id]=Date.now(); else delete u[id]; _lsSet('wo-unsent',JSON.stringify(u)); }catch(e){} }
 function _woCloudPut(j){
   if(!_woCloudOk()||WOC.mute) return;
   const {fs}=CLOUD.fb; const d=_woClean(j); _woSanitize(d);
-  const base=WOC.base[j.id]; WOC.base[j.id]=_woClean(d);   // 送った内容を覚える（次は違うところだけ送る）
-  _woSendDiff(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),base,d,['steps','seibi','shaken'],{by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()},e=>{ delete WOC.base[j.id]; _woSendErr(e,'jobs'); });
+  const orig=WO_ORIG.get(j)||WOC.base[j.id];
+  WO_ORIG.set(j,_woClean(d)); WOC.base[j.id]=_woClean(d);
+  // 古い画面の作業指示（JOBS にもう無い）から送ったときは、今の作業指示にも同じ変更を入れる
+  const cur=_woJob(j.id); if(cur&&cur!==j&&orig){ try{ for(const [p,v] of _woDiff(orig,d,WO_NEST)){ let o=cur; for(let i=0;i<p.length-1;i++){ if(!o[p[i]]||typeof o[p[i]]!=='object') o[p[i]]={}; o=o[p[i]]; } if(v===undefined) delete o[p[p.length-1]]; else o[p[p.length-1]]=_woClean(v); } WO_ORIG.set(cur,_woClean(d)); }catch(e){} }
+  _woUnsentSet(j.id,true);   // 送り終わるまで「未送信」の印（電源が切れても、次に開いたとき送り直す）
+  let failed=false;
+  const pr=_woSendDiff(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id)),orig,d,WO_NEST,{by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()},e=>{ failed=true; if(orig) WO_ORIG.set(j,orig); _woSendErr(e,'jobs'); });   // 失敗したら、次に送るときも同じ変更をもう一度送る
+  if(pr&&pr.then) pr.then(()=>{ if(!failed) _woUnsentSet(j.id,false); },()=>{});
+}
+// 共有から届いた内容に、この端末でまだ送っていない変更を重ねる（入力の途中でほかの端末・表の変更が届いたとき）
+function _woMergeLocal(local,cloud){
+  const orig=WO_ORIG.get(local); if(!orig) return local;
+  const ops=_woDiff(orig,_woClean(local),WO_NEST); const v=_woClean(cloud);
+  for(const [p,x] of ops){ let o=v; for(let i=0;i<p.length-1;i++){ if(!o[p[i]]||typeof o[p[i]]!=='object') o[p[i]]={}; o=o[p[i]]; } if(x===undefined) delete o[p[p.length-1]]; else o[p[p.length-1]]=_woClean(x); }
+  WO_ORIG.set(v,_woClean(cloud)); return v;
 }
 // 削除は「削除済みの印」をクラウドに残す（別の端末が持っていた古いデータで復活しないように）
 // つながっていないときは端末に覚えておき、次につながったときに送る
@@ -1455,13 +1481,14 @@ function _woCloudErr(e,name){
 }
 // 画面の描き直し：押している最中は待つ（押した場所が描き直しで消えてクリックが効かなくなるのを防ぐ）。中身が変わっていなければ描き直さない
 let _woPress=0, _woLastSig='';
+function _woSigNow(){ try{ return JSON.stringify(JOBS.map(j=>[j.id,j.updatedAt,j.archived,j.slot]))+'|'+WO_CUR; }catch(e){ return ''; } }
 ['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev,()=>{ _woPress=Date.now(); },{capture:true,passive:true}));
 ['pointerup','touchend','mouseup','click'].forEach(ev=>document.addEventListener(ev,()=>{ setTimeout(()=>{ _woPress=0; },350); },{capture:true,passive:true}));
 function _woRenderSoon(){
   clearTimeout(WOC._rt2);
   const busy=_woPress&&Date.now()-_woPress<1500;
   WOC._rt2=setTimeout(()=>{ if(_woPress&&Date.now()-_woPress<1500) return _woRenderSoon();
-    let sig=''; try{ sig=JSON.stringify(JOBS.map(j=>[j.id,j.updatedAt,j.archived,j.slot])); }catch(e){}
+    const sig=_woSigNow();
     if(sig&&sig===_woLastSig&&!WOC._forceR) return; _woLastSig=sig; WOC._forceR=false;
     woRenderAll(true); },busy?400:60);
 }
@@ -1472,7 +1499,7 @@ function _woJobsApply(){
   for(const id in P.sh){ const v={...P.sh[id]}; if(v.id){ delete v._sheet; delete v.at; shm[v.id]=v; } }
   const all={...P.arch,...P.act};
   for(const id in all){ try{ const v={...all[id]}; if(v._sheet||v.deleted) continue; delete v.at; delete v.by; if(!v.id) v.id=id; if(gone.has(String(v.id))) continue;
-    WOC.base[v.id]=_woClean(v); if(_woSanitize(v)) dirty.push(v); m[v.id]=v; }catch(e){ console.warn('作業指示を読めませんでした',id,e); } }
+    WOC.base[v.id]=_woClean(v); WO_ORIG.set(v,_woClean(v)); if(_woSanitize(v)) dirty.push(v); m[v.id]=v; }catch(e){ console.warn('作業指示を読めませんでした',id,e); } }
   // この端末で削除して、まだ送れていなかったものを送る
   Object.keys(_woTombs()).forEach(id=>{ if(!P.del[_cloudKey(id)]) _woTombSend(id); });
   WOC.gone=gone;   // ほかの端末で削除した作業指示（シートからの自動作成で作り直さない）
@@ -1486,11 +1513,14 @@ function _woJobsApply(){
       _woCheckPush(j); }
   }
   const next=[];
-  const rec=[];
+  const rec=[], uns=first?_woUnsent():{};
   for(const id in m){ const local=_woJob(id);
-    // 共有が止まっていた間にこの端末で直した内容（端末の方が新しい）：共有へ送り直して残す（つないだ最初の1回だけ）
-    if(first&&local&&local!==m[id]&&local.updatedAt&&m[id].updatedAt&&local.updatedAt>m[id].updatedAt&&!m[id].archived===!local.archived){ next.push(local); rec.push(local); continue; }
-    next.push(local&&WOC.timer[id]?local:m[id]); }   // 入力途中（保存待ち）の作業指示は、この端末の内容を優先
+    // 送り終わらないまま閉じた・共有が止まっていた間の変更（「未送信」の印があるものだけ）：共有へ送り直す（つないだ最初の1回だけ）
+    if(first&&local&&local!==m[id]&&uns[id]&&!m[id].archived===!local.archived&&String(local.updatedAt||'')>=String(m[id].updatedAt||'')){ WO_ORIG.set(local,_woClean(m[id])); next.push(local); rec.push(local); continue; }
+    // 入力途中（保存待ち）の作業指示：共有の新しい内容に、この端末で変えた項目だけを重ねる（ほかの項目は共有の内容にする）
+    if(local&&WOC.timer[id]&&local!==m[id]){ const mg=_woMergeLocal(local,m[id]); next.push(mg); if(mg!==local){ clearTimeout(WOC.timer[id]); WOC.timer[id]=setTimeout(()=>{ delete WOC.timer[id]; _woCloudPut(mg); clearTimeout(WOC._st); WOC._st=setTimeout(_woSaveLocal,400); },300); } continue; }
+    next.push(m[id]); }
+  if(first) for(const id in uns){ if(!m[id]) _woUnsentSet(id,false); }
   if(rec.length){ setTimeout(()=>rec.forEach(_woCloudPut),0); toast(`共有が止まっていた間にこの端末で直した ${rec.length}件 を、共有へ送り直しました`,6000); }
   for(const id in WOC.old){ if(!m[id]&&!gone.has(String(id))) next.push(WOC.old[id]); }
   for(const j of JOBS){ if(j._chk&&!m[j.id]) next.push(j); }   // 確かめ中のもの
@@ -1512,7 +1542,7 @@ async function _woCheckPush(j){
     delete j._chk;
     if(!v){ _woCloudPut(j); return; }
     if(v.deleted){ JOBS=JOBS.filter(x=>x!==j); }
-    else{ delete v.at; delete v.by; WOC.base[v.id||j.id]=_woClean(v); if(v.archived) WOC.old[j.id]=v; JOBS=JOBS.map(x=>x===j?v:x); }
+    else{ delete v.at; delete v.by; WOC.base[v.id||j.id]=_woClean(v); WO_ORIG.set(v,_woClean(v)); if(v.archived) WOC.old[j.id]=v; JOBS=JOBS.map(x=>x===j?v:x); }
     woRenderAll(true); _woSaveLocal();
   }catch(e){ delete j._chk; }
 }
@@ -1528,7 +1558,11 @@ async function woLoadOld(){
 function _woConn(md){ const c=md&&md.fromCache?'wait':'live'; if(c!==WOC.conn){ WOC.conn=c; woRenderBadges(); } }
 // スリープ・別のアプリから戻ったとき、電波が戻ったとき：すぐつなぎ直す（古い表示のままにしない）
 function _woReconnect(){ try{ const {fs}=CLOUD.fb; if(!WOC.live||!fs.disableNetwork) return; WOC.conn='wait'; woRenderBadges(); fs.disableNetwork(CLOUD.db).then(()=>fs.enableNetwork(CLOUD.db)).catch(()=>{}); }catch(e){} }
-document.addEventListener('visibilitychange',()=>{ if(document.hidden){ WOC.hidAt=Date.now(); return; } if(WOC.hidAt&&Date.now()-WOC.hidAt>8000) _woReconnect(); WOC.hidAt=0; });
+// 画面を閉じる・別のアプリに切り替える直前：入力の途中で待っている変更を、すぐ送って保存する（0.6秒以内に閉じても消えないように）
+function _woFlush(){ try{ for(const id of Object.keys(WOC.pend||{})){ clearTimeout(WOC.timer[id]); const f=WOC.pend[id]; delete WOC.pend[id]; try{ f(); }catch(e){} }
+  if(YD._pend){ clearTimeout(YD._t); YD._pend=false; _ydCloudPut(); } clearTimeout(WOC._st); _woSaveLocal(); }catch(e){} }
+window.addEventListener('pagehide',_woFlush);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ _woFlush(); WOC.hidAt=Date.now(); return; } if(WOC.hidAt&&Date.now()-WOC.hidAt>8000) _woReconnect(); WOC.hidAt=0; });
 window.addEventListener('online',_woReconnect);
 function woCloudStart(){
   if(!CLOUD.started||WOC.live) return;
@@ -1648,6 +1682,7 @@ function woEstFill(){ const j=_woCurJob(); if(!j) return; const e=_woEstFor(j); 
 // ── 当日の追加入庫から作業指示を作る（どの端末で作っても同じIDになるので重複しない）──
 const WSD={docs:[]};
 function _woSdCats(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
+const WO_SD_MAKE=false;   // 端末で作業指示を作る（前の仕組み）。今は Apps Script が作るので使わない
 function _woSameDayRun(){
   if(!WOC.first.jobs||SEC.locked||(SEC.ok&&!SEC.key)||!WSD.docs.length) return;
   const tomb=_woTombs(); const made=[];
@@ -1664,6 +1699,8 @@ function _woSameDayRun(){
       continue;
     }
     if(!d.car&&!d.num) continue;                             // 車種・番号が入るまで待つ
+    // 新しい作業指示は、入出庫管理表の Apps Script が作る（ここで作ると、Apps Script が作ったものと二重になることがあるため作らない）
+    if(!WO_SD_MAKE) continue;
     const isJob=d.kind==='job', sRow=(d.tab||'')+' '+(d.row||'')+'行目', sKey=(d.tab||'')+'-'+d.row;
     const no=_woPlateNo(d.num);
     // すでに作業ボードにある車（番号・シートの行・入庫日と車種で照合）。シートから作ったものは納車済も含めて見る
@@ -2243,6 +2280,10 @@ function woSheetImport(i){
 // 入出庫管理表のどの行の車か：行が動いても追いかける
 //  ① 登録番号が同じ行（いくつかあれば、前と同じ行→入庫日が新しい行）
 //  ② 番号がないときだけ、前と同じ行（車種が同じときだけ）
+// 同じ車か：登録番号が両方あれば番号（同じか1文字違い）で、なければ車種で決める（Apps Script と同じ決まり）
+function _woSameVeh(j,x){ const a=_woPlateNo(j.plate), b=_woPlateNo(x.plate);
+  if(a&&b){ if(a===b) return true; if(a.length===b.length){ let d=0; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) d++; if(d<=1) return true; } }
+  return _woSameCar(j.car,x.model); }
 function _woSameCar(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !x||!y||x===y||x.includes(y)||y.includes(x); }
 // 入出庫管理表の行の索引（ID・番号・行で引く）。表を読み直したときだけ作り直す（車の台数×表の行数の計算をしないため）
 let _WO_SIX=null;
@@ -2253,13 +2294,14 @@ function _woSheetIdx(raw){
     const n=_woPlateNo(r.plate); if(n){ if(!byNo.has(n)) byNo.set(n,[]); byNo.get(n).push(r); }
     const k=_woSheetKey(r); if(!byKey.has(k)) byKey.set(k,r); }
   for(const L of byNo.values()) if(L.length>1) L.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1);   // 入庫日が新しい順
-  return _WO_SIX={raw,n:raw.length,bySid,byNo,byKey,anySid};
+  const pos=new Map(); raw.forEach((r,i)=>pos.set(r,i));
+  return _WO_SIX={raw,n:raw.length,bySid,byNo,byKey,anySid,pos};
 }
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
   const I=_woSheetIdx(raw);
   if(j.sheetId){ const x=I.bySid.get(j.sheetId);
-    if(x&&_woSameCar(j.car,x.model)){
+    if(x&&_woSameVeh(j,x)){
       const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
       if(no&&xn&&xn!==no){ const y=(I.byNo.get(no)||[]).find(r=>r!==x&&_woSameCar(j.car,r.model)); if(y) return y; }
       return x; }
@@ -2446,7 +2488,8 @@ function _woLoanerLine(j){
 }
 let WO_LOANF=false;
 function woLoanFilter(){ WO_LOANF=!WO_LOANF; woRenderList(); }
-function woRenderList(){
+function woRenderList(){ const l=document.getElementById('wo-list'); if(!l) return; _woKeepHeight(l,_woRenderList); }
+function _woRenderList(){
   const list=document.getElementById('wo-list'); if(!list) return;
   document.querySelectorAll('#wo-filter .selbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===WO_FILTER));
   const empty=document.getElementById('wo-empty');
@@ -2456,7 +2499,7 @@ function woRenderList(){
   { const bb=document.querySelector('#wo-filter [data-f="before"]'); if(bb){ const n=JOBS.filter(woIsBefore).length; bb.textContent=n?`入庫前 ${n}`:'入庫前'; } }
   const lf=document.getElementById('wo-loanf'); if(lf){ const n=JOBS.filter(j=>{ const L=woLoanerInfo(j); return L&&L.now; }).length; lf.classList.toggle('on',WO_LOANF); lf.innerHTML=`🔑 代車・レンタカー貸出中 ${n}台`; }
   const rows=JOBS.filter(j=>(!WO_LOANF||(woLoanerInfo(j)||{}).now)&&_woInFilter(j)&&(!q||[j.plate,j.car,j.color,j.chassis].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)));
-  if(WO_FILTER==='before') rows.sort((a,b)=>(a.inDate||'9999')<(b.inDate||'9999')?-1:(a.inDate||'9999')>(b.inDate||'9999')?1:0);   // 入庫日が近い順
+  if(WO_FILTER==='before'&&WO_SORT!=='sheet') rows.sort((a,b)=>(a.inDate||'9999')<(b.inDate||'9999')?-1:(a.inDate||'9999')>(b.inDate||'9999')?1:0);   // 入庫日が近い順
   else if(WO_FILTER!=='archived') _woSortRows(rows);
   WO_ROWS=rows.map(j=>j.id);
   WOC._oldBtn=WO_FILTER==='archived'&&WOC.live&&!WOC.oldLoaded;
@@ -2469,6 +2512,7 @@ function woRenderList(){
     const due=woDueTag(j), n=woNext(j);
     let head='';
     if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
+    else if(WO_SORT==='sheet'&&WO_FILTER!=='archived'){ const ps=_woSheetPos(j); const g=ps?(ps.tab||'入出庫管理表'):'入出庫管理表にない車'; if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     return head+`<div class="wo-card${j.id===WO_CUR?' cur':''}" data-id="${j.id}" style="--sc:${j.archived?'var(--border)':woColor(j)}" onclick="woOpen('${j.id}')">${canDrag?`<button type="button" class="wo-drag" title="ドラッグで並べ替え" aria-label="並べ替え" onclick="event.stopPropagation()">⠿</button>`:''}
       <div class="pl">${esc(j.car||j.plate||'（未入力）')}${_woSheetName(j)?`<span class="wo-nm">${esc(_woSheetName(j))}</span>`:''}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${!j.archived&&_woDupOf(j)?'<span class="wo-tag dup">重複？</span>':''}${woIsBefore(j)?`<span class="wo-tag inwait">入庫前${j.inDate?' '+_woMD(j.inDate):''}</span>`:j.inChecked===false&&!j.archived&&!j.partsOnly?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor||_woHasGlass(j)?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
@@ -2488,9 +2532,24 @@ function _woMapHtml(j){
     <div class="wo-legend">${WO_TASK_TYPES.map(k=>`<span class="wo-tt" style="--tc:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div>
     <div class="map-hint">タップで作業箇所を追加・もう一度タップで外す</div>`;
 }
+// 描き直しで画面が上下に跳ねないように：描き直す間は今の高さとスクロール位置を保ち、写真などが表示されてから戻す
+function _woKeepHeight(el,f){
+  if(!el){ f(); return; }
+  const h=el.offsetHeight, y=window.scrollY, sc=document.scrollingElement;
+  el.style.minHeight=h+'px';
+  try{ f(); } finally{
+    if(Math.abs(window.scrollY-y)>1) window.scrollTo(0,y);
+    clearTimeout(el._khT);
+    const imgs=[...el.querySelectorAll('img')].filter(i=>!i.complete);
+    const done=()=>{ const y2=window.scrollY; el.style.minHeight=''; if(Math.abs(window.scrollY-y2)>1) window.scrollTo(0,y2); };
+    if(!imgs.length) el._khT=setTimeout(done,120);
+    else { let n=imgs.length; const one=()=>{ if(--n<=0){ clearTimeout(el._khT); el._khT=setTimeout(done,60); } }; imgs.forEach(i=>{ i.addEventListener('load',one,{once:true}); i.addEventListener('error',one,{once:true}); }); el._khT=setTimeout(done,1500); }
+  }
+}
 function woRenderDetail(){
   const box=document.getElementById('wo-detail'); if(!box) return;
-  try{ _woRenderDetail(box); }
+  _woLastSig=_woSigNow();   // この内容で描いた（共有から同じ内容が戻ってきても、もう一度描かない）
+  try{ _woKeepHeight(box,()=>_woRenderDetail(box)); }
   catch(e){ console.error('詳細',e); const st=String(e&&e.stack||'').split('\n').slice(1,4).join(' ／ ').replace(/https?:\/\/[^ )]+\//g,'').slice(0,300);
     const j=_woCurJob();
     box.innerHTML=`<div class="empty" style="text-align:left;line-height:1.7">⚠️ この作業指示を表示できませんでした（${esc(j?(j.car||'')+' '+(j.plate||''):'')}）<br><span style="font-size:12px;color:#ff6b6b">${esc(String(e&&e.message||e))}</span><br><span style="font-size:11px;color:var(--muted)">${esc(st)}</span><br><span style="font-size:12px">この画面の写真を送ってください。ほかの作業指示はふつうに開けます。</span></div>`; }
@@ -2943,7 +3002,8 @@ function ydRender(){
   const pool=document.getElementById('yd-pool');
   if(pool){
     const ids=new Set(YARD.spaces.map(s=>s.id));
-    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&!j.outWork&&!woIsBefore(j)&&(!j.slot||!ids.has(j.slot)));   // 入庫前の車は出さない（入庫日になると出る）
+    const un=locked?[]:JOBS.filter(j=>!j.archived&&!j.partsOnly&&!j.outWork&&!woIsBefore(j)&&(!j.slot||!ids.has(j.slot)));
+    if(WO_SORT==='sheet') un.sort(_woCmpSheet);   // 未配置の車も、入出庫管理表の順に並べる   // 入庫前の車は出さない（入庫日になると出る）
     pool.classList.toggle('target',!!YD.carSel&&!YD.edit);
     pool.onclick=e=>{ if(e.target===pool&&YD.carSel) ydMove(YD.carSel,''); };
     pool.innerHTML=locked?'<span class="sg-note">ロック中です</span>':un.length?un.map(_ydCarHtml).join(''):'<span class="sg-note">未配置の車両はありません（作業中の車両はすべて配置済み）</span>';
@@ -3237,13 +3297,16 @@ async function _lbSheetLoad(){
     if((j.rows||[]).length){ LB.hasPlate=hasPlate; LB.nos=hasPlate?nos:null; try{ woSheetCheck(); }catch(e){ console.warn(e); } }
     else { LB.nos=null; try{ WSC.last='入庫管理表が空でした（納車済の確認はしていません）'; }catch(e){} }
   }catch(e){ LB.sheetErr='入庫管理表を読み込めませんでした'; }
-  lbRenderCars(); try{ ydRender(); renderSettings(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();
+  lbRenderCars(); try{ if(WO_SORT==='sheet') woRenderList(); ydRender(); renderSettings(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();   // 表の並びが変わったら一覧の順も変える
 }
 // 予約の登録・更新・削除（入力が落ち着いてから）
 function lbSync(j){
   clearTimeout(LB.timer[j.id]);
   LB.timer[j.id]=setTimeout(()=>{ delete LB.timer[j.id]; _lbSyncNow(j); },800);
 }
+// 予約の区分：カレンダーで選んだ区分があればそのまま。なければ作業指示の区分（鈑金→鈑金塗装・整備→整備・車検→車検点検）
+function _lbKinds(j){ const b=LB.book.find(x=>x.id===_cloudKey(_lbDocId(j))); if(b&&Array.isArray(b.kinds)&&b.kinds.length) return b.kinds;
+  const c=(typeof ydCats==='function'?ydCats(j):[]), k=[]; if(c.includes('鈑金')) k.push('鈑金塗装'); if(c.includes('整備')) k.push('整備'); if(c.includes('車検')) k.push('車検点検'); return k.length?k:['鈑金塗装']; }
 function _lbSyncNow(j){
   if(!(CLOUD.started&&LB.live)) return;
   const {fs}=CLOUD.fb;
@@ -3252,7 +3315,7 @@ function _lbSyncNow(j){
     const id=_lbDocId(j);
     const name=[j.car,j.plate].filter(Boolean).join(' ')||'作業ボード';
     fs.setDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id)),{car:j.loanerCar,from:j.loanerFrom<=j.loanerTo?j.loanerFrom:j.loanerTo,to:j.loanerFrom<=j.loanerTo?j.loanerTo:j.loanerFrom,
-      name,kinds:['鈑金塗装'],kind:'鈑金塗装',memo:j.loanerReturned?'作業ボードから登録・返却済':'作業ボードから登録',src:'wb',returned:!!j.loanerReturned,code:id,by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()})
+      name,kinds:_lbKinds(j),kind:_lbKinds(j).join('・'),memo:(()=>{ const b=LB.book.find(x=>x.id===_cloudKey(id)); const m=b&&b.memo&&!/^作業ボードから登録/.test(b.memo)?b.memo:''; return m||(j.loanerReturned?'作業ボードから登録・返却済':'作業ボードから登録'); })(),src:'wb',returned:!!j.loanerReturned,code:id,by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()})
       .then(()=>{ if(j.loanerBook!==_cloudKey(id)){ j.loanerBook=_cloudKey(id); woTouch(j,true); if(j.id===WO_CUR) lbRenderCars(); } })
       .catch(e=>toast('代車カレンダーに登録できませんでした：'+_netMsg(e),6000));
   } else if(j.loanerBook){
