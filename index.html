@@ -1354,6 +1354,11 @@ function _woSheetName(j){
 const WO_DROP=['name','estId','note','mileage','bodyShape','carType'];
 const WO_PAY=['自費','車両保険','対物保険'];
 function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ delete j[k]; ch=true; } }
+  // 形のおかしい項目を直す（1件のおかしなデータで、全部の表示が止まらないように）
+  for(const k of ['tasks','parts','suppliers','outsrc']){ if(j[k]!=null&&!Array.isArray(j[k])){ j[k]=[]; ch=true; } else if(Array.isArray(j[k])&&j[k].some(x=>x==null||(k!=='suppliers'&&k!=='outsrc'&&typeof x!=='object'))){ j[k]=j[k].filter(x=>x!=null&&(k==='suppliers'||k==='outsrc'||typeof x==='object')); ch=true; } }
+  if(j.steps!=null&&(typeof j.steps!=='object'||Array.isArray(j.steps))){ j.steps={}; ch=true; }
+  if(j.steps) for(const k in j.steps){ const x=j.steps[k]; if(!x||typeof x!=='object'){ j.steps[k]={need:true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } }
+  if(j.yCats!=null&&!Array.isArray(j.yCats)){ delete j.yCats; ch=true; }
   // 後から追加した工程（OBDコンピュータチェックなど）を古い作業指示にも足す
   (j.tasks||[]).forEach(t=>{
     if(!Array.isArray(t.types)){ t.types=t.type?[t.type]:[]; delete t.type; ch=true; }
@@ -1448,8 +1453,8 @@ function _woJobsApply(){
   for(const id in P.del){ const v=P.del[id]||{}; gone.add(String(v.id||id)); }
   for(const id in P.sh){ const v={...P.sh[id]}; if(v.id){ delete v._sheet; delete v.at; shm[v.id]=v; } }
   const all={...P.arch,...P.act};
-  for(const id in all){ const v={...all[id]}; if(v._sheet||v.deleted) continue; delete v.at; delete v.by; if(!v.id||gone.has(String(v.id))) continue;
-    WOC.base[v.id]=_woClean(v); if(_woSanitize(v)) dirty.push(v); m[v.id]=v; }
+  for(const id in all){ try{ const v={...all[id]}; if(v._sheet||v.deleted) continue; delete v.at; delete v.by; if(!v.id) v.id=id; if(gone.has(String(v.id))) continue;
+    WOC.base[v.id]=_woClean(v); if(_woSanitize(v)) dirty.push(v); m[v.id]=v; }catch(e){ console.warn('作業指示を読めませんでした',id,e); } }
   // この端末で削除して、まだ送れていなかったものを送る
   Object.keys(_woTombs()).forEach(id=>{ if(!P.del[_cloudKey(id)]) _woTombSend(id); });
   WOC.gone=gone;   // ほかの端末で削除した作業指示（シートからの自動作成で作り直さない）
@@ -2382,14 +2387,16 @@ function _woDeepLink(){
 }
 window.addEventListener('hashchange',_woDeepLink);
 let _woUnlinkDone=false;
+// 画面の一部で失敗しても、ほかの部分は描く（失敗した場所と理由は画面に出す）
+function _woSafe(name,f){ try{ f(); }catch(e){ console.error(name,e); WOC.renderErr=`${name}：${e&&e.message||e}`; try{ const s=String(e&&e.stack||'').split('\n').slice(1,3).join(' ').replace(/https?:\/\/[^ )]+\//g,''); WOC.renderErr+=s?`（${s.trim().slice(0,160)}）`:''; }catch(_){} } }
 function woRenderAll(fromCloud){
-  _woDeepLink();
+  _woSafe('リンク',_woDeepLink);
   if(!_woUnlinkDone&&JOBS.length&&!(SEC.ok&&!SEC.key)){ _woUnlinkDone=true; try{ _woUnlinkArchived(); }catch(e){ console.warn(e); } }
-  woRenderBadges(); woRenderStaff(); woRenderList();
+  _woSafe('表示',woRenderBadges); _woSafe('担当者',woRenderStaff); _woSafe('一覧',woRenderList);
   const act=document.activeElement, det=document.getElementById('wo-detail');
   // 入力中は詳細を描き直さない（カーソルが飛ばないように）
-  if(!(fromCloud&&det&&act&&det.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))) woRenderDetail();
-  ydRender();
+  if(!(fromCloud&&det&&act&&det.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))) _woSafe('詳細',woRenderDetail);
+  _woSafe('配置図',ydRender);
 }
 function woRenderStaff(){
   const el=document.getElementById('wo-staff'); if(!el) return;
@@ -2439,7 +2446,8 @@ function woRenderList(){
   empty.style.display=JOBS.length?'none':'block';
   let lastGrp='';
   const canDrag=WO_FILTER!=='archived'&&!q&&!WO_LOANF;
-  list.innerHTML=rows.length?rows.map(j=>{
+  list.innerHTML=rows.length?rows.map(j=>{ try{ return _woCardHtml(j); }catch(e){ console.warn('一覧',j&&j.id,e); return `<div class="wo-card" data-id="${esc(j.id)}" onclick="woOpen('${esc(j.id)}')"><div class="pl">${esc(j.car||j.plate||'（未入力）')}</div><small style="color:#ff6b6b">表示できない項目があります</small></div>`; } }).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
+  function _woCardHtml(j){
     const due=woDueTag(j), n=woNext(j);
     let head='';
     if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
@@ -2450,7 +2458,8 @@ function woRenderList(){
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.outWork?`<div class="sub">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
       ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
-    </div>`;}).join(''):(JOBS.length?'<div class="empty">該当する作業指示はありません</div>':'');
+    </div>`;
+  }
   if(WOC._oldBtn) list.insertAdjacentHTML('beforeend',`<button type="button" class="btn" style="width:100%;margin-top:8px" onclick="woLoadOld()">📂 ${WO_ARCH_DAYS}日より前の納車済も読む</button>`);
 }
 function _woMapHtml(j){
@@ -2463,6 +2472,12 @@ function _woMapHtml(j){
 }
 function woRenderDetail(){
   const box=document.getElementById('wo-detail'); if(!box) return;
+  try{ _woRenderDetail(box); }
+  catch(e){ console.error('詳細',e); const st=String(e&&e.stack||'').split('\n').slice(1,4).join(' ／ ').replace(/https?:\/\/[^ )]+\//g,'').slice(0,300);
+    const j=_woCurJob();
+    box.innerHTML=`<div class="empty" style="text-align:left;line-height:1.7">⚠️ この作業指示を表示できませんでした（${esc(j?(j.car||'')+' '+(j.plate||''):'')}）<br><span style="font-size:12px;color:#ff6b6b">${esc(String(e&&e.message||e))}</span><br><span style="font-size:11px;color:var(--muted)">${esc(st)}</span><br><span style="font-size:12px">この画面の写真を送ってください。ほかの作業指示はふつうに開けます。</span></div>`; }
+}
+function _woRenderDetail(box){
   const j=_woCurJob();
   if(!j){ box.innerHTML='<div class="empty">左の一覧から作業指示を選んでください。</div>'; return; }
   const v=k=>esc(j[k]||'');
