@@ -1411,7 +1411,7 @@ function woCloudStart(){
   WOC.unsubs.push(fs.onSnapshot(fs.doc(CLOUD.db,'yard','layout'),d=>{
     const first=!WOC.first.yard; WOC.first.yard=true;
     if(YD._pend) return;   // この端末の変更を送る前に届いた古い内容は使わない
-    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=v.v!==YD_VER; YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
+    if(d.exists()){ const v=_ydRenameKeys(d.data()||{}); if(v&&Array.isArray(v.spaces)){ const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
     else if(first){ _ydCloudPut(); }
     woRenderAll(true);
   },err=>_woCloudErr(err,'yard')));
