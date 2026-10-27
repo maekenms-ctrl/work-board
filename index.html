@@ -1292,8 +1292,12 @@ function _woDiff(base,d,nest){ const ops=[], skip={by:1,dev:1,at:1};
     ops.push([[k],b]); }
   return ops; }
 // 違うところだけを送る（updateDoc）。共有に無いときは丸ごと（setDoc）
+// 同じ作業指示を短い間に何度も書いていたら止める（端末どうしの書き合いで料金がかからないように）
+const WO_WLOG={};
+function _woWriteOk(key){ const t=Date.now(), L=(WO_WLOG[key]=(WO_WLOG[key]||[]).filter(x=>t-x<20000)); if(L.length>=30){ if(!WO_WLOG['!'+key]){ WO_WLOG['!'+key]=1; console.error('書き込みが多すぎるので止めました',key); toast('同じ内容の書き込みが続いたので、この端末からの送信を一時止めました（20秒後に戻ります）',6000); setTimeout(()=>{ delete WO_WLOG['!'+key]; },20000); } return false; } L.push(t); return true; }
 function _woSendDiff(ref,base,d,nest,meta,onErr){
   const {fs}=CLOUD.fb;
+  if(!_woWriteOk(ref.path||ref.id||String(ref))) return Promise.resolve();
   const whole=()=>{ try{ return fs.setDoc(ref,{...d,...meta}).catch(onErr); }catch(e){ onErr(e); return Promise.resolve(); } };
   if(!base||!fs.updateDoc||!fs.FieldPath) return whole();
   try{
@@ -1447,6 +1451,18 @@ function _woCloudErr(e,name){
     clearTimeout(WOC._rs); WOC._rs=setTimeout(()=>{ if(!CLOUD.started) return; woCloudStop(); WOC.err=''; woCloudStart(); },60000); }
   if(!WOC._etT||Date.now()-WOC._etT>30000){ WOC._etT=Date.now(); toast('作業指示・車両配置の'+WOC.err,8000); } woRenderBadges();
 }
+// 画面の描き直し：押している最中は待つ（押した場所が描き直しで消えてクリックが効かなくなるのを防ぐ）。中身が変わっていなければ描き直さない
+let _woPress=0, _woLastSig='';
+['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev,()=>{ _woPress=Date.now(); },{capture:true,passive:true}));
+['pointerup','touchend','mouseup','click'].forEach(ev=>document.addEventListener(ev,()=>{ setTimeout(()=>{ _woPress=0; },350); },{capture:true,passive:true}));
+function _woRenderSoon(){
+  clearTimeout(WOC._rt2);
+  const busy=_woPress&&Date.now()-_woPress<1500;
+  WOC._rt2=setTimeout(()=>{ if(_woPress&&Date.now()-_woPress<1500) return _woRenderSoon();
+    let sig=''; try{ sig=JSON.stringify(JOBS.map(j=>[j.id,j.updatedAt,j.archived,j.slot])); }catch(e){}
+    if(sig&&sig===_woLastSig&&!WOC._forceR) return; _woLastSig=sig; WOC._forceR=false;
+    woRenderAll(true); },busy?400:60);
+}
 function _woJobsApply(){
   if(!['act','arch','del','sh'].every(k=>WOC.got[k])) return;
   const m={}, dirty=[], shm={}, gone=new Set(Object.keys(_woTombs())), P=WOC.part;
@@ -1483,7 +1499,7 @@ function _woJobsApply(){
   for(const j of JOBS){ if(j.archived&&j.needReturn&&WOC.retDone[j.id]&&Date.now()-WOC.retDone[j.id]<60000){ delete j.needReturn; continue; }
     if(j.archived&&j.needReturn){ WOC.retDone[j.id]=Date.now(); WOC.mute=true; let r=''; try{ j.archived=false; r=_woReturnLoaner(j); }catch(e){ console.warn(e); } finally{ j.archived=true; delete j.needReturn; WOC.mute=false; } woTouch(j,true); if(r) toast(`入庫管理表から消えたため納車済：${j.car||j.plate}（${r}）`,7000); } }
   // 画面はすぐ描き直す（同じ瞬間に届いた変更は1回にまとめる）。端末への保存（暗号化）は続けて届いたものをまとめて1回
-  if(!WOC._raf) WOC._raf=requestAnimationFrame(()=>{ WOC._raf=0; woRenderAll(true); });
+  _woRenderSoon();
   clearTimeout(WOC._st); WOC._st=setTimeout(_woSaveLocal,first?0:1500);
   try{ _woSameDayRun(); }catch(e){ console.warn(e); }
 }
@@ -1559,9 +1575,9 @@ function woCloudStart(){
       if(first&&_ydIsDefault(v.spaces)){ const bk=!_ydIsDefault(YARD.spaces)&&YARD.spaces.length?{spaces:YARD.spaces,at:YARD.updated||new Date().toISOString()}:_ydBakGet();
         if(bk){ _lsSet('wo-yard-bak',JSON.stringify(bk)); if(!WOC._askBak){ WOC._askBak=true; setTimeout(()=>ydRestoreBak(true),1200); } } }
       else if(!_ydIsDefault(v.spaces)) setTimeout(_ydBakSave,0);
-      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); if(old) _ydCloudPut(); } }
+      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
     else if(first){ _ydCloudPut(); }
-    woRenderAll(true);
+    WOC._forceR=true; _woRenderSoon();   // 押している最中は待ってから描く
   },err=>_woCloudErr(err,'yard')));
   woRenderBadges();
 }
