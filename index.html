@@ -1426,7 +1426,8 @@ function woCloudStart(){
     JOBS=next.sort((a,b)=>(b.createdAt||'')<(a.createdAt||'')?-1:1);
     // Apps Script が「表から消えた」と納車済にした車：この端末で代車の返却・駒の片付けをする（1回だけ）
     for(const j of JOBS){ if(j.archived&&j.needReturn){ try{ j.archived=false; const m=_woReturnLoaner(j); j.archived=true; delete j.needReturn; woTouch(j,true); if(m) toast(`入庫管理表から消えたため納車済：${j.car||j.plate}（${m}）`,7000); }catch(e){ j.archived=true; console.warn(e); } } }
-    _woSaveLocal(); woRenderAll(true);
+    // 続けて届いた変更（Apps Scriptがまとめて直したときなど）は、まとめて1回だけ保存・描き直す
+    clearTimeout(WOC._rt); WOC._rt=setTimeout(()=>{ _woSaveLocal(); woRenderAll(true); },first?0:200);
     try{ _woSameDayRun(); }catch(e){ console.warn(e); }
   },err=>_woCloudErr(err,'jobs')));
   // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
@@ -2109,19 +2110,31 @@ function woSheetImport(i){
 //  ① 登録番号が同じ行（いくつかあれば、前と同じ行→入庫日が新しい行）
 //  ② 番号がないときだけ、前と同じ行（車種が同じときだけ）
 function _woSameCar(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !x||!y||x===y||x.includes(y)||y.includes(x); }
+// 入出庫管理表の行の索引（ID・番号・行で引く）。表を読み直したときだけ作り直す（車の台数×表の行数の計算をしないため）
+let _WO_SIX=null;
+function _woSheetIdx(raw){
+  if(_WO_SIX&&_WO_SIX.raw===raw&&_WO_SIX.n===raw.length) return _WO_SIX;
+  const bySid=new Map(), byNo=new Map(), byKey=new Map(); let anySid=false;
+  for(const r of raw){ if(r.sid){ anySid=true; if(!bySid.has(r.sid)) bySid.set(r.sid,r); }
+    const n=_woPlateNo(r.plate); if(n){ if(!byNo.has(n)) byNo.set(n,[]); byNo.get(n).push(r); }
+    const k=_woSheetKey(r); if(!byKey.has(k)) byKey.set(k,r); }
+  for(const L of byNo.values()) if(L.length>1) L.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1);   // 入庫日が新しい順
+  return _WO_SIX={raw,n:raw.length,bySid,byNo,byKey,anySid};
+}
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
-  if(j.sheetId){ const x=raw.find(r=>r.sid===j.sheetId);
+  const I=_woSheetIdx(raw);
+  if(j.sheetId){ const x=I.bySid.get(j.sheetId);
     if(x&&_woSameCar(j.car,x.model)){
       const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
-      if(no&&xn&&xn!==no){ const y=raw.find(r=>r!==x&&_woPlateNo(r.plate)===no&&_woSameCar(j.car,r.model)); if(y) return y; }
+      if(no&&xn&&xn!==no){ const y=(I.byNo.get(no)||[]).find(r=>r!==x&&_woSameCar(j.car,r.model)); if(y) return y; }
       return x; }
-    if(raw.some(r=>r.sid)&&!no) return null; }   // ⓪ Z列のIDで探す（車種が違えば別の車。見つからなければ番号で探す）
+    if(I.anySid&&!no) return null; }   // ⓪ Z列のIDで探す（車種が違えば別の車。見つからなければ番号で探す）
   if(no){
-    const c=raw.filter(r=>_woPlateNo(r.plate)===no); if(!c.length) return null;
-    return c.find(r=>_woSheetKey(r)===j.sheetKey)||c.sort((a,b)=>(_sheetDate(b.inDate)||'')<(_sheetDate(a.inDate)||'')?-1:1)[0];
+    const c=I.byNo.get(no); if(!c||!c.length) return null;
+    return c.find(r=>_woSheetKey(r)===j.sheetKey)||c[0];
   }
-  if(j.sheetKey){ const x=raw.find(r=>_woSheetKey(r)===j.sheetKey); const k=_woCarNorm(j.car), m=x&&_woCarNorm(x.model);
+  if(j.sheetKey){ const x=I.byKey.get(j.sheetKey); const k=_woCarNorm(j.car), m=x&&_woCarNorm(x.model);
     if(x&&k&&m&&(k===m||k.includes(m)||m.includes(k))) return x; }   // 番号がないときは、車種が両方あって同じときだけ
   return null;
 }
@@ -2274,7 +2287,10 @@ function _woSlotName(id){ const s=YARD.spaces.find(x=>x.id===id); return s?s.nam
 function _woSlotFull(j){ const n=_woSlotName(j.slot); return n&&j.slotNote?n+'：'+j.slotNote:n; }
 // この車に出ている代車・レンタカー（作業指示の代車欄、なければ代車カレンダーで登録番号の4桁が一致する予約）
 // 先頭の0は無視して照合（シートの「515」と作業ボードの「0515」「・515」を同じ車とみなす）
-function _woPlateNo(p){ const m=String(p||'').normalize('NFKC').match(/[0-9][0-9・.\-‐ー ]*$/); const d=m?m[0].replace(/[^0-9]/g,''):''; return d.length>=2?(d.replace(/^0+/,'')||'0'):''; }
+const _WO_PN=new Map();   // 番号の数字だけの形（同じ文字は2回計算しない：一覧・配置図を速く描くため）
+function _woPlateNo(p){ const k=String(p||''); let r=_WO_PN.get(k); if(r!==undefined) return r;
+  const m=k.normalize('NFKC').match(/[0-9][0-9・.\-‐ー ]*$/); const d=m?m[0].replace(/[^0-9]/g,''):''; r=d.length>=2?(d.replace(/^0+/,'')||'0'):'';
+  if(_WO_PN.size>20000) _WO_PN.clear(); _WO_PN.set(k,r); return r; }
 function woLoanerInfo(j){
   if(j.archived) return null;
   const t=_woToday();
