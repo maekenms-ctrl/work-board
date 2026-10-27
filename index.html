@@ -755,6 +755,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
         <div class="card-title"><span class="bar"></span>作業指示一覧</div>
         <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示（手打ち）</button>
         <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woSheetPick()">📋 入庫管理表から取り込む</button>
+        <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="openLoanerCal()">📅 代車カレンダー</button>
         <div id="wo-list"></div>
         <div id="wo-empty" class="empty">作業指示はまだありません。<br>「＋ 新しい作業指示」から作れます。</div>
       </div>
@@ -770,6 +771,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   <div class="wo-top">
     <button type="button" class="btn" id="yd-edit-btn" onclick="ydToggleEdit()">✏️ レイアウト編集</button>
     <button type="button" class="btn" onclick="ydPrint()">🖨 配置図を保存</button>
+    <button type="button" class="btn" onclick="openLoanerCal()">📅 代車カレンダー</button>
     <span class="sp"></span>
     <span class="wo-badge" id="yd-badge">この端末のみ</span>
   </div>
@@ -3186,12 +3188,12 @@ function lbStart(){
     const L=[]; let url='';
     snap.forEach(d=>{ const v=d.data()||{};
       if(v.sheet){ url=v.url||''; return; }
-      if(v.shop) return;
-      if(v.car&&v.from&&v.to) L.push({id:d.id,car:v.car,from:v.from,to:v.to,src:v.src||'',name:v.name||'',returned:!!v.returned}); });
+      if(v.shop){ SHOP_CLOSED={w:v.closedW||[],d:v.closedD||[]}; try{ localStorage.setItem('wo-shop-closed',JSON.stringify(SHOP_CLOSED)); }catch(e){} return; }
+      if(v.car&&v.from&&v.to) L.push({id:d.id,car:v.car,from:v.from,to:v.to,src:v.src||'',name:v.name||'',returned:!!v.returned,kinds:Array.isArray(v.kinds)?v.kinds:[],kind:v.kind||'',memo:v.memo||''}); });
     LB.book=L;
     _lbAdopt();
     if(url!==LB.sheetUrl){ LB.sheetUrl=url; LB.sheet=[]; LB.nos=null; if(url) _lbSheetLoad(); }
-    lbRenderCars(); woRenderList(); try{ ydRender(); }catch(e){}
+    lbRenderCars(); woRenderList(); try{ ydRender(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();
   },err=>{ LB.live=false; LB.err=/permission/.test(String(err&&err.code))?'代車カレンダーを読む権限がありません':'代車カレンダーに接続できません：'+_netMsg(err); lbRenderCars(); }));
 }
 function lbStop(){ LB.unsubs.forEach(f=>{try{f();}catch(e){}}); LB.unsubs=[]; LB.live=false; LB.book=[]; LB.sheet=[]; LB.sheetUrl=''; LB.nos=null; }
@@ -3221,8 +3223,9 @@ async function _lbSheetLoad(){
       if('plate' in x){ hasPlate=true; const no=_woPlateNo(x.plate); if(no) nos.add(no); }
       const car=_sheetCar(x.car); if(car===null||car==='?') continue;
       const from=_sheetDate(x.inDate); if(!from) continue;
-      const to=_sheetDate(x.out)||_sheetDate(x.due)||OPEN_END;
-      rows.push({id:'sheet-'+(x.tab||'')+'-'+x.row,car,from:from<=to?from:to,to:from<=to?to:from,src:'sheet',name:[x.name,x.model,x.plate].filter(Boolean).join(' ')});
+      const to=_sheetDate(x.out)||_sheetDate(x.due)||OPEN_END, open=to===OPEN_END, where=(x.tab?x.tab+' ':'')+x.row+'行目';
+      rows.push({id:'sheet-'+(x.tab||'')+'-'+x.row,car,from:from<=to?from:to,to:from<=to?to:from,src:'sheet',name:[x.name,x.model,x.plate].filter(Boolean).join(' '),
+        model:x.model||'',plate:x.plate||'',open,kinds:_sheetKinds(x.kind),kind:_sheetKinds(x.kind).join('・'),memo:`入庫管理表 ${where}${x.car?'（'+x.car+'）':''}${open?'・返却日未定':''}`});
     }
     const rent=rows.filter(r=>/^レンタカー/.test(r.car)).sort((a,b)=>a.from<b.from?-1:1);
     for(const r of rent){ if(r.car!=='レンタカー') continue;
@@ -3234,7 +3237,7 @@ async function _lbSheetLoad(){
     if((j.rows||[]).length){ LB.hasPlate=hasPlate; LB.nos=hasPlate?nos:null; try{ woSheetCheck(); }catch(e){ console.warn(e); } }
     else { LB.nos=null; try{ WSC.last='入庫管理表が空でした（納車済の確認はしていません）'; }catch(e){} }
   }catch(e){ LB.sheetErr='入庫管理表を読み込めませんでした'; }
-  lbRenderCars(); try{ ydRender(); renderSettings(); }catch(e){}
+  lbRenderCars(); try{ ydRender(); renderSettings(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();
 }
 // 予約の登録・更新・削除（入力が落ち着いてから）
 function lbSync(j){
@@ -3281,7 +3284,140 @@ function lbDetailHtml(j){
   ${use===true?`<div class="fgrid" style="margin-top:10px">
     <div class="field"><label>貸出日</label><input type="date" value="${esc(j.loanerFrom||'')}" onchange="woSet('loanerFrom',this.value)"></div>
     <div class="field"><label>返却予定日</label><input type="date" value="${esc(j.loanerTo||'')}" onchange="woSet('loanerTo',this.value)"></div>
-  </div><div class="lb-cars" id="lb-cars"></div><div class="lb-st" id="lb-st"></div>`:''}`;
+  </div><div class="lb-cars" id="lb-cars"></div><div class="lb-st" id="lb-st"></div>`:''}
+  <button type="button" class="btn" style="margin-top:8px" onclick="openLoanerCal()">📅 代車カレンダーを開く</button>`;
+}
+
+// ─── 代車カレンダー（見積りツールと同じもの。予約は見積りツール・ARK通知と共有） ───────────────
+let _lcMonth=null;
+let SHOP_CLOSED={w:[],d:[]};
+try{ SHOP_CLOSED={w:[],d:[],...JSON.parse(localStorage.getItem('wo-shop-closed')||'{}')}; }catch(e){}
+const LOANER_KINDS=[{k:'鈑金塗装',c:'#E6FF1A'},{k:'整備',c:'#FF2BD6'},{k:'車検点検',c:'#00E5FF'}];
+function _kindColor(k){ const x=LOANER_KINDS.find(v=>v.k===k); return x?x.c:'#9AA4B2'; }
+function _kinds(b){ if(Array.isArray(b.kinds)&&b.kinds.length) return b.kinds.filter(k=>LOANER_KINDS.some(x=>x.k===k)); return String(b.kind||'').split('・').filter(k=>LOANER_KINDS.some(x=>x.k===k)); }
+function _kindBg(b){ const ks=_kinds(b); if(!ks.length) return '#9AA4B2'; if(ks.length===1) return _kindColor(ks[0]);
+  const n=ks.length; return 'linear-gradient(110deg,'+ks.map((k,i)=>`${_kindColor(k)} ${Math.round(i*100/n)}% ${Math.round((i+1)*100/n)}%`).join(',')+')'; }
+function _toLabel(d){ return d===OPEN_END?'返却未定':d.slice(5).replace('-','/'); }
+// 帯に出す名前（お客様名は出さない：入庫管理表の行は車種・番号）
+function _lcName(b){ return b.src==='sheet'?[b.model,b.plate].filter(Boolean).join(' '):(b.name||''); }
+function _barNames(b){ const clean=t=>String(t||'').replace(/\s*様\s*/g,' ').replace(/[\s　]+/g,' ').trim();
+  if(b.src==='sheet') return [clean(b.model),clean(b.plate)]; const n=clean(b.name); const i=n.indexOf(' '); return i>0?[n.slice(0,i),n.slice(i+1)]:[n,'']; }
+function _lcBusy(car,day){ return _lbAll().find(b=>b.car===car&&b.from<=day&&day<=b.to); }
+const _HOL_CACHE={};
+function jpHolidays(y){
+  if(_HOL_CACHE[y]) return _HOL_CACHE[y];
+  const H={}, k=(m,d)=>_ymd(new Date(y,m-1,d)); const nthMon=(m,n)=>{const f=new Date(y,m-1,1).getDay();return 1+((8-f)%7)+(n-1)*7;}; const add=(m,d,n)=>{H[k(m,d)]=n;};
+  add(1,1,'元日'); add(1,nthMon(1,2),'成人の日'); add(2,11,'建国記念の日'); if(y>=2020) add(2,23,'天皇誕生日');
+  add(3,Math.floor(20.8431+0.242194*(y-1980)-Math.floor((y-1980)/4)),'春分の日');
+  add(4,29,'昭和の日'); add(5,3,'憲法記念日'); add(5,4,'みどりの日'); add(5,5,'こどもの日');
+  add(7,nthMon(7,3),'海の日'); add(8,11,'山の日'); add(9,nthMon(9,3),'敬老の日');
+  add(9,Math.floor(23.2488+0.242194*(y-1980)-Math.floor((y-1980)/4)),'秋分の日');
+  add(10,nthMon(10,2),'スポーツの日'); add(11,3,'文化の日'); add(11,23,'勤労感謝の日');
+  for(let d=new Date(y,0,2);d.getFullYear()===y;d.setDate(d.getDate()+1)){ const a=new Date(d);a.setDate(a.getDate()-1);const b=new Date(d);b.setDate(b.getDate()+1);
+    if(!H[_ymd(d)]&&d.getDay()!==0&&H[_ymd(a)]&&H[_ymd(b)]) H[_ymd(d)]='国民の休日'; }
+  for(const ds of Object.keys(H).sort()){ const d=new Date(ds+'T00:00:00'); if(d.getDay()!==0) continue; const n=new Date(d); do{ n.setDate(n.getDate()+1); }while(H[_ymd(n)]); if(n.getFullYear()===y) H[_ymd(n)]='振替休日'; }
+  return _HOL_CACHE[y]=H;
+}
+function _isClosed(ds,w){ return SHOP_CLOSED.w.includes(w)||SHOP_CLOSED.d.includes(ds); }
+function _lcPut(id,data){ if(!(CLOUD.started&&LB.live)){ toast('チーム共有にログインすると予約できます',5000); return false; } const {fs}=CLOUD.fb;
+  fs.setDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id)),{...data,code:String(id),by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()},{merge:true}).catch(e=>toast('代車カレンダーに保存できませんでした：'+_netMsg(e),6000)); return true; }
+function _lcDel(id){ if(!(CLOUD.started&&LB.live)) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id))).catch(e=>toast('代車カレンダーから削除できませんでした：'+_netMsg(e),6000)); }
+function _saveShopClosed(){ try{localStorage.setItem('wo-shop-closed',JSON.stringify(SHOP_CLOSED));}catch(e){} _lcPut('_shop',{shop:true,closedW:SHOP_CLOSED.w,closedD:SHOP_CLOSED.d}); }
+function _toggleClosedDay(ds){ const i=SHOP_CLOSED.d.indexOf(ds); if(i>=0) SHOP_CLOSED.d.splice(i,1); else SHOP_CLOSED.d.push(ds); _saveShopClosed(); _renderLoanerCal(); }
+function openLoanerCal(){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); _renderLoanerCal(); if(LB.sheetUrl&&Date.now()-LB.sheetAt>60000) _lbSheetLoad(); }
+function _lcShift(n){ _lcMonth=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()+n,1); _renderLoanerCal(); }
+function _closeLoanerCal(){ const o=document.getElementById('lc-ov'); if(o) o.remove(); lbRenderCars(); }
+function _shopClosedForm(){
+  const W='日月火水木金土'; const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
+  const draw=()=>{ ov.innerHTML=`<div class="cf-box lc-form" style="max-width:380px"><div style="font-weight:700;margin-bottom:10px">店休日の設定</div>
+    <label>毎週の定休日</label><div class="check-group" style="margin-bottom:12px">${[...W].map((c,i)=>`<button type="button" class="selbtn${SHOP_CLOSED.w.includes(i)?' on':''}" data-w="${i}">${c}</button>`).join('')}</div>
+    <label>臨時休業・お盆・年末年始など</label><div style="display:flex;gap:6px;margin-bottom:8px"><input type="date" id="sc-date"><button type="button" class="btn" id="sc-add" style="white-space:nowrap;flex:none">追加</button></div>
+    <div style="font-size:13px;margin-bottom:12px">${SHOP_CLOSED.d.slice().sort().map(d=>`<span class="selbtn on" style="display:inline-flex;gap:6px;margin:2px">${d.slice(5).replace('-','/')}<b data-del="${d}" style="cursor:pointer">✕</b></span>`).join('')||'<span style="color:var(--muted)">まだありません（カレンダーの日付をタップしても切り替えられます）</span>'}</div>
+    <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn btn-primary sc-close">閉じる</button></div></div>`;
+    ov.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const w=+b.dataset.w;const i=SHOP_CLOSED.w.indexOf(w);if(i>=0)SHOP_CLOSED.w.splice(i,1);else SHOP_CLOSED.w.push(w);_saveShopClosed();draw();});
+    ov.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{SHOP_CLOSED.d=SHOP_CLOSED.d.filter(x=>x!==b.dataset.del);_saveShopClosed();draw();});
+    ov.querySelector('#sc-add').onclick=()=>{const v=ov.querySelector('#sc-date').value;if(v&&!SHOP_CLOSED.d.includes(v)){SHOP_CLOSED.d.push(v);_saveShopClosed();}draw();};
+    ov.querySelector('.sc-close').onclick=()=>{ov.remove();_renderLoanerCal();}; };
+  draw(); ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();_renderLoanerCal();}}); document.body.appendChild(ov);
+}
+function _renderLoanerCal(){
+  if(!_lcMonth){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); }
+  let ov=document.getElementById('lc-ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='lc-ov'; ov.className='lc-ov'; ov.addEventListener('click',e=>{if(e.target===ov)_closeLoanerCal();}); document.body.appendChild(ov); }
+  const keep=ov.querySelector('.lc-scroll'), keepX=keep?keep.scrollLeft:null;
+  const y=_lcMonth.getFullYear(), m=_lcMonth.getMonth(), N=new Date(y,m+1,0).getDate(), today=_ymd(new Date()), HOL=jpHolidays(y);
+  const days=[...Array(N)].map((_,i)=>{const d=new Date(y,m,i+1);const ds=_ymd(d);return {d:ds,n:i+1,w:d.getDay(),hol:HOL[ds]||'',closed:_isClosed(ds,d.getDay())};});
+  const W='日月火水木金土';
+  const cls=x=>[x.w===0||x.hol?'sun':x.w===6?'sat':'',x.closed?'closed':'',x.d===today?'today':''].filter(Boolean).join(' ');
+  let h=`<div class="lc-box"><div class="lc-head">
+    <button class="btn" type="button" onclick="_lcShift(-1)">◀</button><div class="lc-title">${y}年${m+1}月</div><button class="btn" type="button" onclick="_lcShift(1)">▶</button>
+    <button class="btn btn-primary lc-add-top" type="button" onclick="_loanerForm()">＋ 予約を追加</button>
+    <button class="btn" type="button" onclick="_shopClosedForm()">🏪 店休日</button>
+    ${LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入庫管理表を読み直しました'))">🔄 入庫管理表</button>`:''}
+    <button class="btn" type="button" style="margin-left:auto" onclick="_closeLoanerCal()">✕ 閉じる</button></div>
+    ${!LB.live?`<div style="color:#ffb020;font-size:12px;margin-bottom:6px">${esc(LB.err||'チーム共有にログインすると、見積りツール・ARK通知と同じ予約が表示されます')}</div>`:''}
+    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-closed"></i>店休日</span><span style="color:#ff6b6b">赤字＝日曜・祝日</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">空いているマスで予約、色の帯で変更・削除。日付をタップすると店休日に切り替わります。見積りツールのカレンダーと同じ予約です。</div>
+    <div class="lc-scroll"><table class="lc-grid"><tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?esc(x.hol):''}${x.closed?' 店休日':''}">${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':x.closed?'<span class="hol cl">休</span>':''}</th>`).join('')}</tr>`;
+  for(const c of [...LOANER_CARS,...RENTAL_ROWS]){
+    h+=`<tr><td class="lc-car${c.low?' low':''}${c.ext?' ext':''}">${c.lab||c.n}${c.low?'<small>1550mm以下</small>':''}</td>`;
+    for(let i=0;i<days.length;){
+      const x=days[i]; const b=_lcBusy(c.n,x.d);
+      if(b){ let span=1; while(i+span<days.length&&_lcBusy(c.n,days[i+span].d)===b) span++;
+        const kt=_kinds(b).join('・'); const lab=[_lcName(b)||'予約',kt].filter(Boolean).join(' '); const [cu,mo]=_barNames(b);
+        h+=`<td class="bk${b.src==='sheet'?' sh':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}" colspan="${span}" onclick="_loanerForm('${esc(b.id)}')" title="${esc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':''}${esc(cu||'予約')}</span>${mo?`<span class="bk-m">${esc(mo)}</span>`:''}${kt&&span>=3?`<small>${esc(kt)}</small>`:''}</span></div></td>`;
+        i+=span; }
+      else { h+=`<td class="free ${cls(x)}" onclick="_loanerForm(null,'${c.n}','${x.d}')"></td>`; i++; }
+    }
+    h+='</tr>';
+  }
+  h+='</table></div>';
+  const from=days[0].d, to=days[N-1].d;
+  const list=_lbAll().filter(b=>b.to>=from&&b.from<=to).sort((a,b)=>a.from<b.from?-1:1);
+  const hols=days.filter(x=>x.hol).map(x=>`${x.n}日 ${x.hol}`);
+  h+=`<div class="lc-list">${list.length?list.map(b=>`<div class="lc-item" onclick="_loanerForm('${esc(b.id)}')"><i class="kd" style="background:${_kindBg(b)}"></i><b>${esc(_lbLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}</span><span>${esc(_lcName(b))}</span><span>${esc(_kinds(b).join('・'))}</span><span style="color:var(--muted)">${esc(b.memo||'')}</span></div>`).join(''):'<div style="color:var(--muted)">この月の予約はありません</div>'}
+    ${hols.length?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">祝日：${hols.join('、')}</div>`:''}
+    ${LB.sheetErr?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">${esc(LB.sheetErr)}</div>`:''}</div>
+    <button class="btn btn-primary lc-add-fab" type="button" onclick="_loanerForm()">＋ 予約を追加</button></div>`;
+  ov.innerHTML=h;
+  const sc=ov.querySelector('.lc-scroll'); if(sc){ if(keepX!=null) sc.scrollLeft=keepX; else { const td=ov.querySelector('th.today'); if(td) sc.scrollLeft=Math.max(0,td.offsetLeft-140); } }
+}
+function _loanerForm(id,car,day){
+  const sb=id&&LB.sheet.find(x=>x.id===id);
+  if(sb){ const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
+    ov.innerHTML=`<div class="cf-box"><div style="font-weight:700;margin-bottom:8px">📄 入庫管理表の予約</div><div style="line-height:1.9;font-size:14px">車両：${esc(_lbLabel(sb.car))}<br>入庫日（貸出）：${sb.from}<br>納期・出庫日（返却）：${sb.to===OPEN_END?'未定（決まるまで貸出中として表示）':sb.to}<br>車両：${esc(_lcName(sb))}<br>区分：${esc(sb.kind||'-')}<br><span style="color:var(--muted)">${esc(sb.memo||'')}</span></div><div style="font-size:12px;color:var(--muted);margin:8px 0">この予約はスプレッドシートから読み込んでいます。変更はシートで行ってください。</div><div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn btn-primary">閉じる</button></div></div>`;
+    ov.querySelector('button').onclick=()=>ov.remove(); ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();}); document.body.appendChild(ov); return; }
+  const b=id?LB.book.find(x=>x.id===id):null;
+  const cj=_woCurJob&&_woCurJob();   // 開いている作業指示の車（お客様名は入れない）
+  const curName=cj?[cj.car,cj.plate].filter(Boolean).join(' '):'';
+  const d0=day||_ymd(new Date());
+  const v=b?{...b}:{car:car||(cj&&cj.loanerCar)||LOANER_CARS[0].n,from:d0,to:d0,name:curName,kind:'',memo:''};
+  const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
+  ov.innerHTML=`<div class="cf-box lc-form" style="max-width:380px"><div style="font-weight:700;margin-bottom:10px">${b?'代車の予約を変更':'代車の予約を追加'}</div>
+    ${b&&b.src==='wb'?'<div style="font-size:12px;color:var(--muted);margin-bottom:8px">作業指示から入った予約です。変えると作業指示の代車欄も変わります。</div>':''}
+    <div class="field"><label>車両</label><select id="lf-car">${[...LOANER_CARS,...RENTAL_ROWS].map(c=>`<option value="${c.n}"${c.n===v.car?' selected':''}>${c.lab||c.n}</option>`).join('')}</select></div>
+    <div class="field"><label>貸出日</label><input type="date" id="lf-from" value="${v.from}"></div>
+    <div class="field"><label>返却予定日</label><input type="date" id="lf-to" value="${v.to===OPEN_END?'':v.to}"></div>
+    <div class="field"><label>車両（お客様名は入れないでください）</label><input id="lf-name" value="${esc(v.name||'')}" placeholder="例：プリウス 品川300あ1234"></div>
+    <div class="field"><label>メモ（作業の区分）</label><div class="check-group" id="lf-kind">${LOANER_KINDS.map(x=>`<button type="button" class="selbtn kd-btn${_kinds(v).includes(x.k)?' on':''}" data-k="${x.k}" style="--kc:${x.c}">${x.k}</button>`).join('')}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">複数選べます</div>
+      <input id="lf-memo" value="${esc(v.memo||'')}" placeholder="例：保険会社手配／ガソリン満タン" style="margin-top:6px"></div>
+    <div class="cf-btns" style="grid-template-columns:${b?'1fr 1fr 1fr':'1fr 1fr'}">${b?'<button type="button" class="btn cf-yes lf-del">削除</button>':''}<button type="button" class="btn lf-cancel">キャンセル</button><button type="button" class="btn btn-primary lf-ok">保存</button></div></div>`;
+  let kinds=_kinds(v);
+  ov.querySelectorAll('.kd-btn').forEach(bt=>bt.onclick=()=>{ const k=bt.dataset.k; kinds=kinds.includes(k)?kinds.filter(x=>x!==k):LOANER_KINDS.map(x=>x.k).filter(x=>x===k||kinds.includes(x)); bt.classList.toggle('on',kinds.includes(k)); });
+  const close=()=>ov.remove();
+  ov.querySelector('.lf-cancel').onclick=close; ov.addEventListener('click',e=>{if(e.target===ov)close();});
+  if(b) ov.querySelector('.lf-del').onclick=async()=>{ if(!await askConfirm(`${_lbLabel(b.car)}（${b.from.slice(5)}〜${_toLabel(b.to)}）の予約を削除しますか？`)) return; LB.book=LB.book.filter(x=>x.id!==b.id); _lcDel(b.id); close(); _renderLoanerCal(); };
+  ov.querySelector('.lf-ok').onclick=async()=>{
+    const n={id:b?b.id:'wb-cal-'+_woPid(),car:ov.querySelector('#lf-car').value,from:ov.querySelector('#lf-from').value,to:ov.querySelector('#lf-to').value,name:ov.querySelector('#lf-name').value.trim(),kinds,kind:kinds.join('・'),memo:ov.querySelector('#lf-memo').value.trim()};
+    if(!n.from||!n.to){ toast('貸出日と返却予定日を入れてください'); return; }
+    if(n.to<n.from){ const t=n.from; n.from=n.to; n.to=t; }
+    const clash=_lbAll().find(x=>x.id!==n.id&&x.car===n.car&&x.from<=n.to&&n.from<=x.to);
+    if(clash&&!await askConfirm(`${_lbLabel(n.car)}は ${clash.from.slice(5)}〜${_toLabel(clash.to)}（${_lcName(clash)||'予約'}）と重なっています。このまま保存しますか？`,'保存する')) return;
+    if(!_lcPut(n.id,{car:n.car,from:n.from,to:n.to,name:n.name,kinds:n.kinds,kind:n.kind,memo:n.memo})) return;
+    LB.book=LB.book.filter(x=>x.id!==n.id); LB.book.push({...(b||{}),...n});
+    close(); _renderLoanerCal();
+  };
+  document.body.appendChild(ov);
 }
 function lbRenderCars(){
   const el=document.getElementById('lb-cars'), st=document.getElementById('lb-st'); const j=_woCurJob();
