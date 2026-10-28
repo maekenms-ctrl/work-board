@@ -1630,7 +1630,10 @@ const WO_SEIBI=[
   {k:'water',ic:'💧', n:'水漏れ'},
   {k:'susp', ic:'🔩', n:'足回り'},
   {k:'batt', ic:'🔋', n:'バッテリー交換'},
+  {k:'brake',ic:'🛑', n:'ブレーキ'},
+  {k:'other',ic:'📝', n:'その他'},
 ];
+const WO_BRAKE=['フロントブレーキパッド交換','リヤブレーキパッド交換','ABSセンサー交換'];
 const WO_AC_SYM=['ガス漏れ','異音','風量','冷風が出ない','その他'];
 function _woSb(j){ if(!j.seibi||typeof j.seibi!=='object') j.seibi={}; return j.seibi; }
 function woSeibiHtml(j){
@@ -1643,11 +1646,16 @@ function woSeibiHtml(j){
     if(sym.includes('その他')) h+=`<div class="wo-sbsub"><span></span><input class="wo-search" style="flex:1;min-width:160px" value="${esc(S.ac.other||'')}" placeholder="症状を入力" oninput="woSeibiText(this.value)" onblur="woRenderList()"></div>`;
     h+=`<div class="wo-sbsub"><span>❄️ 蛍光剤</span>${['あり','なし'].map(v=>b(S.ac.dye===v,v,`woSeibiSet('ac','dye','${v}')`)).join('')}</div>`;
   }
+  if(S.brake&&S.brake.on){ const it=S.brake.items||[];
+    h+=`<div class="wo-sbsub"><span>🛑 内容</span>${WO_BRAKE.map((v,i)=>b(it.includes(v),v,`woSeibiBrake(${i})`)).join('')}</div>`; }
+  if(S.other&&S.other.on) h+=`<div class="wo-sbsub"><span>📝 内容</span><input class="wo-search" style="flex:1;min-width:200px" value="${esc(S.other.text||'')}" placeholder="例：ワイパーゴム交換・エアコンフィルター交換" oninput="woSeibiOther(this.value)" onblur="woRenderList()"></div>`;
   return h;
 }
 function woSeibi(k){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S[k]=S[k]&&S[k].on?{...S[k],on:false}:{...(S[k]||{}),on:true}; woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woSeibiSet(k,f,v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S[k]=S[k]||{on:true}; S[k][f]=S[k][f]===v?'':v; woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woSeibiAc(v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S.ac=S.ac||{on:true}; const a=S.ac.sym||[]; S.ac.sym=a.includes(v)?a.filter(x=>x!==v):WO_AC_SYM.filter(x=>x===v||a.includes(x)); woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSeibiBrake(i){ const v=WO_BRAKE[i]; const j=_woCurJob(); if(!j||!v) return; const S=_woSb(j); S.brake=S.brake||{on:true}; const a=S.brake.items||[]; S.brake.items=a.includes(v)?a.filter(x=>x!==v):WO_BRAKE.filter(x=>x===v||a.includes(x)); woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSeibiOther(v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S.other=S.other||{on:true}; S.other.text=v; woTouch(j); }
 function woSeibiText(v){ const j=_woCurJob(); if(!j) return; const S=_woSb(j); S.ac=S.ac||{on:true}; S.ac.other=v; woTouch(j); }
 // ── 点検・車検の内容（区分で「車検」を選んだとき）──
 const WO_SHAKEN=[{k:'pre',ic:'🔍',n:'事前点検'},{k:'m3',ic:'📋',n:'3カ月点検'},{k:'m6',ic:'📋',n:'6カ月点検'},{k:'m12',ic:'📋',n:'12カ月点検'},{k:'m24',ic:'📋',n:'24カ月点検'},{k:'sha',ic:'🚘',n:'車検'}];
@@ -1662,6 +1670,8 @@ function woSeibiText_(j){
     let d=[];
     if(x.k==='oil'&&v.elem) d.push('エレメント'+v.elem);
     if(x.k==='ac'){ (v.sym||[]).forEach(t=>d.push(t==='その他'?(v.other||'その他'):t)); if(v.dye) d.push('蛍光剤'+v.dye); }
+    if(x.k==='brake') (v.items||[]).forEach(t=>d.push(t));
+    if(x.k==='other'){ if(v.text) out.push(x.ic+v.text); else out.push(x.ic+'その他'); continue; }
     out.push(x.ic+x.n+(d.length?'（'+d.join('／')+'）':''));
   }
   return out.join('・');
@@ -1681,7 +1691,8 @@ function woEstFill(){ const j=_woCurJob(); if(!j) return; const e=_woEstFor(j); 
   woTouch(j,true); woRenderDetail(); woRenderList(); toast('見積りツールの車両情報を入れました'); }
 // ── 当日の追加入庫から作業指示を作る（どの端末で作っても同じIDになるので重複しない）──
 const WSD={docs:[]};
-function _woSdCats(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
+// 区分（J列・I列から。Apps Script と同じ決まり）：鈑→鈑金、作→整備、車→車検。J列が空欄で I列に「事前点検」→車検、それ以外→鈑金
+function _woSdCats(v,w){ const z=String(v||'').normalize('NFKC').trim(); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); if(!c.length) c.push(!z&&/事前点検/.test(String(w||'').normalize('NFKC'))?'車検':'鈑金'); return c; }
 const WO_SD_MAKE=false;   // 端末で作業指示を作る（前の仕組み）。今は Apps Script が作るので使わない
 function _woSameDayRun(){
   if(!WOC.first.jobs||SEC.locked||(SEC.ok&&!SEC.key)||!WSD.docs.length) return;
@@ -1710,7 +1721,7 @@ function _woSameDayRun(){
     const j=_woNew(); j.id=id; j.plate=d.num||''; j.car=d.car||''; j.inDate=isJob?(d.inDate||''):d.date; j.inChecked=false;
     if(isJob){ j.fromSheet=true; if(d.due) j.dueDate=d.due; j.sheetKey=sKey; } else j.sameDay=true;
     j.sheetWork=d.work||''; j.sheetRow=sRow;
-    const cats=_woSdCats(d.cat); if(cats.length){ j.yCats=cats; _woStepsForCats(j); }
+    const cats=_woSdCats(d.cat,d.work); if(cats.length){ j.yCats=cats; _woStepsForCats(j); }
     JOBS.unshift(j); woTouch(j,true); made.push([j.car,j.plate].filter(Boolean).join(' '));
   }
   if(made.length){ woRenderAll(); toast('入庫管理表から作業指示を作りました：'+made.join('、'),6000); }
@@ -2217,7 +2228,7 @@ function _woSheetRows(){
   }).map(x=>({...x,_in:_sheetDate(x.inDate)||'',_due:_sheetDate(x.due)||_sheetDate(x.out)||''}))
     .sort((a,b)=>(b._in||'0000')<(a._in||'0000')?-1:(b._in||'0000')>(a._in||'0000')?1:0);
 }
-function _woSdCats2(v){ const z=String(v||''); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); return c; }
+function _woSdCats2(v,w){ const z=String(v||'').normalize('NFKC').trim(); const c=[]; if(/鈑|板/.test(z)) c.push('鈑金'); if(/作|整/.test(z)) c.push('整備'); if(/車/.test(z)) c.push('車検'); if(!c.length) c.push(!z&&/事前点検/.test(String(w||'').normalize('NFKC'))?'車検':'鈑金'); return c; }
 function _woFromSheet(j,x,overwrite){
   const t=_woToday();
   const set=(f,v)=>{ if(v&&(overwrite||!j[f])) j[f]=v; };
@@ -2225,7 +2236,7 @@ function _woFromSheet(j,x,overwrite){
   set('car',norm(x.model)); set('plate',norm(x.plate));
   if(x._in) set('inDate',x._in);
   if(x._due&&/^\d{4}-\d{2}-\d{2}$/.test(x._due)) set('dueDate',x._due);
-  const cats=_woSdCats2(x.kind); if(cats.length&&(overwrite||!j.yCatsSet)) { j.yCats=cats; j.yCatsSet=true; }
+  const cats=_woSdCats2(x.kind,x.work); if(cats.length&&(overwrite||!j.yCatsSet)) { j.yCats=cats; j.yCatsSet=true; }
   if(!j.inDate||j.inDate>t){ if(j.inChecked!==true) j.inChecked=false; }
   if(x.car) j.sheetLoaner=x.car;
   set('sheetWork',String(x.work||'').trim());   // I列（内容）
@@ -2925,6 +2936,7 @@ function ydSetCat(id,c){
   const j=_woJob(id); if(!j) return; _ydNorm(j);
   let a=ydCats(j);
   if(c==='その他') a=a[0]==='その他'?['鈑金']:['その他'];
+  else if((c==='整備'||c==='車検')&&a.length===1&&a[0]==='鈑金'&&!YD_BODY_STEPS.some(k=>{ const st=j.steps&&j.steps[k]; return st&&(st.done||st.date); })) a=[c];   // 鈑金だけ（まだ鈑金の作業を始めていない）のときに整備・車検を押した → 整備・車検に切り替える（鈑金・塗装などは不要から）。両方なら、あとで鈑金を押す
   else { a=a.filter(x=>x!=='その他'); a=a.includes(c)?(a.length>1?a.filter(x=>x!==c):a):YD_CATS.filter(x=>x===c||a.includes(x)); }
   j.yCats=a;
   _woStepsForCats(j);
