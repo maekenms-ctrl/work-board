@@ -198,7 +198,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .lc-head .lc-title{font-size:17px;font-weight:700;min-width:120px;text-align:center;}
 .lc-head .btn{min-height:40px;padding:6px 12px;}
 .lc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px;}
-.lc-grid{border-collapse:collapse;font-size:12px;table-layout:fixed;}
+.lc-grid{border-collapse:collapse;font-size:12px;table-layout:fixed;width:max-content;}
+.lc-grid col.c-d{width:58px;} .lc-grid col.c-car{width:92px;}
 .lc-grid th{width:58px;} .lc-grid th.lc-car{width:92px;}
 .lc-grid td.bk{max-width:0;}
 .lc-grid th,.lc-grid td{border:1px solid var(--surface3);min-width:58px;height:62px;text-align:center;padding:0;}
@@ -225,7 +226,9 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .lc-head .lc-title{font-size:22px;}
   .lc-head .btn{font-size:16px;min-height:48px;padding:8px 18px;}
   .lc-legend i{width:18px;height:13px;}
-  .lc-grid{font-size:14px;width:100%;}
+  .lc-grid{font-size:14px;}
+  .lc-grid col.c-d{width:72px;} .lc-grid col.c-car{width:130px;}
+  .lc-grid tr.lc-mrow th.lc-mon span{left:150px;}
   .lc-grid th,.lc-grid td{min-width:72px;height:70px;}
   .lc-grid th{height:48px;font-size:14px;}
   .lc-grid .lc-car{min-width:130px;font-size:16px;}
@@ -233,7 +236,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .lc-grid td.bk.short .bk-t{font-size:13px;}
   .lc-grid .lc-car small{font-size:11px;}
   .lc-grid .bk-bar{min-height:42px;font-size:15px;}
-  .lc-grid .bk-t{left:140px;}
+  .lc-grid .bk-t{left:152px;}
   .lc-grid .bk-t small{font-size:12px;}
   .lc-legend{font-size:13px;}
   .lc-list{font-size:15px;}
@@ -242,7 +245,16 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .lc-grid th{cursor:pointer;position:relative;}
 .lc-grid th .hol{display:block;font-size:9px;line-height:1;}
 .lc-grid th .hol.cl{color:#bbb;}
-.lc-grid th.closed,.lc-grid td.closed{background:repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 4px,rgba(255,255,255,.10) 4px 8px);}
+.lc-grid th.sat,.lc-grid td.sat{background:rgba(78,161,255,.16);}
+.lc-grid th.sun,.lc-grid td.sun{background:rgba(255,107,107,.16);}
+.lc-grid th.closed,.lc-grid td.closed{background:repeating-linear-gradient(45deg,rgba(160,160,160,.12) 0 4px,rgba(160,160,160,.30) 4px 8px);}
+.lc-grid th.m1,.lc-grid td.m1{border-left:3px solid var(--accent);}
+.lc-grid tr.lc-mrow th{height:24px;background:var(--surface);text-align:left;color:var(--accent);font-weight:800;cursor:default;border-left:3px solid var(--accent);}
+.lc-grid tr.lc-mrow th.lc-car{border-left:1px solid var(--surface3);}
+.lc-grid tr.lc-mrow th span{position:sticky;left:112px;padding:0 6px;}
+.lc-grid th .mlab{display:block;font-size:9px;color:var(--accent);font-weight:800;line-height:1;}
+.lc-grid th.today{background:var(--accent-soft);color:var(--accent);}
+.lc-legend i.lg-sun{background:rgba(255,107,107,.5);} .lc-legend i.lg-sat{background:rgba(78,161,255,.5);}
 .lc-grid th.closed{color:#999;}
 .lc-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--muted);margin-bottom:6px;}
 .lc-legend span{display:inline-flex;align-items:center;gap:4px;}
@@ -262,6 +274,22 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .cf-msg{font-size:15px;font-weight:700;line-height:1.6;white-space:pre-line;margin-bottom:16px;color:var(--text);}
 .ph-count{margin-left:auto;font-size:11px;color:var(--muted);letter-spacing:0;}
 .ph-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ph-btns .ph-cam{grid-column:1/-1;background:var(--accent);color:#111;font-weight:800;font-size:15px;border-color:var(--accent);}
+.wo-cam{position:fixed;inset:0;z-index:20000;background:#000;display:flex;flex-direction:column;}
+.wo-cam video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;}
+.wo-cam-fl{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+.wo-cam-fl.on{animation:wocamfl .25s ease-out;}
+@keyframes wocamfl{0%{opacity:.8}100%{opacity:0}}
+.wo-cam-top{position:absolute;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;display:flex;gap:10px;align-items:center;color:#fff;font-weight:800;text-shadow:0 1px 3px #000;}
+.wo-cam-n{background:rgba(0,0,0,.55);border-radius:14px;padding:4px 12px;font-size:15px;}
+.wo-cam-car{font-size:13px;opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wo-cam-th{display:flex;gap:4px;overflow-x:auto;padding:6px 10px;background:#000;min-height:58px;}
+.wo-cam-th img{height:50px;border-radius:4px;flex:none;}
+.wo-cam-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px calc(14px + env(safe-area-inset-bottom));background:#000;}
+.wo-cam-bar button{background:none;border:0;color:#fff;font-size:16px;font-weight:800;min-width:84px;min-height:48px;cursor:pointer;}
+.wo-cam-bar .wo-cam-ok{background:var(--accent);color:#111;border-radius:24px;}
+.wo-cam-bar .wo-cam-sh{width:74px;height:74px;min-width:74px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px #000,0 0 0 7px #fff;}
+.wo-cam-bar .wo-cam-sh:active{transform:scale(.92);}
 .ph-btns .btn{justify-content:center;min-height:46px;cursor:pointer;touch-action:manipulation;}
 .ph-btns .btn.disabled{opacity:.4;pointer-events:none;}
 .ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px;}
@@ -370,6 +398,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-chip.ghost{background:transparent;color:var(--muted);border:1px dashed var(--border);}
 .wo-tag{display:inline-block;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle;}
 .wo-tag.parts{background:#ffb020;color:#111;}
+.wo-tag.stno{background:transparent;color:#ffb020;border:1px solid #ffb020;}
+.wo-tag.stok{background:#1e8e3e;color:#fff;}
+.selbtn.wo-st-ok.on{background:#1e8e3e;border-color:#1e8e3e;color:#fff;}
+.selbtn.wo-st-no.on{background:transparent;border-color:#ffb020;color:#ffb020;}
 .wo-tag.late{background:#ff4d4d;color:#fff;}
 .wo-tag.today{background:#e4ff1a;color:#111;}
 .wo-sec{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
@@ -491,6 +523,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 
 .wo-tag.loan{background:#a78bfa;color:#111;}
 .lb-cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px;}
+.lb-chg{justify-content:center;align-self:stretch;}
 .lb-car{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2;padding:8px 6px;}
 .lb-car small{font-size:10px;font-weight:700;}
 .lb-car.low{color:#FF2BD6;border-color:#FF2BD6;}
@@ -1156,7 +1189,7 @@ function _woOutColor(n){ const o=WO_OUTSRC.find(x=>x.n===n); return WO_OUT_GROUP
 const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
-const WO_PHOTO_MAX=10;
+const WO_PHOTO_MAX=15;
 const YD_COLS=24, YD_ROWS=24, YD_VER=6;
 const YD_KINDS=[
   {k:'kita',  n:'北',      c:'#4ea1ff'},
@@ -1866,6 +1899,7 @@ function woSet(f,v){ const j=_woCurJob(); if(!j) return; j[f]=v;
   if(f==='dueDate'&&j.loanerUse&&!j.loanerTo){ j.loanerTo=v; woRenderDetail(); }
   if(['plate','car','dueDate','loanerFrom','loanerTo'].includes(f)) lbSync(j);
   if(f==='plate'||f==='car'||f==='inDate'){ const d=document.getElementById('wo-dup'); if(d) d.innerHTML=_woDupHtml(j); }
+  if(f==='plate'||f==='car'){ clearTimeout(_WO_AMT); _WO_AMT=setTimeout(()=>_woAutoMerge(j.id),1500); }
   if(f==='loanerFrom'||f==='loanerTo') lbRenderCars();
   woTouch(j); woRenderList(); if(f==='slot'){ ydRender(); } }
 function woStep(k,f,v){
@@ -2080,14 +2114,52 @@ async function woDelete(){
 }
 async function woPhotoAdd(input){
   const j=_woCurJob(); const files=[...(input.files||[])]; input.value=''; if(!j||!files.length) return;
+  return _woPhotoAddFiles(j,files);
+}
+// 写真を足す（続けて撮ったときに取り合わないよう、1つずつ順番に）
+let _WO_PHQ=Promise.resolve();
+function _woPhotoAddFiles(j,files,quiet){ const r=_WO_PHQ.then(()=>_woPhotoAddNow(j,files,quiet)).catch(e=>console.warn(e)); _WO_PHQ=r; return r; }
+async function _woPhotoAddNow(j,files,quiet){
   const arr=await woPhotosGet(j.id); const room=WO_PHOTO_MAX-arr.length;
   if(room<=0){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
-  _busy('写真を取り込んでいます…');
+  if(!quiet) _busy('写真を取り込んでいます…');
   const added=[];
   for(const f of files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name||'')).slice(0,room)){ try{ const p={pid:_woPid(),d:await _woPhotoData(f),tag:''}; arr.push(p); added.push(p); }catch(e){ toast('写真を開けませんでした',5000); } }
-  _busy(null); await woPhotosPut(j.id,arr); WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos();
+  if(!quiet) _busy(null); await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); }
   added.forEach(p=>_woPhUp(j.id,p));
-  if(added.length&&_woCloudOk()) toast(`写真${added.length}枚をチームで共有しました`);
+  if(added.length&&_woCloudOk()&&!quiet) toast(`写真${added.length}枚をチームで共有しました`);
+  return added.length;
+}
+// ── 連続撮影：アプリの中でカメラを開き、シャッターを押すたびに1枚ずつ足す（「完了」で閉じる）──
+const WOCAM={stream:null,n:0,jid:null};
+async function woCamOpen(){
+  const j=_woCurJob(); if(!j) return;
+  const have=(await woPhotosGet(j.id)).length; if(have>=WO_PHOTO_MAX){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ const n=document.getElementById('wo-cam-native'); if(n) n.click(); return; }
+  let st; try{ st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false}); }
+  catch(e){ toast('カメラを使えませんでした（カメラの許可を確認してください）。「📸 カメラアプリで撮る」でも撮れます',7000); return; }
+  WOCAM.stream=st; WOCAM.n=have; WOCAM.jid=j.id;
+  const ov=document.createElement('div'); ov.id='wo-cam'; ov.className='wo-cam';
+  ov.innerHTML=`<video playsinline autoplay muted></video><div class="wo-cam-fl"></div>
+    <div class="wo-cam-top"><span class="wo-cam-n"></span><span class="wo-cam-car">${esc(_woTitle(j))}</span></div>
+    <div class="wo-cam-th"></div>
+    <div class="wo-cam-bar"><button type="button" class="wo-cam-x">✕ 閉じる</button><button type="button" class="wo-cam-sh" aria-label="シャッター"></button><button type="button" class="wo-cam-ok">完了</button></div>`;
+  document.body.appendChild(ov);
+  const v=ov.querySelector('video'); v.srcObject=st; v.play().catch(()=>{});
+  const cnt=()=>{ ov.querySelector('.wo-cam-n').textContent=`${WOCAM.n}／${WO_PHOTO_MAX}枚`; };
+  cnt();
+  ov.querySelector('.wo-cam-sh').onclick=()=>{
+    if(WOCAM.n>=WO_PHOTO_MAX){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
+    if(!v.videoWidth){ toast('カメラの準備中です'); return; }
+    const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight; c.getContext('2d').drawImage(v,0,0);
+    const fl=ov.querySelector('.wo-cam-fl'); fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+    WOCAM.n++; cnt();
+    const th=document.createElement('img'); th.src=c.toDataURL('image/jpeg',0.4); ov.querySelector('.wo-cam-th').appendChild(th);
+    c.toBlob(b=>{ if(!b) return; const jj=_woJob(WOCAM.jid)||j; _woPhotoAddFiles(jj,[new File([b],'cam-'+Date.now()+'.jpg',{type:'image/jpeg'})],true).then(()=>{ if(_woCloudOk()) {} }); },'image/jpeg',0.92);
+    if(WOCAM.n>=WO_PHOTO_MAX) toast(`${WO_PHOTO_MAX}枚になりました。「完了」を押してください`,5000);
+  };
+  const close=()=>{ try{ st.getTracks().forEach(t=>t.stop()); }catch(e){} WOCAM.stream=null; ov.remove(); };
+  ov.querySelector('.wo-cam-x').onclick=ov.querySelector('.wo-cam-ok').onclick=()=>{ const n=WOCAM.n-have; close(); _WO_PHQ.then(()=>{ if(n>0) toast(`写真を${n}枚追加しました${_woCloudOk()?'（チームで共有）':''}`); }); };
 }
 async function woPhotoDel(i){ const j=_woCurJob(); if(!j) return; const p=WO_PHOTOS.splice(i,1)[0]; await woPhotosPut(j.id,WO_PHOTOS); woRenderPhotos(); if(p&&p.pid) _woPhDelCloud(j.id,p.pid); }
 // ── 写真をチームで共有（Firestore の photos。1枚＝1件。開いている作業指示の写真だけ読む）──
@@ -2164,8 +2236,9 @@ function _woDupOf(j){
   return JOBS.find(o=>{ if(o===j||o.id===j.id||o.archived) return false;
     if(j.sheetId&&o.sheetId) return j.sheetId===o.sheetId;            // Z列のIDが両方にあれば、IDで決める
     const on=_woPlateNo(o.plate), oc=_woCarKey(o.car);
-    if(no&&on) return no===on;                                         // 番号が同じ
+    if(no&&on) return no===on&&(!c||!oc||_woCarEq(j.car,o.car));       // 番号が同じ（車種が両方あって違えば別の車）
     if(!c||!oc||c!==oc) return false;                                   // 番号がどちらか空：車種が同じで
+    if(!no&&!on&&j.sheetId&&o.sheetId&&j.sheetId!==o.sheetId) return false;
     return !j.inDate||!o.inDate||j.inDate===o.inDate;                   // 入庫日が同じ（どちらか空でも）
   })||null;
 }
@@ -2177,9 +2250,27 @@ function _woDupHtml(j){
 }
 // もう1つの作業指示の内容を、開いている作業指示に入れてから、もう1つを削除する
 //  ・こちらが空の項目だけ入れる（入力済みの内容は変えない）。完了した工程・部品・作業箇所も引き継ぐ
+// 新しく作った作業指示に番号・車種を入れたとき：入出庫管理表から作った同じ車の作業指示がもうあれば、そちらに1つにまとめる（ぶつかり・重複を作らない）
+let _WO_AMT=null; const _WO_AM_ASKED=new Set();
+async function _woAutoMerge(jid){
+  const j=_woJob(jid); if(!j||j.archived||j.sheetId||j.sheetKey||j.fromSheet||_WO_AM_ASKED.has(jid)) return;
+  if(!_woPlateNo(j.plate)&&!_woCarNorm(j.car)) return;
+  const x=_woSheetMatch(j);
+  let o=x?JOBS.find(o=>o!==j&&!o.archived&&!o.deleted&&(o.sheetId||o.sheetKey)&&_woSheetMatch(o)===x):null;
+  if(!o){ const d=_woDupOf(j); if(d&&(d.sheetId||d.sheetKey||d.fromSheet)&&_woPlateNo(j.plate)&&_woPlateNo(d.plate)) o=d; }
+  if(!o) return;
+  _WO_AM_ASKED.add(jid);
+  if(!await askConfirm(`入出庫管理表から作った同じ車の作業指示が、もうあります。\n${_woTitle(o)}${x?'（'+x.tab+' '+x.row+'行目）':''}\n今入れた内容をそちらに入れて、1つにまとめますか？`,'まとめる')) return;
+  if(!_woJob(jid)||!_woJob(o.id)) return;
+  _woMergeCore(o,j); WO_CUR=o.id; woRenderAll(); toast('入出庫管理表の作業指示に1つにまとめました',4500);
+}
 async function woMergeDup(oid){
   const j=_woCurJob(), o=_woJob(oid); if(!j||!o) return;
   if(!await askConfirm(`2つの作業指示を1つにまとめますか？\n残す：${_woTitle(j)}\n消す：${_woTitle(o)}\n（消す方の内容は、こちらで空いている項目に入れます）`,'まとめる')) return;
+  _woMergeCore(j,o); woRenderAll(); toast('1つにまとめました');
+}
+// j（残す）に o（消す）の内容を入れてから、o を削除する
+function _woMergeCore(j,o){
   const empty=v=>v==null||v===''||(Array.isArray(v)&&!v.length);
   const skip=['id','createdAt','updatedAt','ord','archived','dev','by'];
   for(const k of Object.keys(o)){ if(skip.includes(k)||k==='steps') continue; if(empty(j[k])&&!empty(o[k])) j[k]=JSON.parse(JSON.stringify(o[k])); }
@@ -2190,7 +2281,7 @@ async function woMergeDup(oid){
   const keepBook=o.loanerBook&&j.loanerBook===o.loanerBook;
   JOBS=JOBS.filter(x=>x.id!==o.id); clearTimeout(WOC.timer[o.id]); delete WOC.timer[o.id];
   _woCloudDel(o.id); _woDelSheetDoc(o); if(!keepBook) lbRemove(o); woPhotosPut(o.id,[]); woFilesDelAll(o.id);
-  woTouch(j,true); if(j.loanerBook) lbSync(j); woRenderAll(); toast('1つにまとめました');
+  woTouch(j,true); if(j.loanerBook) lbSync(j);
 }
 // 部品単品（車両を預からない部品だけの注文）：置き場所なし・配置図の未配置にも出さない
 // 外注作業（車を外注先へ出している）：置き場所なし・配置図の未配置にも出さない
@@ -2209,6 +2300,16 @@ async function woPartsIn(){
 function _woPays(j){ return String(j.pay||'').split('・').filter(Boolean); }
 function woPay(k){ const j=_woCurJob(); if(!j) return; const a=_woPays(j); const i=a.indexOf(k); if(i>=0) a.splice(i,1); else a.push(k); j.pay=WO_PAY.filter(x=>a.includes(x)).concat(a.filter(x=>!WO_PAY.includes(x))).join('・'); woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woPick(f,v){ const j=_woCurJob(); if(!j) return; j[f]=j[f]===v?(f==='pay'?'':null):v; woTouch(j,true); woRenderDetail(); woRenderList(); }
+// 写真・協定の 未完／完了（作業前の一覧に出す）
+function woSt(f,v){ const j=_woCurJob(); if(!j) return; if(v==='未完') delete j[f]; else j[f]=v; woTouch(j,true); woRenderDetail(); woRenderList(); }
+function _woStTags(j){
+  if(j.archived) return '';
+  const t=[];
+  if(j.photoTaken!==false) t.push(j.phSt==='完了'?'<span class="wo-tag stok">写真 完了</span>':'<span class="wo-tag stno">写真 未完</span>');
+  const need=j.kyotei&&j.kyotei!=='不要'||!j.kyotei&&(_woPays(j).some(p=>/保険/.test(p))||(typeof ydCats==='function'&&ydCats(j).includes('鈑金')));
+  if(need) t.push(j.kyotei==='完了'?'<span class="wo-tag stok">協定 完了</span>':'<span class="wo-tag stno">協定 未完</span>');
+  return t.join('');
+}
 function woFilter(f){ WO_FILTER=f; woRenderList(); }
 // ── 入庫管理表から取り込む：表の行（入庫日・車種・番号・納期・区分）から作業指示を作る ──
 function _woSheetKey(x){ return (x.tab||'')+'-'+x.row; }
@@ -2313,7 +2414,8 @@ function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
   const I=_woSheetIdx(raw);
   // 登録番号（H列）をいちばん先に見る：番号がぴったり同じ行があれば、その行の車（同じ番号が2行あれば、IDの行→前と同じ行→入庫日が新しい行）
-  if(no){ const c=I.byNo.get(no); if(c&&c.length) return c.find(r=>r.sid&&r.sid===j.sheetId)||c.find(r=>_woSheetKey(r)===j.sheetKey)||c[0]; }
+  // 同じ番号が2行以上あるときは、次に車種（G列）、その次に入庫日（D列）で決める
+  if(no){ const c=I.byNo.get(no); if(c&&c.length) return c.find(r=>r.sid&&r.sid===j.sheetId)||c.find(r=>_woSheetKey(r)===j.sheetKey)||_woPickSame(j,c); }
   if(j.sheetId){ const x=I.bySid.get(j.sheetId);
     if(x&&_woSameVeh(j,x)){
       const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
@@ -2333,6 +2435,9 @@ function _woSheetMatch(j){
   if(c.length>1){ const w=_woWorkNorm(j.sheetWork); if(w){ const d=c.filter(r=>_woWorkNorm(r.work)===w); if(d.length===1) return d[0]; } }
   return null;
 }
+function _woCarEq(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !!x&&!!y&&(x===y||x.includes(y)||y.includes(x)); }
+function _woPickSame(j,c){ if(c.length<2) return c[0]; const a=c.filter(r=>_woCarEq(j.car,r.model)); const b=a.length?a:c;
+  if(j.inDate){ const d=b.find(r=>_sheetDate(r.inDate)===j.inDate); if(d) return d; } return b[0]; }
 function _woWorkNorm(v){ return String(v||'').normalize('NFKC').replace(/\s+/g,''); }
 // つながらない車を、入出庫管理表の行と手でつなぐ
 function woSheetLinkPick(){
@@ -2383,8 +2488,19 @@ async function woBackToPre(){
   if(j.yStage&&j.yStage!=='前') delete j.yStage;
   woTouch(j,true); WO_FILTER='pre'; woRenderAll(); toast('作業前に戻しました');
 }
+// 間違えて作業前・作業中に動かした入庫前の車を、入庫前に戻す（未入庫にして、工程の開始日・完了と配置図の置き場所を外す）
+async function woBackToBefore(){
+  const j=_woCurJob(); if(!j||j.archived) return; if(woIsBefore(j)){ toast('すでに入庫前です'); return; }
+  const done=WO_STEPS.filter(s=>{ const st=j.steps&&j.steps[s.k]; return st&&(st.done||st.date); }).map(s=>s.n);
+  if(!await askConfirm(`入庫前に戻しますか？\n${_woTitle(j)}\n・未入庫にします${done.length?'\n・工程の完了・開始日を外します：'+done.join('・'):''}${j.slot?'\n・配置図から外します（'+_woSlotName(j.slot)+'）':''}\n（入庫済を押すか配置図に置くと、作業前に戻ります）`,'入庫前に戻す')) return;
+  for(const s of WO_STEPS){ const st=j.steps&&j.steps[s.k]; if(st){ st.done=false; st.at=''; st.doneDate=''; st.date=''; } }
+  if(j.yStages){ for(const c of Object.keys(j.yStages)) if(j.yStages[c]!=='前') delete j.yStages[c]; }
+  if(j.yStage&&j.yStage!=='前') delete j.yStage;
+  j.inChecked=false; delete j.inAt; j.backBefore=true; if(j.slot){ j.slot=''; j.slotNote=''; }
+  woTouch(j,true); WO_FILTER='before'; woRenderAll(); try{ ydRender(); }catch(e){} toast('入庫前に戻しました');
+}
 // 入庫前：入出庫管理表の入庫日（D列）が明日以降で、まだ「入庫済」を押していない車（先の予定）。入庫日になると作業前へ移る
-function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
+function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; if(j.backBefore) return true; return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
 function woIsTodayIn(j){ return !!j&&!j.archived&&!j.partsOnly&&j.inChecked===false&&j.inDate===_woToday()&&woIsPre(j); }
 function woIsPre(j){ if(j.archived||woIsBefore(j)) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&(st.done||st.date); }); }
 // 作業前＝工程が1つも完了していない車（入庫待ちを含む）。作業中には入れない
@@ -2412,7 +2528,7 @@ async function woCheckIn(){
 // 入庫済にする（ボタン・配置図に置いたときの共通処理）。代車は貸出中、代車の駒は配置図・駒の欄から外す
 function _woCheckInCore(j){
   const t=_woToday(), loan=j.loanerUse===true&&j.loanerCar, rent=loan&&/^レンタカー/.test(j.loanerCar);
-  j.inChecked=true; j.inAt=new Date().toISOString();
+  j.inChecked=true; j.inAt=new Date().toISOString(); delete j.backBefore;
   if(!j.inDate||j.inDate>t) j.inDate=t;
   const msg=['入庫済にしました'];
   if(loan){
@@ -2565,7 +2681,7 @@ function _woRenderList(){
     else if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     else if(WO_SORT==='sheet'&&WO_FILTER!=='archived'){ const ps=_woSheetPos(j); const g=ps?(ps.tab||'入出庫管理表'):'入出庫管理表にない車'; if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     return head+`<div class="wo-card${j.id===WO_CUR?' cur':''}" data-id="${j.id}" style="--sc:${j.archived?'var(--border)':woColor(j)}" onclick="woOpen('${j.id}')">${canDrag?`<button type="button" class="wo-drag" title="ドラッグで並べ替え" aria-label="並べ替え" onclick="event.stopPropagation()">⠿</button>`:''}
-      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${_woSheetName(j)?`<span class="wo-nm">${esc(_woSheetName(j))}</span>`:''}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${!j.archived&&_woDupOf(j)?'<span class="wo-tag dup">重複？</span>':''}${woIsBefore(j)?`<span class="wo-tag inwait">入庫前${j.inDate?' '+_woMD(j.inDate):''}</span>`:j.inChecked===false&&!j.archived&&!j.partsOnly?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor||_woHasGlass(j)?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
+      <div class="pl">${esc(j.car||j.plate||'（未入力）')}${_woSheetName(j)?`<span class="wo-nm">${esc(_woSheetName(j))}</span>`:''}${j.sameDay&&!j.archived&&j.inDate===_woToday()?'<span class="wo-tag sameday">当日入庫</span>':''}${!j.archived&&_woDupOf(j)?'<span class="wo-tag dup">重複？</span>':''}${woIsBefore(j)?`<span class="wo-tag inwait">入庫前${j.inDate?' '+_woMD(j.inDate):''}</span>`:j.inChecked===false&&!j.archived&&!j.partsOnly?'<span class="wo-tag inwait">入庫待ち</span>':''}${woPartsWait(j)&&!j.archived?'<span class="wo-tag parts">部品待ち</span>':''}${WO_FILTER==='pre'?_woStTags(j):''}${(j.outsrc||[]).map(x=>`<span class="wo-tag" style="background:${_woOutColor(x)};color:#111">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join('')}${j.glassVendor||_woHasGlass(j)?'<span class="wo-tag ext">ガラス</span>':''}${j.coating?'<span class="wo-tag coat">コーティング</span>':''}${due?`<span class="wo-tag ${due}">${due==='late'?'納期遅れ':'本日納車'}</span>`:''}</div>
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
@@ -2612,11 +2728,21 @@ function _woRenderDetail(box){
   const inp=(k,label,extra='')=>`<div class="field${extra.includes('span2')?' span2':''}${extra.includes('half')?' half':''}"><label>${label}</label><input value="${v(k)}" oninput="woSet('${k}',this.value)" ${extra.replace('span2','').replace('half','')}></div>`;
   const slotOpts=`<option value="">（未配置）</option>`+YARD.spaces.map(s=>`<option value="${esc(s.id)}"${j.slot===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
   const n=woNext(j);
+  const _phTop=window.innerWidth<900;   // スマホ・タブレットは、写真をいちばん上の方に出す（撮りやすいように）
+  const _phHtml=`<div class="wo-sec"><span class="bar"></span>写真 <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
+  <div class="ph-btns wo-phb" style="margin-top:8px">
+    <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()">📷 撮影する（連続OK）</button>
+    <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
+    <label class="btn ph-add">📸 カメラアプリで撮る<input type="file" accept="image/*" capture="environment" style="display:none" id="wo-cam-native" onchange="woPhotoAdd(this)"></label>
+    <button type="button" class="btn btn-line" onclick="woPhotoShare()">💬 LINEで送る</button>
+  </div>
+  <div class="wo-ph" id="wo-ph" style="margin-top:8px"></div>`;
   box.innerHTML=`
   <div class="wo-head">
     <div><div class="big">${esc(j.car||j.plate||'（未入力）')}</div><div class="meta">${esc(j.car?j.plate||'':'')}</div></div>
     <span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)};font-size:13px;padding:4px 12px">${j.archived?'納車済':n?'次の工程：'+esc(n.n):'全工程 完了'}</span>
   </div>
+  ${_phTop?_phHtml:''}
   <div class="wo-sec"><span class="bar"></span>依頼元</div>
   <div class="fgrid">
     <div class="field span2">
@@ -2651,6 +2777,8 @@ function _woRenderDetail(box){
   <div class="wo-inl" style="margin-top:8px">
     <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
     <div class="field half"><label>写真撮影</label><div class="check-group"><button type="button" class="selbtn${j.photoTaken===true?' on':''}" onclick="woPick('photoTaken',true)">あり</button><button type="button" class="selbtn${j.photoTaken===false?' on':''}" onclick="woPick('photoTaken',false)">なし</button></div></div>
+    <div class="field half"><label>写真</label><div class="check-group"><button type="button" class="selbtn wo-st-no${j.phSt!=='完了'?' on':''}" onclick="woSt('phSt','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.phSt==='完了'?' on':''}" onclick="woSt('phSt','完了')">完了</button></div></div>
+    <div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
@@ -2707,18 +2835,13 @@ function _woRenderDetail(box){
   <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
   <div class="wo-sec"><span class="bar"></span>注意事項</div>
   <div class="field"><textarea rows="3" placeholder="例：左Fドアはプレスラインに注意／車内に私物あり／ドラレコ配線あり" oninput="woSet('caution',this.value)">${v('caution')}</textarea></div>
-  <div class="wo-sec"><span class="bar"></span>写真 <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
-  <div class="wo-ph" id="wo-ph"></div>
-  <div class="ph-btns wo-phb" style="margin-top:8px">
-    <label class="btn ph-add">📷 撮影する<input type="file" accept="image/*" capture="environment" style="display:none" onchange="woPhotoAdd(this)"></label>
-    <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
-    <button type="button" class="btn btn-line" onclick="woPhotoShare()">💬 LINEで送る</button>
-  </div>
+  ${_phTop?'':_phHtml}
   <div class="wo-acts">
     <button type="button" class="btn btn-primary" onclick="woSaveSheet()">💾 作業指示書を保存</button>
     <button type="button" class="btn" onclick="shList('${j.id}')">📁 保存した指示書${(()=>{ const n=SHEETS.filter(x=>x.jobId===j.id).length; return n?`（${n}）`:''; })()}</button>
     <button type="button" class="btn" onclick="ydLocate('${j.id}')">🅿️ 配置図で見る</button>
-    ${!j.archived&&!woIsPre(j)?`<button type="button" class="btn" onclick="woBackToPre()">↩ 作業前に戻す</button>`:''}
+    ${!j.archived&&!woIsPre(j)&&!woIsBefore(j)?`<button type="button" class="btn" onclick="woBackToPre()">↩ 作業前に戻す</button>`:''}
+    ${!j.archived&&!j.partsOnly&&!woIsBefore(j)?`<button type="button" class="btn" onclick="woBackToBefore()">↩ 入庫前に戻す</button>`:''}
     ${j.archived?`<button type="button" class="btn" onclick="woArchive(false)">↩ 作業中に戻す</button>`:`<button type="button" class="btn" onclick="woArchive(true)">🚗 納車済にする</button>`}
     <button type="button" class="btn danger" onclick="woDelete()">🗑 削除</button>
   </div>`;
@@ -3391,6 +3514,7 @@ async function lbPickCar(n){
     if(c&&!await askConfirm(`${_lbLabel(n)}は ${_woMD(c.from)}〜${_lbTo(c.to)} に予約が入っています。\nこの車両を選びますか？`,'選ぶ')) return;
     j.loanerCar=n;
   }
+  if(j.loanerCar) LB_ALL=null;
   woTouch(j,true); lbSync(j); lbRenderCars(); woRenderList();
 }
 function lbDetailHtml(j){
@@ -3440,63 +3564,90 @@ function _lcDel(id){ if(!(CLOUD.started&&LB.live)) return; const {fs}=CLOUD.fb; 
 function _saveShopClosed(){ try{localStorage.setItem('wo-shop-closed',JSON.stringify(SHOP_CLOSED));}catch(e){} _lcPut('_shop',{shop:true,closedW:SHOP_CLOSED.w,closedD:SHOP_CLOSED.d}); }
 function _toggleClosedDay(ds){ const i=SHOP_CLOSED.d.indexOf(ds); if(i>=0) SHOP_CLOSED.d.splice(i,1); else SHOP_CLOSED.d.push(ds); _saveShopClosed(); _renderLoanerCal(); }
 function openLoanerCal(){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); _renderLoanerCal(); if(LB.sheetUrl&&Date.now()-LB.sheetAt>60000) _lbSheetLoad(); }
-function _lcShift(n){ _lcMonth=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()+n,1); _renderLoanerCal(); }
+// ◀▶：前・次の月の1日へ動く（表示している範囲の外なら、範囲をずらして描き直す）
+function _lcShift(n){ const b=_LC_VIS||_lcMonth; const t=new Date(b.getFullYear(),b.getMonth()+n,1);
+  const lo=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()-1,1), hi=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()+3,1);
+  if(t<lo||t>hi) _lcMonth=new Date(t.getFullYear(),t.getMonth(),1);
+  _LC_JUMP=_ymd(t); _renderLoanerCal(); }
+function _lcToday(){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); d.setDate(d.getDate()-2); _LC_JUMP=_ymd(d); _renderLoanerCal(); }
 function _closeLoanerCal(){ const o=document.getElementById('lc-ov'); if(o) o.remove(); lbRenderCars(); }
+// 店休日（日付）を、続いている日ごとにまとめる（例：12/29〜1/4）
+function _closedRanges(){ const d=[...new Set(SHOP_CLOSED.d)].sort(), out=[]; for(const x of d){ const L=out[out.length-1]; if(L){ const n=new Date(L[1]+'T00:00:00'); n.setDate(n.getDate()+1); if(_ymd(n)===x){ L[1]=x; L.n++; continue; } } const r=[x,x]; r.n=1; out.push(r); } return out; }
+function _mdL(ds){ const [y,m,d]=ds.split('-'); return (y!==String(new Date().getFullYear())?y+'/':'')+(+m)+'/'+(+d); }
 function _shopClosedForm(){
   const W='日月火水木金土'; const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
   const draw=()=>{ ov.innerHTML=`<div class="cf-box lc-form" style="max-width:380px"><div style="font-weight:700;margin-bottom:10px">店休日の設定</div>
     <label>毎週の定休日</label><div class="check-group" style="margin-bottom:12px">${[...W].map((c,i)=>`<button type="button" class="selbtn${SHOP_CLOSED.w.includes(i)?' on':''}" data-w="${i}">${c}</button>`).join('')}</div>
-    <label>臨時休業・お盆・年末年始など</label><div style="display:flex;gap:6px;margin-bottom:8px"><input type="date" id="sc-date"><button type="button" class="btn" id="sc-add" style="white-space:nowrap;flex:none">追加</button></div>
-    <div style="font-size:13px;margin-bottom:12px">${SHOP_CLOSED.d.slice().sort().map(d=>`<span class="selbtn on" style="display:inline-flex;gap:6px;margin:2px">${d.slice(5).replace('-','/')}<b data-del="${d}" style="cursor:pointer">✕</b></span>`).join('')||'<span style="color:var(--muted)">まだありません（カレンダーの日付をタップしても切り替えられます）</span>'}</div>
+    <label>臨時休業・お盆・年末年始など（続けて休む日は「から」「まで」を入れる）</label>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><input type="date" id="sc-date" style="flex:1;min-width:130px"><span style="font-size:12px">から</span><input type="date" id="sc-to" style="flex:1;min-width:130px"><span style="font-size:12px">まで</span><button type="button" class="btn" id="sc-add" style="white-space:nowrap;flex:none">追加</button></div>
+    <div style="font-size:13px;margin-bottom:12px">${_closedRanges().map(r=>`<span class="selbtn on" style="display:inline-flex;gap:6px;margin:2px">${_mdL(r[0])}${r[1]!==r[0]?'〜'+_mdL(r[1])+'（'+r.n+'日）':''}<b data-del="${r[0]}|${r[1]}" style="cursor:pointer">✕</b></span>`).join('')||'<span style="color:var(--muted)">まだありません（カレンダーの日付をタップしても切り替えられます）</span>'}</div>
     <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn btn-primary sc-close">閉じる</button></div></div>`;
     ov.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const w=+b.dataset.w;const i=SHOP_CLOSED.w.indexOf(w);if(i>=0)SHOP_CLOSED.w.splice(i,1);else SHOP_CLOSED.w.push(w);_saveShopClosed();draw();});
-    ov.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{SHOP_CLOSED.d=SHOP_CLOSED.d.filter(x=>x!==b.dataset.del);_saveShopClosed();draw();});
-    ov.querySelector('#sc-add').onclick=()=>{const v=ov.querySelector('#sc-date').value;if(v&&!SHOP_CLOSED.d.includes(v)){SHOP_CLOSED.d.push(v);_saveShopClosed();}draw();};
+    ov.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const [a,z]=b.dataset.del.split('|');SHOP_CLOSED.d=SHOP_CLOSED.d.filter(x=>x<a||x>z);_saveShopClosed();draw();});
+    ov.querySelector('#sc-date').onchange=e=>{ const t=ov.querySelector('#sc-to'); if(!t.value||t.value<e.target.value) t.value=e.target.value; };
+    ov.querySelector('#sc-add').onclick=()=>{ let a=ov.querySelector('#sc-date').value, z=ov.querySelector('#sc-to').value||a; if(!a){ toast('休む日を入れてください'); return; } if(z<a){ const t=a; a=z; z=t; }
+      const n0=SHOP_CLOSED.d.length; let k=0; for(const d=new Date(a+'T00:00:00');_ymd(d)<=z&&k<120;d.setDate(d.getDate()+1),k++){ const ds=_ymd(d); if(!SHOP_CLOSED.d.includes(ds)) SHOP_CLOSED.d.push(ds); }
+      if(SHOP_CLOSED.d.length!==n0) _saveShopClosed(); draw(); };
     ov.querySelector('.sc-close').onclick=()=>{ov.remove();_renderLoanerCal();}; };
   draw(); ov.addEventListener('click',e=>{if(e.target===ov){ov.remove();_renderLoanerCal();}}); document.body.appendChild(ov);
 }
 function _renderLoanerCal(){
+  // 月ごとではなく、前の月〜3か月先までを1本につないで表示（横にスクロール。月の変わり目に線と月の見出し）
   if(!_lcMonth){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); }
   let ov=document.getElementById('lc-ov');
   if(!ov){ ov=document.createElement('div'); ov.id='lc-ov'; ov.className='lc-ov'; ov.addEventListener('click',e=>{if(e.target===ov)_closeLoanerCal();}); document.body.appendChild(ov); }
-  const keep=ov.querySelector('.lc-scroll'), keepX=keep?keep.scrollLeft:null;
-  const y=_lcMonth.getFullYear(), m=_lcMonth.getMonth(), N=new Date(y,m+1,0).getDate(), today=_ymd(new Date()), HOL=jpHolidays(y);
-  const days=[...Array(N)].map((_,i)=>{const d=new Date(y,m,i+1);const ds=_ymd(d);return {d:ds,n:i+1,w:d.getDay(),hol:HOL[ds]||'',closed:_isClosed(ds,d.getDay())};});
-  const W='日月火水木金土';
-  const cls=x=>[x.w===0||x.hol?'sun':x.w===6?'sat':'',x.closed?'closed':'',x.d===today?'today':''].filter(Boolean).join(' ');
+  const keep=ov.querySelector('.lc-scroll'), keepX=keep&&!_LC_JUMP?keep.scrollLeft:null;
+  const start=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()-1,1), end=new Date(_lcMonth.getFullYear(),_lcMonth.getMonth()+4,0), today=_ymd(new Date());
+  const days=[]; for(const d=new Date(start);d<=end;d.setDate(d.getDate()+1)){ const ds=_ymd(d), HOL=jpHolidays(d.getFullYear()); days.push({d:ds,n:d.getDate(),m:d.getMonth()+1,y:d.getFullYear(),w:d.getDay(),hol:HOL[ds]||'',closed:_isClosed(ds,d.getDay())}); }
+  const N=days.length, W='日月火水木金土';
+  const cls=x=>[x.w===0||x.hol?'sun':x.w===6?'sat':'',x.closed?'closed':'',x.d===today?'today':'',x.n===1?'m1':''].filter(Boolean).join(' ');
+  const tint=x=>x.closed?'rgba(150,150,150,.22)':x.w===0||x.hol?'rgba(255,107,107,.16)':x.w===6?'rgba(78,161,255,.16)':'';
+  const months=[]; for(const x of days){ const L=months[months.length-1]; if(L&&L.m===x.m&&L.y===x.y) L.n++; else months.push({y:x.y,m:x.m,n:1}); }
   let h=`<div class="lc-box"><div class="lc-head">
-    <button class="btn" type="button" onclick="_lcShift(-1)">◀</button><div class="lc-title">${y}年${m+1}月</div><button class="btn" type="button" onclick="_lcShift(1)">▶</button>
+    <button class="btn" type="button" onclick="_lcShift(-1)">◀</button><div class="lc-title" id="lc-title">${_lcMonth.getFullYear()}年${_lcMonth.getMonth()+1}月</div><button class="btn" type="button" onclick="_lcShift(1)">▶</button>
+    <button class="btn" type="button" onclick="_lcToday()">今日</button>
     <button class="btn btn-primary lc-add-top" type="button" onclick="_loanerForm()">＋ 予約を追加</button>
     <button class="btn" type="button" onclick="_shopClosedForm()">🏪 店休日</button>
     ${LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入庫管理表を読み直しました'))">🔄 入庫管理表</button>`:''}
     <button class="btn" type="button" style="margin-left:auto" onclick="_closeLoanerCal()">✕ 閉じる</button></div>
     ${!LB.live?`<div style="color:#ffb020;font-size:12px;margin-bottom:6px">${esc(LB.err||'チーム共有にログインすると、見積りツール・ARK通知と同じ予約が表示されます')}</div>`:''}
-    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-closed"></i>店休日</span><span style="color:#ff6b6b">赤字＝日曜・祝日</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">空いているマスで予約、色の帯で変更・削除。日付をタップすると店休日に切り替わります。見積りツールのカレンダーと同じ予約です。</div>
-    <div class="lc-scroll"><table class="lc-grid"><tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?esc(x.hol):''}${x.closed?' 店休日':''}">${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':x.closed?'<span class="hol cl">休</span>':''}</th>`).join('')}</tr>`;
+    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。日付をタップすると店休日に切り替わります。見積りツールのカレンダーと同じ予約です。</div>
+    <div class="lc-scroll"><table class="lc-grid"><colgroup><col class="c-car"><col class="c-d" span="${N}"></colgroup><tr class="lc-mrow"><th class="lc-car"></th>${months.map(o=>`<th class="lc-mon" colspan="${o.n}"><span>${o.y}年${o.m}月</span></th>`).join('')}</tr>
+    <tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" data-d="${x.d}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?esc(x.hol):''}${x.closed?' 店休日':''}">${x.n===1?`<span class="mlab">${x.m}月</span>`:''}${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':x.closed?'<span class="hol cl">休</span>':''}</th>`).join('')}</tr>`;
   for(const c of [...LOANER_CARS,...RENTAL_ROWS]){
     h+=`<tr><td class="lc-car${c.low?' low':''}${c.ext?' ext':''}">${c.lab||c.n}${c.low?'<small>1550mm以下</small>':''}</td>`;
-    for(let i=0;i<days.length;){
+    for(let i=0;i<N;){
       const x=days[i]; const b=_lcBusy(c.n,x.d);
-      if(b){ let span=1; while(i+span<days.length&&_lcBusy(c.n,days[i+span].d)===b) span++;
+      if(b){ let span=1; while(i+span<N&&_lcBusy(c.n,days[i+span].d)===b) span++;
+        const seg=days.slice(i,i+span), tn=seg.map(tint); let bg='';
+        if(tn.some(Boolean)) bg=`background:linear-gradient(90deg,${tn.map((t,q)=>`${t||'transparent'} ${(q*100/span).toFixed(3)}% ${((q+1)*100/span).toFixed(3)}%`).join(',')});`;
         const kt=_kinds(b).join('・'); const lab=[_lcName(b)||'予約',kt].filter(Boolean).join(' '); const [cu,mo]=_barNames(b);
-        h+=`<td class="bk${b.src==='sheet'?' sh':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}" colspan="${span}" onclick="_loanerForm('${esc(b.id)}')" title="${esc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':''}${esc(cu||'予約')}</span>${mo?`<span class="bk-m">${esc(mo)}</span>`:''}${kt&&span>=3?`<small>${esc(kt)}</small>`:''}</span></div></td>`;
+        h+=`<td class="bk${b.src==='sheet'?' sh':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_loanerForm('${esc(b.id)}')" title="${esc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':''}${esc(cu||'予約')}</span>${mo?`<span class="bk-m">${esc(mo)}</span>`:''}${kt&&span>=3?`<small>${esc(kt)}</small>`:''}</span></div></td>`;
         i+=span; }
       else { h+=`<td class="free ${cls(x)}" onclick="_loanerForm(null,'${c.n}','${x.d}')"></td>`; i++; }
     }
     h+='</tr>';
   }
   h+='</table></div>';
-  const from=days[0].d, to=days[N-1].d;
+  const from=today, to=days[N-1].d;
   const list=_lbAll().filter(b=>b.to>=from&&b.from<=to).sort((a,b)=>a.from<b.from?-1:1);
-  const hols=days.filter(x=>x.hol).map(x=>`${x.n}日 ${x.hol}`);
-  h+=`<div class="lc-list">${list.length?list.map(b=>`<div class="lc-item" onclick="_loanerForm('${esc(b.id)}')"><i class="kd" style="background:${_kindBg(b)}"></i><b>${esc(_lbLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}</span><span>${esc(_lcName(b))}</span><span>${esc(_kinds(b).join('・'))}</span><span style="color:var(--muted)">${esc(b.memo||'')}</span></div>`).join(''):'<div style="color:var(--muted)">この月の予約はありません</div>'}
-    ${hols.length?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">祝日：${hols.join('、')}</div>`:''}
+  const lim=_ymd(new Date(Date.now()+62*864e5)), hols=days.filter(x=>x.hol&&x.d>=today&&x.d<=lim).map(x=>`${x.m}/${x.n} ${x.hol}`);
+  h+=`<div class="lc-list"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">今日から先の予約</div>${list.length?list.map(b=>`<div class="lc-item" onclick="_loanerForm('${esc(b.id)}')"><i class="kd" style="background:${_kindBg(b)}"></i><b>${esc(_lbLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}</span><span>${esc(_lcName(b))}</span><span>${esc(_kinds(b).join('・'))}</span><span style="color:var(--muted)">${esc(b.memo||'')}</span></div>`).join(''):'<div style="color:var(--muted)">予約はありません</div>'}
+    ${hols.length?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">祝日（2か月先まで）：${hols.join('、')}</div>`:''}
     ${LB.sheetErr?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">${esc(LB.sheetErr)}</div>`:''}</div>
     <button class="btn btn-primary lc-add-fab" type="button" onclick="_loanerForm()">＋ 予約を追加</button></div>`;
   ov.innerHTML=h;
-  const sc=ov.querySelector('.lc-scroll'); if(sc){ if(keepX!=null) sc.scrollLeft=keepX; else { const td=ov.querySelector('th.today'); if(td) sc.scrollLeft=Math.max(0,td.offsetLeft-140); } }
+  const sc=ov.querySelector('.lc-scroll'); if(!sc) return;
+  const carW=(ov.querySelector('th.lc-car')||{}).offsetWidth||92;
+  const go=ds=>{ const th=ov.querySelector(`th[data-d="${ds}"]`); if(th) sc.scrollLeft=Math.max(0,th.offsetLeft-carW); };
+  if(_LC_JUMP){ go(_LC_JUMP); _LC_JUMP=null; } else if(keepX!=null) sc.scrollLeft=keepX; else { const t=new Date(); t.setDate(t.getDate()-2); go(_ymd(t)); }
+  // 見出しの「○年○月」は、いま左端に見えている月にする
+  const ths=[...ov.querySelectorAll('th[data-d]')], title=ov.querySelector('#lc-title');
+  const upd=()=>{ const x=sc.scrollLeft+carW+4; let cur=ths[0]; for(const th of ths){ if(th.offsetLeft<=x) cur=th; else break; } if(cur&&title){ const [yy,mm]=cur.dataset.d.split('-'); title.textContent=`${+yy}年${+mm}月`; _LC_VIS=new Date(+yy,+mm-1,1); } };
+  let raf=0; sc.addEventListener('scroll',()=>{ if(!raf) raf=requestAnimationFrame(()=>{ raf=0; upd(); }); },{passive:true}); upd();
 }
+let _LC_JUMP=null, _LC_VIS=null;
 function _loanerForm(id,car,day){
   const sb=id&&LB.sheet.find(x=>x.id===id);
   if(sb){ const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
@@ -3534,15 +3685,19 @@ function _loanerForm(id,car,day){
   };
   document.body.appendChild(ov);
 }
+let LB_ALL=null;   // 代車を変えるために、全部の車を出している作業指示
+function lbShowAll(){ const j=_woCurJob(); if(!j) return; LB_ALL=j.id; lbRenderCars(); }
 function lbRenderCars(){
   const el=document.getElementById('lb-cars'), st=document.getElementById('lb-st'); const j=_woCurJob();
   if(!el||!j) return;
   const from=j.loanerFrom, to=j.loanerTo||j.loanerFrom;
-  el.innerHTML=[...LOANER_CARS,...RENTAL_ROWS].map(c=>{
+  // 代車を割り当てたら、その車だけを出す（「代車を変える」で全部の車を出す）
+  const all=[...LOANER_CARS,...RENTAL_ROWS], one=j.loanerCar&&LB_ALL!==j.id&&all.find(c=>c.n===j.loanerCar);
+  el.innerHTML=(one?[one]:all).map(c=>{
     const cl=LB.live?lbClash(c.n,from,to,j.loanerBook):null;
     const tag=!LB.live?'':cl?`<small class="busy">予約あり ${_woMD(cl.from)}〜${_lbTo(cl.to)}</small>`:(from?'<small class="free">空き</small>':'');
-    return `<button type="button" class="selbtn lb-car${c.low?' low':''}${j.loanerCar===c.n?' on':''}" onclick="lbPickCar('${c.n}')">${esc(c.lab||c.n)}${c.low?'<small>1550mm以下</small>':''}${tag}</button>`;
-  }).join('');
+    return `<button type="button" class="selbtn lb-car${c.low?' low':''}${j.loanerCar===c.n?' on':''}" onclick="${one?'lbShowAll()':`lbPickCar('${c.n}')`}">${esc(c.lab||c.n)}${c.low?'<small>1550mm以下</small>':''}${tag}</button>`;
+  }).join('')+(one?`<button type="button" class="btn lb-chg" onclick="lbShowAll()">🔄 代車を変える</button>`:'');
   if(!st) return;
   let msg='';
   if(!CLOUD.user) msg='チーム共有にログインすると、見積りツールの代車カレンダーと連携します（空き確認・予約の登録）';
