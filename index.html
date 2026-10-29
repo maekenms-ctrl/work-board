@@ -2318,7 +2318,7 @@ function _woSheetMatch(j){
       const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
       if(no&&xn&&xn!==no){ const y=(I.byNo.get(no)||[]).find(r=>r!==x&&_woSameCar(j.car,r.model)); if(y) return y; }
       return x; }
-    if(I.anySid&&!no) return null; }   // ⓪ Z列のIDで探す（車種が違えば別の車。見つからなければ番号で探す）
+  }   // ⓪ IDで探す（車種が違えば別の車）。見つからなければ、下の「行と車種」で探す（番号がない車も表につながるように）
   if(no){
     const c=I.byNo.get(no); if(!c||!c.length) return null;
     return c.find(r=>_woSheetKey(r)===j.sheetKey)||c[0];
