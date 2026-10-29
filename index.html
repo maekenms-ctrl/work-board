@@ -2311,6 +2311,8 @@ function _woSheetIdx(raw){
 function _woSheetMatch(j){
   const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length||!j) return null; const no=_woPlateNo(j.plate);
   const I=_woSheetIdx(raw);
+  // 登録番号（H列）をいちばん先に見る：番号がぴったり同じ行があれば、その行の車（同じ番号が2行あれば、IDの行→前と同じ行→入庫日が新しい行）
+  if(no){ const c=I.byNo.get(no); if(c&&c.length) return c.find(r=>r.sid&&r.sid===j.sheetId)||c.find(r=>_woSheetKey(r)===j.sheetKey)||c[0]; }
   if(j.sheetId){ const x=I.bySid.get(j.sheetId);
     if(x&&_woSameVeh(j,x)){
       const xn=_woPlateNo(x.plate);   // IDの行と番号が違い、番号がぴったり同じ行がほかにあれば、そちらが本当の車
