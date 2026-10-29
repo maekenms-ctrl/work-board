@@ -491,7 +491,39 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 @media(max-width:900px){ .wo-two{flex-direction:column;gap:6px;} .wo-two-r{border-left:0;padding-left:0;} .wo-two-r .wo-inl{flex-direction:row;} }
 /* 作業箇所の車体図：画面の幅いっぱいに大きく（縦横の比率はそのまま） */
 .wo-mapwrap{width:100%;}
-.wo-mapcol{width:100%;max-width:640px;margin:0 auto;}
+.wo-maps{display:flex;gap:14px;justify-content:center;align-items:flex-start;}
+.wo-mapcol{flex:1 1 0;min-width:0;max-width:640px;}
+.wo-mapttl{text-align:center;font-size:12px;font-weight:800;color:var(--muted);margin-bottom:4px;}
+.wo-mtabs{display:none;gap:6px;margin-bottom:8px;}
+.wo-mtab{flex:1;min-height:42px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--muted);font-weight:800;font-size:15px;font-family:inherit;cursor:pointer;}
+.wo-mtab.on{background:var(--accent);border-color:var(--accent);color:#111;}
+.wo-mtab b{display:inline-block;min-width:20px;padding:0 5px;border-radius:10px;background:#111;color:#fff;font-size:12px;margin-left:4px;}
+@media(max-width:700px){
+  .wo-mtabs{display:flex;}
+  .wo-mapttl{display:none;}
+  .wo-mapwrap[data-tab="outer"] .wo-mc-skel,.wo-mapwrap[data-tab="skel"] .wo-mc-outer{display:none;}
+}
+.wo-skel{display:grid;width:min(100%,640px,calc((100vh - 150px) * 0.66));aspect-ratio:0.66;margin:0 auto;gap:5px;
+  grid-template-columns:9fr 6fr 6fr 18fr 6fr 6fr 9fr;
+  grid-template-rows:36fr 36fr 30fr 30fr 40fr 50fr 34fr 44fr 40fr 34fr 30fr 36fr;
+  grid-template-areas:
+    ". sreinf sreinf sreinf sreinf sreinf ."
+    ". score score score score score ."
+    "lftire lfinner lfmem scond rfmem rfinner rftire"
+    "lfwheel lfinner lfmem srad rfmem rfinner rfwheel"
+    "lfsusp lfinner lfmem seng rfmem rfinner rfsusp"
+    ". lfinner lfmem seng rfmem rfinner ."
+    ". lfinner sdash sdash sdash rfinner ."
+    "lpillar lpillar sseat sseat sseat rpillar rpillar"
+    "lrtire lqinner sfloor sfloor sfloor rqinner rrtire"
+    "lrwheel lqinner saxle saxle saxle rqinner rrwheel"
+    ". lqinner scross scross scross rqinner ."
+    ". sback sback sback sback sback .";}
+.wo-skel .panel-btn{font-size:13px;}
+.wo-skel .panel-btn.sill{font-size:12px;letter-spacing:0;}
+.wo-skel .panel-btn.wt{background:var(--tc);border-color:var(--tb,#c9d1d9);color:#0b0d10;font-weight:800;}
+@media(min-width:701px){ .wo-skel .panel-btn{font-size:11px;} .wo-skel .panel-btn.sill{font-size:10px;} }
+@media(max-width:700px){ .wo-skel{gap:4px;} .wo-skel .panel-btn{font-size:11px;} .wo-skel .panel-btn.sill{font-size:10.5px;} }
 /* 画面の高さに収まる大きさ（縦横の比率はそのまま）。幅・高さのどちらか小さい方に合わせる */
 #wo-detail .wo-mapcol .wo-map{max-width:none;width:min(100%,640px,calc((100vh - 150px) * 0.66));aspect-ratio:0.66;height:auto;margin:0 auto;grid-template-columns:5fr 6.5fr 16fr 18fr 16fr 6.5fr 5fr;grid-template-rows:46fr 58fr 30fr 80fr 80fr 80fr 38fr 30fr 58fr 46fr;gap:5px;}
 #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:15px;}
@@ -922,6 +954,38 @@ const PANEL_PARTS = [
   // サイドシルガーニッシュ（シルカバー・モール）：脱着工数をボディ形状別の表から初期入力
   {area:'lgarn',   name:'左サイドシルガーニッシュ', label:'左サイドシルガーニッシュ', dm2:0, ph:{}, garnish:true},
   {area:'rgarn',   name:'右サイドシルガーニッシュ', label:'右サイドシルガーニッシュ', dm2:0, ph:{}, garnish:true},
+];
+// 内部骨格（上から見た図・上が前）。作業箇所と同じく、タップで追加・もう一度タップで外す
+const SKEL_PARTS = [
+  {area:'sreinf',  name:'リーンフォースメント', label:'リーンフォースメント'},
+  {area:'score',   name:'コアサポート',         label:'コアサポート'},
+  {area:'scond',   name:'コンデンサー',         label:'コンデンサー', def:'取替'},
+  {area:'srad',    name:'ラジエター',           label:'ラジエター', def:'取替'},
+  {area:'seng',    name:'エンジン',             label:'エンジン', def:'脱着'},
+  {area:'sdash',   name:'ダッシュパネル',       label:'ダッシュパネル'},
+  {area:'lfinner', name:'左フロントインサイドパネル', label:'フロントインサイドパネル', v:true},
+  {area:'rfinner', name:'右フロントインサイドパネル', label:'フロントインサイドパネル', v:true},
+  {area:'lfmem',   name:'左フロントサイドメンバー',   label:'フロントサイドメンバー', v:true},
+  {area:'rfmem',   name:'右フロントサイドメンバー',   label:'フロントサイドメンバー', v:true},
+  {area:'lftire',  name:'左フロントタイヤ',     label:'タイヤ', def:'取替'},
+  {area:'rftire',  name:'右フロントタイヤ',     label:'タイヤ', def:'取替'},
+  {area:'lfwheel', name:'左フロントホイール',   label:'ホイール', def:'取替'},
+  {area:'rfwheel', name:'右フロントホイール',   label:'ホイール', def:'取替'},
+  {area:'lfsusp',  name:'左フロントサスペンション', label:'サス', def:'取替'},
+  {area:'rfsusp',  name:'右フロントサスペンション', label:'サス', def:'取替'},
+  {area:'lpillar', name:'左センターピラー',     label:'左センター\nピラー'},
+  {area:'rpillar', name:'右センターピラー',     label:'右センター\nピラー'},
+  {area:'sseat',   name:'シート',               label:'シート', def:'脱着'},
+  {area:'sfloor',  name:'フロア',               label:'フロア'},
+  {area:'lqinner', name:'左クォーターインナー', label:'クォーターインナー', v:true},
+  {area:'rqinner', name:'右クォーターインナー', label:'クォーターインナー', v:true},
+  {area:'lrtire',  name:'左リヤタイヤ',         label:'タイヤ', def:'取替'},
+  {area:'rrtire',  name:'右リヤタイヤ',         label:'タイヤ', def:'取替'},
+  {area:'lrwheel', name:'左リヤホイール',       label:'ホイール', def:'取替'},
+  {area:'rrwheel', name:'右リヤホイール',       label:'ホイール', def:'取替'},
+  {area:'saxle',   name:'リヤアクスル',         label:'リヤアクスル', def:'取替'},
+  {area:'scross',  name:'クロスメンバー',       label:'クロスメンバー'},
+  {area:'sback',   name:'バックパネル',         label:'バックパネル'},
 ];
 const PAINT_TYPES = ['ソリッド','メタリック','2コートパール','3コートパール','カラークリアー'];
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1951,8 +2015,8 @@ function woTaskTap(area){
   const j=_woCurJob(); if(!j) return;
   const i=j.tasks.findIndex(t=>t.area===area);
   if(i>=0){ const gone=j.tasks.splice(i,1)[0]; _woDropAutoPart(j,gone&&gone.part); }
-  else { const p=PANEL_PARTS.find(x=>x.area===area); if(!p) return;
-    const type=p.glass?'取替':p.detach?'付属品脱着':p.garnish?'脱着':'鈑金塗装';
+  else { const p=PANEL_PARTS.find(x=>x.area===area)||SKEL_PARTS.find(x=>x.area===area); if(!p) return;
+    const type=p.def||(p.glass?'取替':p.detach?'付属品脱着':p.garnish?'脱着':SKEL_PARTS.includes(p)?'鈑金':'鈑金塗装');
     const t={part:p.name,area,types:[type],note:''}; j.tasks.push(t); _woAutoPart(j,t); }
   woTouch(j,true); woRenderDetail(); woRenderList();
 }
@@ -2696,8 +2760,24 @@ function _woMapHtml(j){
   return `<div class="panel-map wo-map">${PANEL_PARTS.map(p=>{ const t=by[p.area];
     const cls='panel-btn'+(p.area.endsWith('sill')?' sill':'')+(p.garnish?' garn':'')+(/qglass$/.test(p.area)?' tight':'')+(t?' wt':'');
     return `<button type="button" class="${cls}" style="grid-area:${p.area};${t?'--tc:'+_woTypeBg(_woTypes(t))+';--tb:'+(WO_TYPE_COLOR[_woTypes(t)[0]]||'#c9d1d9'):''}" onclick="woTaskTap('${p.area}')">${esc(p.label)}${t?'\n'+esc(_woTypes(t).join('・')||'区分なし'):''}</button>`; }).join('')}</div>
+`;
+}
+function _woSkelHtml(j){
+  const by={}; (j.tasks||[]).forEach(t=>{ if(t.area&&!by[t.area]) by[t.area]=t; });
+  return `<div class="wo-skel">${SKEL_PARTS.map(p=>{ const t=by[p.area];
+    const cls='panel-btn'+(p.v?' sill':'')+(t?' wt':'');
+    return `<button type="button" class="${cls}" style="grid-area:${p.area};${t?'--tc:'+_woTypeBg(_woTypes(t))+';--tb:'+(WO_TYPE_COLOR[_woTypes(t)[0]]||'#c9d1d9'):''}" onclick="woTaskTap('${p.area}')">${esc(p.label)}${t?'\n'+esc(_woTypes(t).join('・')||'区分なし'):''}</button>`; }).join('')}</div>`;
+}
+// 作業箇所（外板）と内部骨格：パソコン・タブレットは横に並べる。スマホは上のボタンで切り替え
+let WO_MAPTAB='outer';
+function woMapTab(t){ WO_MAPTAB=t; const w=document.querySelector('#wo-detail .wo-mapwrap'); if(w){ w.dataset.tab=t; w.querySelectorAll('.wo-mtab').forEach(b=>b.classList.toggle('on',b.dataset.t===t)); } }
+function _woMapsHtml(j){
+  const nS=(j.tasks||[]).filter(t=>SKEL_PARTS.some(p=>p.area===t.area)).length, nO=(j.tasks||[]).filter(t=>PANEL_PARTS.some(p=>p.area===t.area)).length;
+  return `<div class="wo-mapwrap" data-tab="${WO_MAPTAB}">
+    <div class="wo-mtabs"><button type="button" class="wo-mtab${WO_MAPTAB==='outer'?' on':''}" data-t="outer" onclick="woMapTab('outer')">外板${nO?` <b>${nO}</b>`:''}</button><button type="button" class="wo-mtab${WO_MAPTAB==='skel'?' on':''}" data-t="skel" onclick="woMapTab('skel')">内部骨格${nS?` <b>${nS}</b>`:''}</button></div>
+    <div class="wo-maps"><div class="wo-mapcol wo-mc-outer"><div class="wo-mapttl">外板</div>${_woMapHtml(j)}</div><div class="wo-mapcol wo-mc-skel"><div class="wo-mapttl">内部骨格（上から見た図・上が前）</div>${_woSkelHtml(j)}</div></div>
     <div class="wo-legend">${WO_TASK_TYPES.map(k=>`<span class="wo-tt" style="--tc:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div>
-    <div class="map-hint">タップで作業箇所を追加・もう一度タップで外す</div>`;
+    <div class="map-hint">タップで作業箇所を追加・もう一度タップで外す</div></div>`;
 }
 // 描き直しで画面が上下に跳ねないように：描き直す間は今の高さとスクロール位置を保ち、写真などが表示されてから戻す
 function _woKeepHeight(el,f){
@@ -2803,7 +2883,7 @@ function _woRenderDetail(box){
   <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
   </div></div>
   <div class="wo-sec"><span class="bar"></span>作業箇所</div>
-  <div class="wo-mapwrap"><div class="wo-mapcol">${_woMapHtml(j)}</div></div>
+  ${_woMapsHtml(j)}
   <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl">
     <tr><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
     ${(j.tasks||[]).map((t,i)=>`<tr><td>${t.area?esc(t.part):`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}</td>
@@ -2880,6 +2960,8 @@ function _woSheetHtml(j,ph,pdfs,meta){
   const by={}; (j.tasks||[]).forEach(t=>{ if(t.area&&!by[t.area]) by[t.area]=t; });
   const map=`<div class="pm">${PANEL_PARTS.map(p=>{ const t=by[p.area]; const vert=p.area.endsWith('sill')||p.garnish;
     return `<div style="grid-area:${p.area};${t?'background:'+(_woTypeBg(_woTypes(t))||'#ddd')+';border-color:#111;font-weight:800;':''}${vert?'writing-mode:vertical-rl;':''}">${esc(p.label)}${t?'<br>'+esc(_woTypes(t).join('・')):''}</div>`; }).join('')}</div>`;
+  const skel=(j.tasks||[]).some(t=>SKEL_PARTS.some(p=>p.area===t.area))?`<div style="font-size:9px;font-weight:700;margin:6px 0 2px">内部骨格</div><div class="sk">${SKEL_PARTS.map(p=>{ const t=by[p.area];
+    return `<div style="grid-area:${p.area};${t?'background:'+(_woTypeBg(_woTypes(t))||'#ddd')+';border-color:#111;font-weight:800;':''}${p.v?'writing-mode:vertical-rl;':''}">${esc(p.label)}${t?'<br>'+esc(_woTypes(t).join('・')):''}</div>`; }).join('')}</div>`:'';
   const row=(a,b)=>`<tr><th>${a}</th><td>${b||'&nbsp;'}</td></tr>`;
   const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>作業指示書 ${esc(_woTitle(j))}</title><style>
 @page{size:A4;margin:8mm;}*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;color:#111;font-size:11px;padding:10px;max-width:800px;margin:0 auto;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -2890,6 +2972,8 @@ table{width:100%;border-collapse:collapse;margin-bottom:8px;}th,td{border:1px so
 .info th{width:80px;}.n{text-align:right;font-family:monospace;}.big{font-size:14px;font-weight:800;}
 h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;}
 .pm{display:grid;grid-template-columns:12px 16px 1fr 1.15fr 1fr 16px 12px;grid-template-rows:30px 38px 20px 52px 52px 52px 26px 20px 38px 30px;grid-template-areas:"lhead lhead lhead fbumper rhead rhead rhead" "hood hood hood hood hood hood hood" "fglass fglass fglass fglass fglass fglass fglass" "lgarn lsill lfender roof rfender rsill rgarn" "lgarn lsill lfdoor roof rfdoor rsill rgarn" "lgarn lsill lrdoor roof rrdoor rsill rgarn" "lgarn lsill lqglass roof rqglass rsill rgarn" "lqpanel lqpanel lqpanel rglass rqpanel rqpanel rqpanel" "lqpanel lqpanel lqpanel trunk rqpanel rqpanel rqpanel" "ltail ltail ltail rbumper rtail rtail rtail";gap:2px;}
+.sk{display:grid;grid-template-columns:22px 16px 16px 1fr 16px 16px 22px;grid-template-rows:16px 16px 16px 16px 20px 22px 16px 20px 18px 16px 16px 16px;grid-template-areas:". sreinf sreinf sreinf sreinf sreinf ." ". score score score score score ." "lftire lfinner lfmem scond rfmem rfinner rftire" "lfwheel lfinner lfmem srad rfmem rfinner rfwheel" "lfsusp lfinner lfmem seng rfmem rfinner rfsusp" ". lfinner lfmem seng rfmem rfinner ." ". lfinner sdash sdash sdash rfinner ." "lpillar lpillar sseat sseat sseat rpillar rpillar" "lrtire lqinner sfloor sfloor sfloor rqinner rrtire" "lrwheel lqinner saxle saxle saxle rqinner rrwheel" ". lqinner scross scross scross rqinner ." ". sback sback sback sback sback .";gap:2px;}
+.sk>div{border:1px solid #aaa;border-radius:4px;font-size:6.5px;line-height:1.1;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#333;white-space:pre-line;}
 .pm>div{border:1px solid #aaa;border-radius:4px;font-size:7.5px;line-height:1.15;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#333;white-space:pre-line;}
 .ty{display:inline-block;padding:1px 5px;border-radius:3px;border:1px solid #111;font-weight:700;margin:1px 0;}.lg{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:9px;}.lg span{padding:1px 5px;border-radius:3px;border:1px solid #111;}
 .ck{display:inline-block;width:16px;height:16px;border:2px solid #111;border-radius:3px;vertical-align:middle;text-align:center;line-height:12px;font-weight:900;}
@@ -2907,7 +2991,7 @@ ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_w
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
 ${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
-<div>${map}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
+<div>${map}${skel}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
 <table><tr><th>部位</th><th>作業</th><th style="width:auto">作業メモ</th></tr>
 ${(j.tasks||[]).map(t=>`<tr><td>${esc(t.part)}</td><td>${_woTypes(t).map(k=>`<span class="ty" style="background:${WO_TYPE_COLOR[k]||'#ddd'}">${esc(k)}</span>`).join(' ')}</td><td class="w" style="width:60%">${esc(t.note||'')}</td></tr>`).join('')||'<tr><td colspan="3">&nbsp;</td></tr>'}
