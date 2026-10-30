@@ -1,5 +1,5 @@
 // 作業ボード・ARK通知をアプリとしてインストールするためのサービスワーカー
-// ・画面（HTML）はいつもネットから最新を読み、つながらないときだけ前回の画面を出す
+// ・画面（HTML）と代車カレンダーの共通ファイル（loaner-cal.js）はいつもネットから最新を読み、つながらないときだけ前回のものを出す
 // ・Firebase など外部への通信には関わらない（データはこれまでどおりリアルタイム）
 const CACHE = 'ark-pages-v1';
 self.addEventListener('install', e => { self.skipWaiting(); });
@@ -13,7 +13,7 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;            // 外部（Firebase・フォントなど）はそのまま
   e.respondWith(
     fetch(req, { cache: 'no-store' }).then(res => {
-      if (res && res.ok && (req.mode === 'navigate' || /\.(png|webmanifest)$/.test(url.pathname))) {
+      if (res && res.ok && (req.mode === 'navigate' || /\.(png|webmanifest|js)$/.test(url.pathname))) {   // js：代車カレンダーの共通ファイル（電波がないときも前回のものを使う）
         const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
       }
       return res;
