@@ -380,6 +380,15 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:16px;align-items:start;}
 @media(max-width:900px){.wo-layout{grid-template-columns:minmax(0,1fr);}}
 .wo-layout>*{min-width:0;}
+.wo-lhead{display:flex;align-items:center;gap:6px;}
+.wo-lfold-btn,.wo-lcur{display:none;}
+@media(max-width:899px){
+  .wo-lfold-btn{display:inline-flex;margin-left:auto;font-size:13px;padding:6px 12px;min-height:38px;}
+  .wo-lfold #wo-listbody{display:none;}
+  .wo-lfold .wo-lcur{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:14px;}
+  .wo-lfold .wo-lcur small{color:var(--muted);font-size:12px;}
+  .wo-lfold .card-title{margin-bottom:8px;}
+}
 .wo-card{background:var(--surface2);border:1px solid var(--border);border-left:5px solid var(--sc,var(--border));border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;}
 .wo-card.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);border-left-color:var(--sc,var(--accent));}
 .wo-card .pl{font-weight:900;font-size:15px;letter-spacing:.03em;}
@@ -418,6 +427,23 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tbl tr.skip td{opacity:.4;}
 .wo-tbl tr.done td.stp{text-decoration:line-through;color:var(--muted);}
 .wo-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+/* 作業箇所の作業メモ：メモが入っている部位は目立たせる */
+.wo-tasks .wo-notetag{display:none;}
+.wo-tasks .tn-lab{display:none;}
+.wo-tasks tr.has-note .wo-note{border-color:#ffb020;background:rgba(255,176,32,.12);font-weight:700;}
+.wo-tasks tr.has-note .wo-notetag{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;padding:2px 6px;border-radius:4px;background:#ffb020;color:#111;white-space:nowrap;vertical-align:middle;}
+@media(max-width:899px){
+  .wo-tasks,.wo-tasks tbody{display:block;width:100%;}
+  .wo-tasks tr.wo-th{display:none;}
+  .wo-tasks tr.wo-tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .wo-tasks tr.wo-tr>td{display:block;padding:0;border:0;min-width:0;}
+  .wo-tasks td.tp{grid-column:1;align-self:center;font-weight:700;font-size:15px;}
+  .wo-tasks td.tdel{grid-column:2;grid-row:1;}
+  .wo-tasks td.tt,.wo-tasks td.tn{grid-column:1 / -1;}
+  .wo-tasks .tn-lab{display:block;font-size:12px;color:var(--muted);margin-bottom:3px;}
+  .wo-tasks tr.has-note .tn-lab{color:#ffb020;font-weight:800;}
+  .wo-tasks .wo-note{width:100%;}
+}
 .wo-tt{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;border-radius:4px;background:var(--tc,#c9d1d9);color:#0b0d10;white-space:nowrap;}
 .wo-step-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--sc);margin-right:6px;vertical-align:middle;}
 .wo-need{padding:5px 8px;font-size:12px;}
@@ -427,7 +453,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-ph .it{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
 .wo-ph img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;}
 .wo-ph input{width:100%;border:0;border-top:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;padding:5px 6px;font-family:inherit;}
-.wo-ph .x{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:14px;cursor:pointer;}
+.wo-ph .x{position:absolute;top:4px;right:4px;width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(200,30,30,.85);color:#fff;font-size:16px;font-weight:700;cursor:pointer;z-index:2;touch-action:manipulation;}
 .wo-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px;}
 .wo-acts .btn{justify-content:center;min-height:46px;}
 .btn.danger{color:#ff6b6b;}
@@ -532,8 +558,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
 .wo-row>.btn-add{flex:1 1 220px;margin:0;}
 .wo-row>.wo-pinbtn{flex:0 0 auto;margin:0;}
-.wo-pv{position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;touch-action:pan-y pinch-zoom;}
-.wo-pv img{width:100vw;height:calc(100vh - 60px);object-fit:contain;}
+.wo-pv{position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;touch-action:none;overscroll-behavior:contain;}
+.wo-pv .pv-stage{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none;}
+.wo-pv img{width:100vw;height:calc(100vh - 60px);object-fit:contain;transform-origin:center center;will-change:transform;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:zoom-in;}
+.wo-pv.zoomed img{cursor:grab;}
+.wo-pv.zoomed .pv-nav{opacity:.25;}
+.wo-pv .pv-zm{position:absolute;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.45);border-radius:24px;padding:4px;}
+.wo-pv .pv-zm button{width:44px;height:40px;border:0;border-radius:20px;background:rgba(255,255,255,.2);color:#fff;font-size:22px;font-weight:700;cursor:pointer;}
+.wo-pv .pv-zv{color:#fff;font-weight:700;font-size:13px;min-width:48px;text-align:center;}
 .wo-pv .pv-cap{position:absolute;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom));text-align:center;color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 3px #000;}
 .wo-pv .pv-x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;width:44px;height:44px;border-radius:22px;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:22px;cursor:pointer;}
 .wo-pv .pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:72px;border:0;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:40px;line-height:1;cursor:pointer;}
@@ -777,6 +809,12 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-loan b.yt{background:var(--surface3);color:var(--text);}
 .selbtn.wo-loanf.on{background:rgba(167,139,250,.2);border-color:#a78bfa;color:#c4b5fd;}
 
+.lc-grid th.closed,.lc-grid td.closed{background:repeating-linear-gradient(135deg,rgba(230,40,40,.75) 0 3px,transparent 3px 10px)!important;}
+.lc-grid th.closed{color:#fff!important;}
+.lc-legend .lg-closed{background:repeating-linear-gradient(135deg,#e62828 0 2px,transparent 2px 5px)!important;border:1px solid #e62828;}
+.lc-closed-soon{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(230,40,40,.12);}
+.lc-closed-soon span{background:#c62828;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;}
+.lc-closed-soon .btn{margin-left:auto;font-size:12px;padding:3px 10px;min-height:0;}
 </style>
 </head>
 <body>
@@ -819,13 +857,16 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
   <div class="wo-layout">
     <div>
-      <div class="card">
-        <div class="card-title"><span class="bar"></span>作業指示一覧</div>
+      <div class="card" id="wo-listcard">
+        <div class="card-title wo-lhead"><span class="bar"></span>作業指示一覧<button type="button" class="btn wo-lfold-btn" id="wo-lfold-btn" onclick="woListFold()">▲ 畳む</button></div>
+        <div class="wo-lcur" id="wo-lcur" onclick="woListFold(false)"></div>
+        <div id="wo-listbody">
         <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示（手打ち）</button>
         <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woSheetPick()">📋 入庫管理表から取り込む</button>
         <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="openLoanerCal()">📅 代車カレンダー</button>
         <div id="wo-list"></div>
         <div id="wo-empty" class="empty">作業指示はまだありません。<br>「＋ 新しい作業指示」から作れます。</div>
+        </div>
       </div>
     </div>
     <div>
@@ -1954,7 +1995,20 @@ function woNewBlank(){
   toast('作業指示を作りました。登録番号と作業箇所を入力してください',4000);
 }
 function _woGoTab(t){ const b=document.querySelector(`.tab-btn[data-tab="${t}"]`); if(b) b.click(); }
-function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); woRenderAll(); const d=document.getElementById('wo-detail'); if(d&&window.innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); }
+function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); if(window.innerWidth<900) WO_LFOLD=true; woRenderAll(); _woListFoldPaint(); const d=document.getElementById('wo-listcard')||document.getElementById('wo-detail'); if(d&&window.innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); }
+// ── スマホ・タブレット（幅900px未満）だけ：作業指示一覧を畳める（縦のスクロールを減らす）──
+//  ・作業指示を開くと自動で畳む。「▼ 一覧を開く」かいま開いている車の帯を押すと開く
+//  ・パソコン（横並びの画面）では畳まない
+let WO_LFOLD=false;
+function woListFold(v){ WO_LFOLD=typeof v==='boolean'?v:!WO_LFOLD; _woListFoldPaint(); if(!WO_LFOLD){ const c=document.getElementById('wo-listcard'); if(c) c.scrollIntoView({behavior:'smooth',block:'start'}); } }
+function _woListFoldPaint(){
+  const c=document.getElementById('wo-listcard'); if(!c) return;
+  c.classList.toggle('wo-lfold',!!WO_LFOLD);
+  const b=document.getElementById('wo-lfold-btn'); if(b) b.textContent=WO_LFOLD?'▼ 一覧を開く':'▲ 畳む';
+  const cur=document.getElementById('wo-lcur'); if(cur){ const j=_woCurJob(); const n=JOBS.filter(x=>!x.archived&&!x.deleted).length;
+    cur.innerHTML=WO_LFOLD?`<span>${j?'開いている車：<b>'+esc(_woTitle(j))+'</b>':'作業指示を選んでいません'}</span><small>作業中 ${n}台・押すと一覧を開きます</small>`:''; }
+}
+window.addEventListener('resize',()=>{ if(window.innerWidth>=900&&WO_LFOLD){ WO_LFOLD=false; _woListFoldPaint(); } });
 
 // ── 編集 ──
 function _woCurJob(){ return _woJob(WO_CUR); }
@@ -2184,7 +2238,7 @@ async function woPhotoAdd(input){
 let _WO_PHQ=Promise.resolve();
 function _woPhotoAddFiles(j,files,quiet){ const r=_WO_PHQ.then(()=>_woPhotoAddNow(j,files,quiet)).catch(e=>console.warn(e)); _WO_PHQ=r; return r; }
 async function _woPhotoAddNow(j,files,quiet){
-  const arr=await woPhotosGet(j.id); const room=WO_PHOTO_MAX-arr.length;
+  const arr=_woPhDrop(j.id,await woPhotosGet(j.id)); const room=WO_PHOTO_MAX-arr.length;
   if(room<=0){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
   if(!quiet) _busy('写真を取り込んでいます…');
   const added=[];
@@ -2225,18 +2279,35 @@ async function woCamOpen(){
   const close=()=>{ try{ st.getTracks().forEach(t=>t.stop()); }catch(e){} WOCAM.stream=null; ov.remove(); };
   ov.querySelector('.wo-cam-x').onclick=ov.querySelector('.wo-cam-ok').onclick=()=>{ const n=WOCAM.n-have; close(); _WO_PHQ.then(()=>{ if(n>0) toast(`写真を${n}枚追加しました${_woCloudOk()?'（チームで共有）':''}`); }); };
 }
-async function woPhotoDel(i){ const j=_woCurJob(); if(!j) return; const p=WO_PHOTOS.splice(i,1)[0]; await woPhotosPut(j.id,WO_PHOTOS); woRenderPhotos(); if(p&&p.pid) _woPhDelCloud(j.id,p.pid); }
+// 写真の削除：写真の目印（pid）で消す。取り込み中・共有の送信中でも、消した写真が戻ってこないように「消した印」を7日間覚える
+const WOPH_DEL=(()=>{ try{ const o=JSON.parse(localStorage.getItem('wo-ph-del')||'{}'), lim=Date.now()-7*864e5; for(const k in o) if(o[k]<lim) delete o[k]; return o; }catch(e){ return {}; } })();
+function _woPhIsDel(jid,pid){ return !!(pid&&WOPH_DEL[jid+'|'+pid]); }
+function _woPhMarkDel(jid,pid){ if(!pid) return; WOPH_DEL[jid+'|'+pid]=Date.now(); try{ localStorage.setItem('wo-ph-del',JSON.stringify(WOPH_DEL)); }catch(e){} }
+function _woPhDrop(jid,arr){ return (arr||[]).filter(p=>!_woPhIsDel(jid,p&&p.pid)); }
+function woPhotoDel(i,pid){
+  const j=_woCurJob(); if(!j) return; const jid=j.id;
+  const p=pid?WO_PHOTOS.find(x=>x.pid===pid):WO_PHOTOS[i]; if(!p) return;
+  if(!p.pid) p.pid=_woPid();
+  _woPhMarkDel(jid,p.pid);
+  WO_PHOTOS=WO_PHOTOS.filter(x=>x!==p); woRenderPhotos();   // 画面からはすぐ消す
+  const r=_WO_PHQ.then(async()=>{   // 写真の取り込みと順番に（取り込みが終わったあとで端末の保存からも消す）
+    const arr=_woPhDrop(jid,(await woPhotosGet(jid)).filter(x=>x!==p&&!(x.d===p.d&&!x.pid)));
+    await woPhotosPut(jid,arr);
+    if(WO_PHOTOS_FOR===jid){ WO_PHOTOS=_woPhDrop(jid,WO_PHOTOS); woRenderPhotos(); }
+    _woPhDelCloud(jid,p.pid);
+  }).catch(e=>console.warn(e)); _WO_PHQ=r; return r;
+}
 // ── 写真をチームで共有（Firestore の photos。1枚＝1件。開いている作業指示の写真だけ読む）──
 const WOPH={unsub:null,jid:null};
 function _woPid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function _woPhKey(jid,pid){ return _cloudKey(jid+'_'+pid); }
 function _woPhUp(jid,p){
-  if(!_woCloudOk()||!p||!p.pid) return; const {fs}=CLOUD.fb;
+  if(!_woCloudOk()||!p||!p.pid||_woPhIsDel(jid,p.pid)) return; const {fs}=CLOUD.fb;
   fs.setDoc(fs.doc(CLOUD.db,'photos',_woPhKey(jid,p.pid)),{jid:String(jid),pid:p.pid,d:p.d,tag:p.tag||'',by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()})
-    .then(()=>{ p.up=true; if(WO_PHOTOS_FOR===jid) woPhotosPut(jid,WO_PHOTOS).catch(()=>{}); })
+    .then(()=>{ p.up=true; if(_woPhIsDel(jid,p.pid)){ _woPhDelCloud(jid,p.pid); return; } if(WO_PHOTOS_FOR===jid) woPhotosPut(jid,WO_PHOTOS).catch(()=>{}); })
     .catch(e=>{ if(/permission/.test(String(e&&e.code))&&!WOPH.warned){ WOPH.warned=true; toast('写真を共有できませんでした（Firestoreのルールに photos を追加してください）',8000); } });
 }
-function _woPhDelCloud(jid,pid){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'photos',_woPhKey(jid,pid))).catch(()=>{}); }
+function _woPhDelCloud(jid,pid,n){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'photos',_woPhKey(jid,pid))).catch(e=>{ console.warn('写真の削除',e); if((n||0)<3) setTimeout(()=>_woPhDelCloud(jid,pid,(n||0)+1),5000*((n||0)+1)); else toast('写真を共有から消せませんでした（電波を確認してください）。次に開いたときにもう一度消します',7000); }); }
 function _woPhStop(){ if(WOPH.unsub){ try{ WOPH.unsub(); }catch(e){} } WOPH.unsub=null; WOPH.jid=null; }
 // 開いた作業指示の写真を共有と合わせる（ほかの端末で追加・削除・メモの変更も反映）
 function _woPhWatch(jid){
@@ -2244,10 +2315,11 @@ function _woPhWatch(jid){
   const {fs}=CLOUD.fb; WOPH.jid=jid;
   WOPH.unsub=fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',String(jid))),snap=>{
     if(WO_PHOTOS_FOR!==jid) return;
-    const cloud={}; snap.forEach(d=>{ const v=d.data()||{}; if(v.pid) cloud[v.pid]=v; });
+    const cloud={}; snap.forEach(d=>{ const v=d.data()||{}; if(!v.pid) return; if(_woPhIsDel(jid,v.pid)){ _woPhDelCloud(jid,v.pid); return; } cloud[v.pid]=v; });
     let ch=false; const out=[];
     for(const p of WO_PHOTOS){
       if(!p.pid){ p.pid=_woPid(); ch=true; }
+      if(_woPhIsDel(jid,p.pid)){ ch=true; continue; }
       const c=cloud[p.pid];
       if(c){ if((c.tag||'')!==(p.tag||'')&&p.up&&document.activeElement&&!document.activeElement.closest('#wo-ph')){ p.tag=c.tag||''; ch=true; } if(!p.up){ p.up=true; ch=true; } out.push(p); delete cloud[p.pid]; }
       else if(p.up){ ch=true; }                     // ほかの端末で削除された
@@ -2366,11 +2438,18 @@ function woPay(k){ const j=_woCurJob(); if(!j) return; const a=_woPays(j); const
 function woPick(f,v){ const j=_woCurJob(); if(!j) return; j[f]=j[f]===v?(f==='pay'?'':null):v; woTouch(j,true); woRenderDetail(); woRenderList(); }
 // 写真・協定の 未完／完了（作業前の一覧に出す）
 function woSt(f,v){ const j=_woCurJob(); if(!j) return; if(v==='未完') delete j[f]; else j[f]=v; woTouch(j,true); woRenderDetail(); woRenderList(); }
+// 作業前写真：未完・完了・不要（前の版の「写真撮影 なし」は「不要」として扱う）
+function _woPhState(j){ return j.phSt==='完了'?'完了':j.photoTaken===false?'不要':'未完'; }
+function woPhSt(v){ const j=_woCurJob(); if(!j) return;
+  if(v==='完了'){ j.phSt='完了'; j.photoTaken=true; } else if(v==='不要'){ delete j.phSt; j.photoTaken=false; } else { delete j.phSt; j.photoTaken=null; }
+  woTouch(j,true); woRenderDetail(); woRenderList(); }
+// 協定は、お支払い区分で保険（車両保険・対物保険）を選んだときだけ
+function _woNeedKyotei(j){ return _woPays(j).some(p=>/保険/.test(p)); }
 function _woStTags(j){
   if(j.archived) return '';
   const t=[];
-  if(j.photoTaken!==false) t.push(j.phSt==='完了'?'<span class="wo-tag stok">写真 完了</span>':'<span class="wo-tag stno">写真 未完</span>');
-  const need=j.kyotei&&j.kyotei!=='不要'||!j.kyotei&&(_woPays(j).some(p=>/保険/.test(p))||(typeof ydCats==='function'&&ydCats(j).includes('鈑金')));
+  if(j.photoTaken!==false) t.push(j.phSt==='完了'?'<span class="wo-tag stok">作業前写真 完了</span>':'<span class="wo-tag stno">作業前写真 未完</span>');
+  const need=_woNeedKyotei(j)&&j.kyotei!=='不要';
   if(need) t.push(j.kyotei==='完了'?'<span class="wo-tag stok">協定 完了</span>':'<span class="wo-tag stno">協定 未完</span>');
   return t.join('');
 }
@@ -2678,7 +2757,7 @@ function _woSafe(name,f){ try{ f(); }catch(e){ console.error(name,e); WOC.render
 function woRenderAll(fromCloud){
   _woSafe('リンク',_woDeepLink);
   if(!_woUnlinkDone&&JOBS.length&&!(SEC.ok&&!SEC.key)){ _woUnlinkDone=true; try{ _woUnlinkArchived(); }catch(e){ console.warn(e); } }
-  _woSafe('表示',woRenderBadges); _woSafe('担当者',woRenderStaff); _woSafe('一覧',woRenderList);
+  _woSafe('表示',woRenderBadges); _woSafe('担当者',woRenderStaff); _woSafe('一覧',woRenderList); _woSafe('一覧の畳み',_woListFoldPaint);
   const act=document.activeElement, det=document.getElementById('wo-detail');
   // 入力中は詳細を描き直さない（カーソルが飛ばないように）
   if(!(fromCloud&&det&&act&&det.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))) _woSafe('詳細',woRenderDetail);
@@ -2809,7 +2888,9 @@ function _woRenderDetail(box){
   const slotOpts=`<option value="">（未配置）</option>`+YARD.spaces.map(s=>`<option value="${esc(s.id)}"${j.slot===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
   const n=woNext(j);
   const _phTop=window.innerWidth<900;   // スマホ・タブレットは、写真をいちばん上の方に出す（撮りやすいように）
-  const _phHtml=`<div class="wo-sec"><span class="bar"></span>写真 <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
+  const _phS=_woPhState(j);
+  const _phHtml=`<div class="wo-sec" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">作業前写真</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
+  <div class="check-group wo-phst" style="margin-top:8px"><button type="button" class="selbtn wo-st-no${_phS==='未完'?' on':''}" onclick="woPhSt('未完')">未完</button><button type="button" class="selbtn wo-st-ok${_phS==='完了'?' on':''}" onclick="woPhSt('完了')">完了</button><button type="button" class="selbtn${_phS==='不要'?' on':''}" onclick="woPhSt('不要')">不要</button></div>
   <div class="ph-btns wo-phb" style="margin-top:8px">
     <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()">📷 撮影する（連続OK）</button>
     <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
@@ -2856,9 +2937,7 @@ function _woRenderDetail(box){
   </div>
   <div class="wo-inl" style="margin-top:8px">
     <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
-    <div class="field half"><label>写真撮影</label><div class="check-group"><button type="button" class="selbtn${j.photoTaken===true?' on':''}" onclick="woPick('photoTaken',true)">あり</button><button type="button" class="selbtn${j.photoTaken===false?' on':''}" onclick="woPick('photoTaken',false)">なし</button></div></div>
-    <div class="field half"><label>写真</label><div class="check-group"><button type="button" class="selbtn wo-st-no${j.phSt!=='完了'?' on':''}" onclick="woSt('phSt','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.phSt==='完了'?' on':''}" onclick="woSt('phSt','完了')">完了</button></div></div>
-    <div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>
+    ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>`:''}
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
@@ -2884,12 +2963,12 @@ function _woRenderDetail(box){
   </div></div>
   <div class="wo-sec"><span class="bar"></span>作業箇所</div>
   ${_woMapsHtml(j)}
-  <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl">
-    <tr><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
-    ${(j.tasks||[]).map((t,i)=>`<tr><td>${t.area?esc(t.part):`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}</td>
-      <td><div class="wo-types">${WO_TASK_TYPES.map(k=>`<button type="button" class="wo-ty${_woTypes(t).includes(k)?' on':''}" style="--tc:${WO_TYPE_COLOR[k]}" onclick="woTaskType(${i},'${k}')">${k}</button>`).join('')}</div></td>
-      <td><input value="${esc(t.note||'')}" placeholder="例：ぼかし左Rドアまで" oninput="woTask(${i},'note',this.value)"></td>
-      <td><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
+  <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl wo-tasks">
+    <tr class="wo-th"><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
+    ${(j.tasks||[]).map((t,i)=>`<tr class="wo-tr${String(t.note||'').trim()?' has-note':''}"><td class="tp">${t.area?`<span class="tp-n">${esc(t.part)}</span>`:`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}<span class="wo-notetag">📝 メモあり</span></td>
+      <td class="tt"><div class="wo-types">${WO_TASK_TYPES.map(k=>`<button type="button" class="wo-ty${_woTypes(t).includes(k)?' on':''}" style="--tc:${WO_TYPE_COLOR[k]}" onclick="woTaskType(${i},'${k}')">${k}</button>`).join('')}</div></td>
+      <td class="tn"><label class="tn-lab">📝 作業メモ</label><input class="wo-note" value="${esc(t.note||'')}" placeholder="作業メモ（例：ぼかし左Rドアまで）" oninput="woTask(${i},'note',this.value);this.closest('tr').classList.toggle('has-note',!!this.value.trim())"></td>
+      <td class="tdel"><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
   </table></div>
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
   <div class="wo-sec"><span class="bar"></span>工程・担当</div>
@@ -2926,30 +3005,65 @@ function _woRenderDetail(box){
     <button type="button" class="btn danger" onclick="woDelete()">🗑 削除</button>
   </div>`;
   lbRenderCars(); if(WO_FILES_FOR!==j.id) WO_FILES=[]; WO_FILES_FOR=null; woRenderFiles();
-  if(WO_PHOTOS_FOR!==j.id){ WO_PHOTOS=[]; WO_PHOTOS_FOR=j.id; WOPH.loaded=null; woRenderPhotos(); _woPhStop(); woPhotosGet(j.id).then(a=>{ if(WO_CUR===j.id&&WO_PHOTOS_FOR===j.id){ WO_PHOTOS=a; WOPH.loaded=j.id; woRenderPhotos(); _woPhWatch(j.id); } }); }
+  if(WO_PHOTOS_FOR!==j.id){ WO_PHOTOS=[]; WO_PHOTOS_FOR=j.id; WOPH.loaded=null; woRenderPhotos(); _woPhStop(); woPhotosGet(j.id).then(a=>{ if(WO_CUR===j.id&&WO_PHOTOS_FOR===j.id){ WO_PHOTOS=_woPhDrop(j.id,a); WOPH.loaded=j.id; woRenderPhotos(); _woPhWatch(j.id); } }); }
   else { woRenderPhotos(); if(WOPH.loaded===j.id) _woPhWatch(j.id); }   // 端末の写真を読み終わってから共有と合わせる
   _woDropInit();
 }
 // 写真を押すと、その写真だけを画面いっぱいに表示（◀▶・左右にスワイプで前後の写真、✕・背景・Escで閉じる）
+//  ズーム：2本指で広げる／ダブルタップ（2回トン）／＋－ボタン／パソコンはマウスのホイール。拡大中は1本指で動かせる
 function woPhotoView(i){
   if(!WO_PHOTOS.length) return; let k=Math.max(0,Math.min(i,WO_PHOTOS.length-1));
   document.getElementById('wo-pv')?.remove();
   const ov=document.createElement('div'); ov.id='wo-pv'; ov.className='wo-pv';
-  ov.innerHTML=`<img alt=""><div class="pv-cap"></div><button type="button" class="pv-x" aria-label="閉じる">✕</button><button type="button" class="pv-nav pv-l" aria-label="前の写真">‹</button><button type="button" class="pv-nav pv-r" aria-label="次の写真">›</button>`;
-  const img=ov.querySelector('img'), cap=ov.querySelector('.pv-cap');
-  const show=()=>{ const p=WO_PHOTOS[k]; if(!p){ close(); return; } img.src=p.d; cap.textContent=`${k+1}／${WO_PHOTOS.length}${p.tag?'　'+p.tag:''}`; ov.querySelector('.pv-l').style.visibility=k>0?'':'hidden'; ov.querySelector('.pv-r').style.visibility=k<WO_PHOTOS.length-1?'':'hidden'; };
+  ov.innerHTML=`<div class="pv-stage"><img alt="" draggable="false"></div><div class="pv-cap"></div><button type="button" class="pv-x" aria-label="閉じる">✕</button><button type="button" class="pv-nav pv-l" aria-label="前の写真">‹</button><button type="button" class="pv-nav pv-r" aria-label="次の写真">›</button>
+    <div class="pv-zm"><button type="button" class="pv-zo" aria-label="小さく">－</button><span class="pv-zv">100%</span><button type="button" class="pv-zi" aria-label="大きく">＋</button></div>`;
+  const stage=ov.querySelector('.pv-stage'), img=ov.querySelector('img'), cap=ov.querySelector('.pv-cap'), zv=ov.querySelector('.pv-zv');
+  let sc=1, tx=0, ty=0; const MAX=5;
+  const clamp=()=>{ if(sc<=1){ sc=1; tx=0; ty=0; return; } const W=stage.clientWidth, H=stage.clientHeight, mx=W*(sc-1)/2, my=H*(sc-1)/2; tx=Math.max(-mx,Math.min(mx,tx)); ty=Math.max(-my,Math.min(my,ty)); };
+  const apply=()=>{ clamp(); img.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`; zv.textContent=Math.round(sc*100)+'%'; ov.classList.toggle('zoomed',sc>1); };
+  // (cx,cy)：画面のその点を中心に拡大・縮小する
+  const zoomAt=(ns,cx,cy)=>{ ns=Math.max(1,Math.min(MAX,ns)); const r=stage.getBoundingClientRect(); const ox=cx-r.left-r.width/2, oy=cy-r.top-r.height/2; tx=ox-(ox-tx)*ns/sc; ty=oy-(oy-ty)*ns/sc; sc=ns; apply(); };
+  const reset=()=>{ sc=1; tx=0; ty=0; img.style.transition=''; apply(); };
+  const show=()=>{ const p=WO_PHOTOS[k]; if(!p){ close(); return; } reset(); img.src=p.d; cap.textContent=`${k+1}／${WO_PHOTOS.length}${p.tag?'　'+p.tag:''}`; ov.querySelector('.pv-l').style.visibility=k>0?'':'hidden'; ov.querySelector('.pv-r').style.visibility=k<WO_PHOTOS.length-1?'':'hidden'; };
   const go=d=>{ const n=k+d; if(n<0||n>=WO_PHOTOS.length) return; k=n; show(); };
-  const key=e=>{ if(e.key==='Escape') close(); else if(e.key==='ArrowLeft') go(-1); else if(e.key==='ArrowRight') go(1); };
+  const key=e=>{ if(e.key==='Escape') close(); else if(e.key==='ArrowLeft') go(-1); else if(e.key==='ArrowRight') go(1); else if(e.key==='+'||e.key===';') zoomAt(sc*1.5,innerWidth/2,innerHeight/2); else if(e.key==='-') zoomAt(sc/1.5,innerWidth/2,innerHeight/2); };
   const close=()=>{ ov.remove(); document.removeEventListener('keydown',key); };
   ov.querySelector('.pv-x').onclick=close; ov.querySelector('.pv-l').onclick=e=>{ e.stopPropagation(); go(-1); }; ov.querySelector('.pv-r').onclick=e=>{ e.stopPropagation(); go(1); };
-  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
-  let sx=null; ov.addEventListener('touchstart',e=>{ sx=e.touches.length===1?e.touches[0].clientX:null; },{passive:true});
-  ov.addEventListener('touchend',e=>{ if(sx==null) return; const dx=e.changedTouches[0].clientX-sx; sx=null; if(Math.abs(dx)>50) go(dx<0?1:-1); });
+  ov.querySelector('.pv-zi').onclick=e=>{ e.stopPropagation(); zoomAt(sc*1.6,innerWidth/2,innerHeight/2); };
+  ov.querySelector('.pv-zo').onclick=e=>{ e.stopPropagation(); zoomAt(sc/1.6,innerWidth/2,innerHeight/2); };
+  ov.querySelector('.pv-zm').addEventListener('click',e=>e.stopPropagation());
+  // 背景（写真の外）を押したら閉じる。拡大中は閉じない（動かしたときに閉じてしまわないように）
+  let moved=false;
+  stage.addEventListener('click',e=>{ if(moved){ moved=false; return; } if(e.target===stage&&sc===1) close(); });
+  // パソコン：ホイールでズーム、ダブルクリックで2.5倍／戻す、ドラッグで動かす
+  stage.addEventListener('wheel',e=>{ e.preventDefault(); zoomAt(sc*(e.deltaY<0?1.25:0.8),e.clientX,e.clientY); },{passive:false});
+  stage.addEventListener('dblclick',e=>{ e.preventDefault(); if(sc>1) reset(); else zoomAt(2.5,e.clientX,e.clientY); });
+  let md=null; stage.addEventListener('mousedown',e=>{ if(sc>1){ md={x:e.clientX,y:e.clientY,tx,ty}; e.preventDefault(); } });
+  window.addEventListener('mousemove',e=>{ if(!md||!ov.isConnected) return; tx=md.tx+e.clientX-md.x; ty=md.ty+e.clientY-md.y; if(Math.abs(e.clientX-md.x)+Math.abs(e.clientY-md.y)>4) moved=true; apply(); });
+  window.addEventListener('mouseup',()=>{ md=null; });
+  // スマホ：2本指でズーム、拡大中は1本指で動かす、ダブルタップで2.5倍／戻す、等倍のときは左右スワイプで前後の写真
+  let t0=null, pinch=null, lastTap=0, sx=null;
+  const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+  stage.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){ const [a,b]=e.touches; pinch={d:dist(a,b),sc,cx:(a.clientX+b.clientX)/2,cy:(a.clientY+b.clientY)/2}; t0=null; sx=null; return; }
+    if(e.touches.length===1){ const t=e.touches[0]; t0={x:t.clientX,y:t.clientY,tx,ty,at:Date.now()}; sx=sc===1?t.clientX:null; moved=false; }
+  },{passive:true});
+  stage.addEventListener('touchmove',e=>{
+    if(pinch&&e.touches.length===2){ e.preventDefault(); const [a,b]=e.touches; const ns=pinch.sc*dist(a,b)/pinch.d; zoomAt(ns,(a.clientX+b.clientX)/2,(a.clientY+b.clientY)/2); moved=true; return; }
+    if(t0&&e.touches.length===1&&sc>1){ e.preventDefault(); const t=e.touches[0]; tx=t0.tx+t.clientX-t0.x; ty=t0.ty+t.clientY-t0.y; if(Math.abs(t.clientX-t0.x)+Math.abs(t.clientY-t0.y)>6) moved=true; apply(); }
+  },{passive:false});
+  stage.addEventListener('touchend',e=>{
+    if(pinch){ if(e.touches.length<2) pinch=null; if(sc<1.05) reset(); return; }
+    if(!t0) return; const t=e.changedTouches[0], dx=t.clientX-t0.x, dy=t.clientY-t0.y, quick=Date.now()-t0.at<300&&Math.abs(dx)+Math.abs(dy)<12;
+    if(sx!=null&&sc===1&&Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){ moved=true; go(dx<0?1:-1); }
+    else if(quick){ const now=Date.now(); if(now-lastTap<320){ e.preventDefault(); moved=true; if(sc>1) reset(); else zoomAt(2.5,t.clientX,t.clientY); lastTap=0; } else lastTap=now; }
+    t0=null; sx=null;
+  },{passive:false});
   document.addEventListener('keydown',key); document.body.appendChild(ov); show();
 }
 function woRenderPhotos(){
   const g=document.getElementById('wo-ph'); if(!g) return;
-  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it"><img src="${p.d}" alt="" style="cursor:zoom-in" onclick="woPhotoView(${i})"><button type="button" class="x" onclick="woPhotoDel(${i})" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
+  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it"><img src="${p.d}" alt="" style="cursor:zoom-in" onclick="woPhotoView(${i})"><button type="button" class="x" onclick="event.stopPropagation();woPhotoDel(${i},'${esc(p.pid||'')}')" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
   const c=document.getElementById('wo-ph-n'); if(c) c.textContent=`${WO_PHOTOS.length}／${WO_PHOTO_MAX}枚`;
   clearTimeout(WO_SHARE._t); WO_SHARE._t=setTimeout(()=>_woPrepShare().catch(()=>{}),400);
 }
@@ -2989,7 +3103,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
-${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('写真撮影',j.photoTaken===true?'あり':j.photoTaken===false?'なし':'')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
+${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}${skel}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
@@ -3646,7 +3760,17 @@ function _lcPut(id,data){ if(!(CLOUD.started&&LB.live)){ toast('チーム共有�
   fs.setDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id)),{...data,code:String(id),by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()},{merge:true}).catch(e=>toast('代車カレンダーに保存できませんでした：'+_netMsg(e),6000)); return true; }
 function _lcDel(id){ if(!(CLOUD.started&&LB.live)) return; const {fs}=CLOUD.fb; fs.deleteDoc(fs.doc(CLOUD.db,'loaner',_cloudKey(id))).catch(e=>toast('代車カレンダーから削除できませんでした：'+_netMsg(e),6000)); }
 function _saveShopClosed(){ try{localStorage.setItem('wo-shop-closed',JSON.stringify(SHOP_CLOSED));}catch(e){} _lcPut('_shop',{shop:true,closedW:SHOP_CLOSED.w,closedD:SHOP_CLOSED.d}); }
-function _toggleClosedDay(ds){ const i=SHOP_CLOSED.d.indexOf(ds); if(i>=0) SHOP_CLOSED.d.splice(i,1); else SHOP_CLOSED.d.push(ds); _saveShopClosed(); _renderLoanerCal(); }
+async function _toggleClosedDay(ds){
+  const d=new Date(ds+'T00:00:00'), lab=`${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`;
+  if(SHOP_CLOSED.w.includes(d.getDay())){ toast(`${lab}は毎週の定休日です。変えるときは「🏪 店休日の設定」から`,5000); return; }
+  const i=SHOP_CLOSED.d.indexOf(ds);
+  if(!await askConfirm(i>=0?`${lab}の店休日をやめますか？`:`${lab}を店休日にしますか？`,i>=0?'店休日をやめる':'店休日にする')) return;
+  const k=SHOP_CLOSED.d.indexOf(ds); if(k>=0) SHOP_CLOSED.d.splice(k,1); else SHOP_CLOSED.d.push(ds); _saveShopClosed(); _renderLoanerCal(); }
+// これから先の店休日（一覧の下に出す。毎週の定休日は「毎週○曜」とまとめる）
+function _closedSoon(today,lim){ const W='日月火水木金土', out=[];
+  if(SHOP_CLOSED.w.length) out.push('毎週'+[...SHOP_CLOSED.w].sort().map(w=>W[w]).join('・')+'曜');
+  for(const r of _closedRanges()){ if(r[1]<today||r[0]>lim) continue; out.push(_mdL(r[0])+(r[1]!==r[0]?'〜'+_mdL(r[1]):'')); }
+  return out; }
 function openLoanerCal(){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.getMonth(),1); _renderLoanerCal(); if(LB.sheetUrl&&Date.now()-LB.sheetAt>60000) _lbSheetLoad(); }
 // ◀▶：前・次の月の1日へ動く（表示している範囲の外なら、範囲をずらして描き直す）
 function _lcShift(n){ const b=_LC_VIS||_lcMonth; const t=new Date(b.getFullYear(),b.getMonth()+n,1);
@@ -3685,20 +3809,20 @@ function _renderLoanerCal(){
   const days=[]; for(const d=new Date(start);d<=end;d.setDate(d.getDate()+1)){ const ds=_ymd(d), HOL=jpHolidays(d.getFullYear()); days.push({d:ds,n:d.getDate(),m:d.getMonth()+1,y:d.getFullYear(),w:d.getDay(),hol:HOL[ds]||'',closed:_isClosed(ds,d.getDay())}); }
   const N=days.length, W='日月火水木金土';
   const cls=x=>[x.w===0||x.hol?'sun':x.w===6?'sat':'',x.closed?'closed':'',x.d===today?'today':'',x.n===1?'m1':''].filter(Boolean).join(' ');
-  const tint=x=>x.closed?'rgba(150,150,150,.22)':x.w===0||x.hol?'rgba(255,107,107,.16)':x.w===6?'rgba(78,161,255,.16)':'';
+  const tint=x=>x.closed?'rgba(230,40,40,.30)':x.w===0||x.hol?'rgba(255,107,107,.16)':x.w===6?'rgba(78,161,255,.16)':'';
   const months=[]; for(const x of days){ const L=months[months.length-1]; if(L&&L.m===x.m&&L.y===x.y) L.n++; else months.push({y:x.y,m:x.m,n:1}); }
   let h=`<div class="lc-box"><div class="lc-head">
     <button class="btn" type="button" onclick="_lcShift(-1)">◀</button><div class="lc-title" id="lc-title">${_lcMonth.getFullYear()}年${_lcMonth.getMonth()+1}月</div><button class="btn" type="button" onclick="_lcShift(1)">▶</button>
     <button class="btn" type="button" onclick="_lcToday()">今日</button>
     <button class="btn btn-primary lc-add-top" type="button" onclick="_loanerForm()">＋ 予約を追加</button>
-    <button class="btn" type="button" onclick="_shopClosedForm()">🏪 店休日</button>
-    ${LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入庫管理表を読み直しました'))">🔄 入庫管理表</button>`:''}
+    <button class="btn" type="button" onclick="_shopClosedForm()">🏪 店休日の設定</button>
+    ${LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入出庫管理表の代車を読み直しました'))" title="入出庫管理表（スプレッドシート）の代車（K列）を今すぐ読み直します">🔄 再読込</button>`:''}
     <button class="btn" type="button" style="margin-left:auto" onclick="_closeLoanerCal()">✕ 閉じる</button></div>
     ${!LB.live?`<div style="color:#ffb020;font-size:12px;margin-bottom:6px">${esc(LB.err||'チーム共有にログインすると、見積りツール・ARK通知と同じ予約が表示されます')}</div>`:''}
     <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。日付をタップすると店休日に切り替わります。見積りツールのカレンダーと同じ予約です。</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。赤い斜線の日が店休日です。日付（いちばん上の行）を押すと、店休日にするか確認します。見積りツールのカレンダーと同じ予約です。</div>
     <div class="lc-scroll"><table class="lc-grid"><colgroup><col class="c-car"><col class="c-d" span="${N}"></colgroup><tr class="lc-mrow"><th class="lc-car"></th>${months.map(o=>`<th class="lc-mon" colspan="${o.n}"><span>${o.y}年${o.m}月</span></th>`).join('')}</tr>
-    <tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" data-d="${x.d}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?esc(x.hol):''}${x.closed?' 店休日':''}">${x.n===1?`<span class="mlab">${x.m}月</span>`:''}${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':x.closed?'<span class="hol cl">休</span>':''}</th>`).join('')}</tr>`;
+    <tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" data-d="${x.d}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?esc(x.hol):''}${x.closed?' 店休日':''}">${x.n===1?`<span class="mlab">${x.m}月</span>`:''}${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':''}</th>`).join('')}</tr>`;
   for(const c of [...LOANER_CARS,...RENTAL_ROWS]){
     h+=`<tr><td class="lc-car${c.low?' low':''}${c.ext?' ext':''}">${c.lab||c.n}${c.low?'<small>1550mm以下</small>':''}</td>`;
     for(let i=0;i<N;){
@@ -3719,6 +3843,7 @@ function _renderLoanerCal(){
   const lim=_ymd(new Date(Date.now()+62*864e5)), hols=days.filter(x=>x.hol&&x.d>=today&&x.d<=lim).map(x=>`${x.m}/${x.n} ${x.hol}`);
   h+=`<div class="lc-list"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">今日から先の予約</div>${list.length?list.map(b=>`<div class="lc-item" onclick="_loanerForm('${esc(b.id)}')"><i class="kd" style="background:${_kindBg(b)}"></i><b>${esc(_lbLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}</span><span>${esc(_lcName(b))}</span><span>${esc(_kinds(b).join('・'))}</span><span style="color:var(--muted)">${esc(b.memo||'')}</span></div>`).join(''):'<div style="color:var(--muted)">予約はありません</div>'}
     ${hols.length?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">祝日（2か月先まで）：${hols.join('、')}</div>`:''}
+    ${(()=>{ const c=_closedSoon(today,lim); return `<div class="lc-closed-soon"><b>🏪 店休日（2か月先まで）</b>${c.length?c.map(x=>`<span>${x}</span>`).join(''):'<span style="opacity:.7">登録されていません</span>'}<button type="button" class="btn" onclick="_shopClosedForm()">設定</button></div>`; })()}
     ${LB.sheetErr?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">${esc(LB.sheetErr)}</div>`:''}</div>
     <button class="btn btn-primary lc-add-fab" type="button" onclick="_loanerForm()">＋ 予約を追加</button></div>`;
   ov.innerHTML=h;
