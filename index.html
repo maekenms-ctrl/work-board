@@ -1435,7 +1435,7 @@ function _woMoveTo(id,beforeId){
 document.addEventListener('DOMContentLoaded',_woDragInit);
 if(document.readyState!=='loading') setTimeout(_woDragInit,0);
 const WOC={unsubs:[],live:false,err:'',first:{},timer:{},pend:{},base:{},part:{},got:{},old:{},ybase:null,conn:''};
-const WO_ARCH_DAYS=45;   // 納車済をリアルタイムで読む日数（それより前は「もっと前の納車済を読む」で読む）
+const WO_ARCH_DAYS=10;   // 納車済をリアルタイムで読む日数（それより前は「もっと前の納車済を読む」で読む）
 // 比べるための文字列（項目の順番が違っても同じになるように）
 function _woStab(v){ return JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.keys(x).sort().reduce((o,kk)=>(o[kk]=x[kk],o),{}):x); }
 // 共有の内容（base）と今の内容（d）の違い：[[項目の道のり], 値]。nest の項目は1つ下の項目ごとに比べる（同時に別の所をさわっても消し合わない）
@@ -1683,10 +1683,10 @@ function _woJobsApply(){
   try{ _woSameDayRun(); }catch(e){ console.warn(e); }
   if(first) setTimeout(_woPhClean,20000);   // 開いて落ち着いてから、古い写真を端末から消す
 }
-// ── 端末の写真の片付け：納車済から2週間たった車・削除した車（ドライブへ移した車も）の写真を、この端末の保存から消す ──
-//  ・共有の写真は、入出庫管理表の Apps Script が2週間でGoogleドライブへ移してから消す（ドライブの「ARK 納車済の記録」で見られる）
+// ── 端末の写真の片付け：納車済から1週間たった車・削除した車（ドライブへ移した車も）の写真を、この端末の保存から消す ──
+//  ・共有の写真は、入出庫管理表の Apps Script が1週間でGoogleドライブへ移してから消す（ドライブの「ARK 納車済の記録」で見られる）
 //  ・共有の作業指示を読み終わったあと、1日1回だけ行う（読み込みに失敗しているときは消さない）
-const WO_PH_KEEP_DAYS=14;
+const WO_PH_KEEP_DAYS=7;   // Apps Script の ARK_ARCHIVE_DAYS と同じ日数
 async function _woPhClean(){
   try{
     if(!WOC.first||!WOC.first.jobs||SEC.locked||!JOBS.length) return;
