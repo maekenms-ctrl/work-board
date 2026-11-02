@@ -446,6 +446,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .wo-tasks tr.has-note .tn-lab{color:#ffb020;font-weight:800;}
   .wo-tasks .wo-note{width:100%;}
 }
+.wo-ins{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface2);}
+.wo-ins .wo-ins-add{border-style:dashed;}
+.wo-ins-card{margin-top:10px;border:2px solid var(--accent);border-radius:10px;padding:10px 12px;background:var(--surface);}
+.wo-ins-nm{font-size:14px;margin-bottom:6px;}
+.wo-ins-ct{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:15px;font-weight:700;}
+.wo-ins-ct a{color:var(--accent);text-decoration:none;}
+.wo-ins-ed{margin-top:8px;font-size:13px;padding:6px 12px;min-height:0;}
 .wo-loan-sheet{border:2px dashed var(--accent);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.6;}
 .wo-loan-sheet small{display:block;color:var(--muted);font-size:12px;}
 .wo-tt{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;border-radius:4px;background:var(--tc,#c9d1d9);color:#0b0d10;white-space:nowrap;}
@@ -1350,7 +1357,7 @@ function _ydMigrate(spaces,v){
   if(v<6) spaces.forEach(s=>{ if(s.id==='comp-mae'&&s.name==='コンプレッサー前') s.name='コンプ前'; });   // 名前を短く（枠に収まるように）
   return spaces;
 }
-let YARD={spaces:_ydDefault(),lpos:{},staff:WO_STAFF_DEF.map(x=>({...x})),updated:'',v:YD_VER};
+let YARD={spaces:_ydDefault(),lpos:{},staff:WO_STAFF_DEF.map(x=>({...x})),ins:[],updated:'',v:YD_VER};
 function woStaffList(){
   const L=Array.isArray(YARD.staff)?YARD.staff:[];
   if(!L.length||L.some(x=>typeof x==='string')){   // 以前の名前だけのリストは置き換え（名前は残す）
@@ -1566,7 +1573,7 @@ async function ydRestoreBak(auto){ const b=_ydBakGet(); if(!b){ toast('この端
   const names=b.spaces.map(x=>x.name).slice(0,8).join('・')+(b.spaces.length>8?' ほか':'');
   if(!await askConfirm(`${auto?'配置図のレイアウトが、トラブルで標準のレイアウトに戻されています。\n':''}この端末に残っている前のレイアウト（${new Date(b.at).toLocaleString('ja-JP')}・置き場所${b.spaces.length}か所：${names}）に戻しますか？\n（全員の配置図が変わります。車の置き場所の記録はそのままなので、元の場所に戻ります）`,'戻す')) return;
   YARD.spaces=b.spaces; _ydChanged(); ydRender(); toast('レイアウトを戻しました'); }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},ins:Array.isArray(y.ins)?y.ins:[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1578,7 +1585,7 @@ function _woCloudOk(){ return CLOUD.started&&WOC.live&&!WOC.err; }   // WOC.err 
 // 作業指示ごとに「共有から受け取ったときの内容」を覚える（WO_ORIG）。送るのは、この端末で実際に変えた項目だけ
 //  → ほかの端末や入出庫管理表（Apps Script）が同じ時に直した項目を、古い内容で上書きしない
 const WO_ORIG=new WeakMap();
-const WO_NEST=['steps','seibi','shaken'];
+const WO_NEST=['steps','seibi','shaken','ins'];
 function _woUnsent(){ try{ return JSON.parse(_lsGet('wo-unsent')||'{}')||{}; }catch(e){ return {}; } }
 function _woUnsentSet(id,on){ try{ const u=_woUnsent(); if(on) u[id]=Date.now(); else delete u[id]; _lsSet('wo-unsent',JSON.stringify(u)); }catch(e){} }
 function _woCloudPut(j){
@@ -1786,7 +1793,7 @@ function woCloudStart(){
       if(first&&_ydIsDefault(v.spaces)){ const bk=!_ydIsDefault(YARD.spaces)&&YARD.spaces.length?{spaces:YARD.spaces,at:YARD.updated||new Date().toISOString()}:_ydBakGet();
         if(bk){ _lsSet('wo-yard-bak',JSON.stringify(bk)); if(!WOC._askBak){ WOC._askBak=true; setTimeout(()=>ydRestoreBak(true),1200); } } }
       else if(!_ydIsDefault(v.spaces)) setTimeout(_ydBakSave,0);
-      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
+      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},ins:Array.isArray(v.ins)?v.ins:[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
     else if(first){ _ydCloudPut(); }
     WOC._forceR=true; _woRenderSoon();   // 押している最中は待ってから描く
   },err=>_woCloudErr(err,'yard')));
@@ -2541,6 +2548,77 @@ function _woPhState(j){ return j.phSt==='完了'?'完了':j.photoTaken===false?'
 function woPhSt(v){ const j=_woCurJob(); if(!j) return;
   if(v==='完了'){ j.phSt='完了'; j.photoTaken=true; } else if(v==='不要'){ delete j.phSt; j.photoTaken=false; } else { delete j.phSt; j.photoTaken=null; }
   woTouch(j,true); woRenderDetail(); woRenderList(); }
+// ── 保険会社・アジャスター（11/2）：お支払い区分で車両保険・対物保険を選んだとき、それぞれに保険会社とアジャスター（AJ）を選ぶ ──
+//  ・一覧はチームで共有（配置図と同じ yard/layout の ins）。初めての保険会社・AJは手で入れると、次から一覧に出る
+//  ・AJには TEL・FAX・メールを覚えておく。作業指示にも写しを入れる（一覧から消しても、その車の記録には残る）
+//  ・作業指示の j.ins = { '車両保険': {co, aj, tel, fax, mail}, '対物保険': {…} }
+function _insDir(){ if(!Array.isArray(YARD.ins)) YARD.ins=[]; return YARD.ins; }
+function _insCo(n){ return _insDir().find(x=>x.n===n)||null; }
+function _woInsKinds(j){ return _woPays(j).filter(p=>/保険/.test(p)); }
+function _woIns(j,k){ if(!j.ins||typeof j.ins!=='object') j.ins={}; if(!j.ins[k]) j.ins[k]={}; return j.ins[k]; }
+function _insSave(){ _ydChanged(); }
+function woInsHtml(j){
+  const kinds=_woInsKinds(j); if(!kinds.length) return '';
+  return kinds.map(k=>{ const x=(j.ins||{})[k]||{}, co=x.co&&_insCo(x.co), ajs=co?(co.aj||[]):[], ka=JSON.stringify(k).replace(/"/g,'&quot;');
+    const a=x.aj?(ajs.find(y=>y.n===x.aj)||{n:x.aj,tel:x.tel,fax:x.fax,mail:x.mail}):null;
+    const tel=a&&(a.tel||x.tel), fax=a&&(a.fax||x.fax), mail=a&&(a.mail||x.mail);
+    return `<div class="field span2 wo-ins"><label>🏢 ${esc(k)}の保険会社</label>
+      <div class="check-group">${_insDir().map((c,i)=>`<button type="button" class="selbtn${x.co===c.n?' on':''}" onclick="woInsCo(${ka},${i})">${esc(c.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsCoNew(${ka})">＋ 新しい保険会社</button>${x.co&&!co?`<span class="sg-note" style="margin:0 6px">${esc(x.co)}（一覧から外した会社）</span>`:''}</div>
+      ${x.co?`<label style="margin-top:8px">👤 アジャスター（AJ）　<small style="font-weight:400">${esc(x.co)}</small></label>
+      <div class="check-group">${ajs.map((y,i)=>`<button type="button" class="selbtn${x.aj===y.n?' on':''}" onclick="woInsAj(${ka},${i})">${esc(y.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsAjForm(${ka},-1)">＋ 新しいアジャスター</button>${co?`<button type="button" class="selbtn" onclick="woInsCoEdit(${ka})" title="保険会社の名前を直す・一覧から外す">✏️</button>`:''}</div>`:''}
+      ${a?`<div class="wo-ins-card"><div class="wo-ins-nm">${esc(x.co)}　AJ <b>${esc(a.n)}</b></div>
+        <div class="wo-ins-ct">${tel?`<a href="tel:${esc(String(tel).replace(/[^0-9+]/g,''))}">📞 TEL ${esc(tel)}</a>`:'<span>📞 TEL —</span>'}${fax?`<span>📠 FAX ${esc(fax)}</span>`:'<span>📠 FAX —</span>'}${mail?`<a href="mailto:${esc(mail)}">✉️ ${esc(mail)}</a>`:'<span>✉️ メール —</span>'}</div>
+        <button type="button" class="btn wo-ins-ed" onclick="woInsAjForm(${ka},${ajs.indexOf(ajs.find(y=>y.n===x.aj))})">✏️ 連絡先を直す</button></div>`:''}
+    </div>`; }).join('');
+}
+function woInsCo(k,i){ const j=_woCurJob(), c=_insDir()[i]; if(!j||!c) return; const x=_woIns(j,k);
+  if(x.co===c.n){ j.ins[k]={}; } else { j.ins[k]={co:c.n}; }
+  woTouch(j,true); woRenderDetail(); }
+function woInsAj(k,i){ const j=_woCurJob(); if(!j) return; const x=_woIns(j,k), c=_insCo(x.co), a=c&&(c.aj||[])[i]; if(!a) return;
+  if(x.aj===a.n){ delete x.aj; delete x.tel; delete x.fax; delete x.mail; } else { x.aj=a.n; x.tel=a.tel||''; x.fax=a.fax||''; x.mail=a.mail||''; }
+  woTouch(j,true); woRenderDetail(); }
+// 入力の小さな画面（保険会社・AJ）
+function _insForm(title,fields,btns){ return new Promise(res=>{
+  const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9600;
+  ov.innerHTML=`<div class="cf-box lc-form" style="max-width:400px"><div style="font-weight:700;margin-bottom:10px">${esc(title)}</div>
+    ${fields.map((f,i)=>`<div class="field"><label>${esc(f.l)}</label><input data-i="${i}" type="${f.t||'text'}" inputmode="${f.m||'text'}" value="${esc(f.v||'')}" placeholder="${esc(f.p||'')}"></div>`).join('')}
+    <div class="cf-btns" style="grid-template-columns:${btns.map(()=>'1fr').join(' ')}">${btns.map((b,i)=>`<button type="button" class="btn ${b.c||''}" data-b="${i}">${esc(b.l)}</button>`).join('')}</div></div>`;
+  const done=v=>{ ov.remove(); res(v); };
+  ov.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{ const k=btns[+b.dataset.b].k; done(k==='cancel'?null:{k,v:[...ov.querySelectorAll('input')].map(x=>x.value.trim())}); });
+  ov.addEventListener('click',e=>{ if(e.target===ov) done(null); });
+  ov.querySelectorAll('input').forEach(x=>x.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const ok=btns.find(b=>b.k==='ok'); if(ok) done({k:'ok',v:[...ov.querySelectorAll('input')].map(y=>y.value.trim())}); } }));
+  document.body.appendChild(ov); setTimeout(()=>{ const f=ov.querySelector('input'); if(f) f.focus(); },50);
+}); }
+async function woInsCoNew(k){
+  const r=await _insForm(`${k}の保険会社を追加`,[{l:'保険会社の名前',p:'例：東京海上日動'}],[{l:'キャンセル',k:'cancel'},{l:'追加して選ぶ',k:'ok',c:'btn-primary'}]);
+  if(!r||!r.v[0]) return; const n=r.v[0].slice(0,40), j=_woCurJob(); if(!j) return;
+  if(!_insCo(n)){ _insDir().push({n,aj:[]}); _insSave(); }
+  j.ins=j.ins&&typeof j.ins==='object'?j.ins:{}; j.ins[k]={co:n}; woTouch(j,true); woRenderDetail();
+}
+async function woInsCoEdit(k){
+  const j=_woCurJob(); if(!j) return; const x=_woIns(j,k), c=_insCo(x.co); if(!c) return;
+  const r=await _insForm('保険会社の名前を直す',[{l:'保険会社の名前',v:c.n}],[{l:'一覧から外す',k:'del',c:'cf-yes'},{l:'キャンセル',k:'cancel'},{l:'保存',k:'ok',c:'btn-primary'}]);
+  if(!r) return;
+  if(r.k==='del'){ if(!await askConfirm(`「${c.n}」と、そのアジャスターを一覧から外しますか？（今までの車の記録には残ります）`,'外す')) return; YARD.ins=_insDir().filter(y=>y!==c); _insSave(); woRenderDetail(); return; }
+  const n=(r.v[0]||'').slice(0,40); if(!n||n===c.n) return; if(_insCo(n)){ toast('同じ名前の保険会社がもうあります'); return; }
+  const old=c.n; c.n=n; _insSave(); JOBS.forEach(o=>{ if(!o.ins) return; let ch=false; for(const kk in o.ins){ if(o.ins[kk]&&o.ins[kk].co===old&&!o.archived){ o.ins[kk].co=n; ch=true; } } if(ch) woTouch(o,true); }); woRenderDetail();
+}
+async function woInsAjForm(k,i){
+  const j=_woCurJob(); if(!j) return; const x=_woIns(j,k), c=_insCo(x.co);
+  if(!c){ toast('先に保険会社を選んでください'); return; }
+  c.aj=Array.isArray(c.aj)?c.aj:[]; const a=i>=0?c.aj[i]:null;
+  const r=await _insForm(a?`アジャスターの連絡先（${c.n}）`:`アジャスターを追加（${c.n}）`,[
+    {l:'アジャスター（AJ）の名前',v:a?a.n:'',p:'例：山田'},{l:'TEL',v:a?a.tel:'',t:'tel',m:'tel',p:'例：078-123-4567'},{l:'FAX',v:a?a.fax:'',t:'tel',m:'tel',p:'例：078-123-4568'},{l:'メールアドレス',v:a?a.mail:'',t:'email',m:'email',p:'例：yamada@example.co.jp'}],
+    a?[{l:'一覧から外す',k:'del',c:'cf-yes'},{l:'キャンセル',k:'cancel'},{l:'保存',k:'ok',c:'btn-primary'}]:[{l:'キャンセル',k:'cancel'},{l:'追加して選ぶ',k:'ok',c:'btn-primary'}]);
+  if(!r) return;
+  if(r.k==='del'){ if(!await askConfirm(`アジャスター「${a.n}」を一覧から外しますか？（今までの車の記録には残ります）`,'外す')) return; c.aj=c.aj.filter(y=>y!==a); _insSave(); woRenderDetail(); return; }
+  const [n,tel,fax,mail]=r.v.map(v=>v.slice(0,60)); if(!n){ toast('アジャスターの名前を入れてください'); return; }
+  if(a){ const old=a.n; Object.assign(a,{n,tel,fax,mail});
+    JOBS.forEach(o=>{ if(!o.ins||o.archived) return; let ch=false; for(const kk in o.ins){ const y=o.ins[kk]; if(y&&y.co===c.n&&y.aj===old){ Object.assign(y,{aj:n,tel,fax,mail}); ch=true; } } if(ch) woTouch(o,true); });   // 作業中の車の写しも直す
+  } else { const ex=c.aj.find(y=>y.n===n); if(ex) Object.assign(ex,{tel:tel||ex.tel,fax:fax||ex.fax,mail:mail||ex.mail}); else c.aj.push({n,tel,fax,mail}); }
+  _insSave();
+  const y=c.aj.find(z=>z.n===n)||{n,tel,fax,mail}; Object.assign(x,{aj:y.n,tel:y.tel||'',fax:y.fax||'',mail:y.mail||''}); woTouch(j,true); woRenderDetail();
+}
 // 協定は、お支払い区分で保険（車両保険・対物保険）を選んだときだけ
 function _woNeedKyotei(j){ return _woPays(j).some(p=>/保険/.test(p)); }
 function _woStTags(j){
@@ -3039,6 +3117,7 @@ function _woRenderDetail(box){
   <div class="wo-inl" style="margin-top:8px">
     <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
     ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>`:''}
+    ${woInsHtml(j)}
   </div>
   <div class="wo-sec"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
@@ -3206,7 +3285,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
-${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
+${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${_woInsKinds(j).map(k=>{ const x=(j.ins||{})[k]||{}; return x.co||x.aj?row(esc(k),esc([x.co,x.aj?'AJ '+x.aj:'',x.tel?'TEL '+x.tel:'',x.fax?'FAX '+x.fax:'',x.mail].filter(Boolean).join('　'))):''; }).join('')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}${skel}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
