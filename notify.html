@@ -272,7 +272,7 @@ function diffJob(prev, cur, id=''){
   const pa = {}; (prev.parts||[]).forEach(p=>pa[p.id||p.name]=p);
   for(const p of (cur.parts||[])){
     const o = pa[p.id||p.name];
-    if(o && o.status!==p.status && !pIn){
+    if(o && o.status!==p.status && !pIn && p.status==='入荷済'){   // 11/2：発注済などは知らせない（ほかのお知らせが埋もれるため）。入荷済だけ
       const ic = p.status==='入荷済'?'📦':p.status==='発注済'?'🛒':'📋';
       ev.push({...base, ic, c:p.status==='入荷済'?'#188038':'#f29900', quiet:true, t:`部品 ${p.status}：${p.name}`,
         d:`${L}${p.eta&&p.status==='発注済'?` ／ 入荷予定 ${md(p.eta)}`:''}`});
@@ -284,8 +284,7 @@ function diffJob(prev, cur, id=''){
     ev.push({...base, ic:'📅', c:'#d93025', quiet:true, t:`納期${prev.dueDate?'変更':'決定'}：${L}`, d:prev.dueDate?`${md(prev.dueDate)} → ${md(cur.dueDate)}`:md(cur.dueDate), mk:'due|'+id});
   if(!prev.loanerCar && cur.loanerCar)
     ev.push({...base, src:'wb', ic:'🚙', c:'#8430ce', quiet:true, t:`代車を手配：${carName(cur.loanerCar)}`, d:`${L}${cur.loanerFrom?` ／ ${md(cur.loanerFrom)}〜${md(cur.loanerTo)}`:''}`});
-  if((prev.caution||'') !== (cur.caution||'') && cur.caution)
-    ev.push({...base, ic:'⚠️', c:'#d93025', quiet:true, t:`注意事項を更新：${L}`, d:cur.caution, mk:'caution|'+id});
+  // 注意事項の更新は知らせない（11/2・ほかのお知らせが埋もれるため。注意事項は作業指示で見る）
   return ev;
 }
 
