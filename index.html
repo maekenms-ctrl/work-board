@@ -1930,7 +1930,7 @@ let _woSRp=null;
 function _woSR(){
   if(window.SHAKEN) return Promise.resolve(window.SHAKEN);
   if(_woSRp) return _woSRp;
-  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-04b'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
+  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-04c'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
   return _woSRp;
 }
 async function woReadQR(){

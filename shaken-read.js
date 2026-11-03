@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-04b';
+const SR_VER='2026-11-04c';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10611,7 +10611,12 @@ const FAX_INS=[
   [/ジェイアイ/,'ジェイアイ傷害火災'],[/全日本.?自動車共済|全自共/,'全自共'],[/教職員共済/,'教職員共済'],[/トーア|東亜/,'トーア再保険']
 ];
 // 会社名の行の頭に付いた読み違いの文字（「昌東京海上…」の「昌」など）を、知っている会社名の位置で切る
-function _faxCoClean(t){ t=String(t||'').replace(/^[^一-龠ァ-ヶA-Z(（㈱]+/,''); for(const [re] of FAX_INS){ const m=t.match(re); if(m&&m.index>0&&m.index<=3) return t.slice(m.index); } return t; }
+function _faxCoClean(t){ t=String(t||'').replace(/^[^一-龠ぁ-んァ-ヶA-Z(（㈱]+/,''); for(const [re] of FAX_INS){ const m=t.match(re); if(m&&m.index>0&&m.index<=3) return t.slice(m.index); } return t; }
+// 会社名の読み違いを直す（「東京海上晶動」→「東京海上日動」など）。株式会社と、うしろに付いた英数字のごみは外す
+const FAX_FIX=[[/東京海.日動|東京海上.動|東.海上日動|東京.上日動/g,'東京海上日動'],[/三井住友海./g,'三井住友海上'],[/損害保険ジャパ.|損害保.ジャパン/g,'損害保険ジャパン'],[/損保ジャパ./g,'損保ジャパン'],
+  [/あいおいニッセイ同./g,'あいおいニッセイ同和'],[/調.サービス|調査サー.ス/g,'調査サービス'],[/損害調./g,'損害調査']];
+function _faxFixCo(t){ t=String(t||''); for(const [re,v] of FAX_FIX) t=t.replace(re,v); t=_faxCoClean(t);
+  return t.replace(/株式会社?|.式会社|\(株\)|㈱/g,'').replace(/[^一-龠々ぁ-んァ-ヶーＡ-ＺA-Z&＆]+$/,'').replace(/^[^一-龠々ぁ-んァ-ヶA-Z]+/,'').trim(); }
 function faxInsName(t){ for(const [re,n] of FAX_INS) if(re.test(t)) return n; return ''; }
 function _fz(s){ return String(s||'').normalize('NFKC').replace(/\s+/g,'').replace(/[|｜]/g,''); }
 function faxFmtTel(d){
@@ -10674,7 +10679,7 @@ function faxParse(jl,el,own){
   const res={co:insName,aj:'',dept:'',tel:'',fax:''};
   if(aj){ res.aj=aj.aj; res.tel=faxFmtTel(aj.tel); res.fax=faxFmtTel(aj.fax);
     // アジャスターが調査会社（〇〇調査サービスなど）の人なら、部署名の前に会社名を付ける
-    const ac=String(aj.co||'').replace(/株式会社|\(株\)|㈱/g,'');
+    const ac=_faxFixCo(aj.co);
     res.dept=(ac&&!/保険|共済/.test(ac)&&/調査|アジャスト|鑑定|サービス/.test(ac)?ac+' ':'')+(aj.dept||''); res.dept=res.dept.trim(); }
   if(co) res.desk={co:String(co.co||'').trim(),dept:co.dept,n:co.aj,tel:faxFmtTel(co.tel),fax:faxFmtTel(co.fax)};
   return res;
