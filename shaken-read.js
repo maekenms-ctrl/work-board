@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-04';
+const SR_VER='2026-11-04b';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10441,6 +10441,7 @@ function _fileToCanvas(file,maxDim){
   const viaBlob=()=>{const u=URL.createObjectURL(file);return viaImg(u).finally(()=>URL.revokeObjectURL(u));};
   return viaDataURL().catch(viaBitmap).catch(viaBlob).catch(()=>{throw new Error('画像を開けませんでした。写真を撮り直すか、別の写真を選んでください');});
 }
+let _tessLoading=null;
 const TESS_URL='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/';
 const TESS_SRI={main:'sha256-qOKZGNCYsrBuEBK9rv+0rsBEXF1WVHCQI+C9H0QqgOg=',worker:'sha256-rKEiljn8mQfYb5boJZVaK3xXFtF/O8Os1x+cerZhgfw='};
 let _verifiedWorkerURL=null;
@@ -10609,6 +10610,8 @@ const FAX_INS=[
   [/楽天損|楽天.?保険/,'楽天損保'],[/三井ダイレクト/,'三井ダイレクト損保'],[/こくみん共済|全労済/,'こくみん共済coop'],[/JA共済|共済連/,'JA共済'],[/大同火災/,'大同火災'],
   [/ジェイアイ/,'ジェイアイ傷害火災'],[/全日本.?自動車共済|全自共/,'全自共'],[/教職員共済/,'教職員共済'],[/トーア|東亜/,'トーア再保険']
 ];
+// 会社名の行の頭に付いた読み違いの文字（「昌東京海上…」の「昌」など）を、知っている会社名の位置で切る
+function _faxCoClean(t){ t=String(t||'').replace(/^[^一-龠ァ-ヶA-Z(（㈱]+/,''); for(const [re] of FAX_INS){ const m=t.match(re); if(m&&m.index>0&&m.index<=3) return t.slice(m.index); } return t; }
 function faxInsName(t){ for(const [re,n] of FAX_INS) if(re.test(t)) return n; return ''; }
 function _fz(s){ return String(s||'').normalize('NFKC').replace(/\s+/g,'').replace(/[|｜]/g,''); }
 function faxFmtTel(d){
@@ -10646,7 +10649,7 @@ function faxParse(jl,el,own){
     const ls=L.slice(h.i,end), yEnd=n+1<heads.length?heads[n+1].y:(L[end]?L[end].y:1e9);
     const b={k:h.k,y:h.y,yEnd,co:'',dept:'',aj:'',tel:'',fax:''};
     for(const l of ls){ const t=l.t;
-      if(!b.co&&isCo(t)&&!kindOf(t)) b.co=t.replace(/^[^一-龠ァ-ヶA-Z(（㈱]+/,'');
+      if(!b.co&&isCo(t)&&!kindOf(t)) b.co=_faxCoClean(t);
       else if(!b.dept&&isDept(t)&&!/株式会社/.test(t)) b.dept=t.replace(/^[^一-龠ァ-ヶA-Z]+/,'');
       if(!b.aj){ const n2=nm(t); if(n2&&!/アジャス|AJ/.test(n2)) b.aj=n2; }
       for(const p of _faxNums(t)){ if(own.includes(p.d)) continue; if(p.kind==='fax'&&!b.fax) b.fax=p.d; else if(p.kind!=='fax'&&!b.tel) b.tel=p.d; }
@@ -10654,7 +10657,7 @@ function faxParse(jl,el,own){
     // 見出しの上に会社名・部署名が書いてある書式（会社名 → 部署 → アジャスター：名前）
     const top=n?heads[n-1].i+1:0;
     for(let q=h.i-1;q>=Math.max(top,h.i-3)&&(!b.co||!b.dept);q--){ const t=L[q].t; if(isTo(t)) break;
-      if(!b.co&&isCo(t)) b.co=t.replace(/^[^一-龠ァ-ヶA-Z(（㈱]+/,''); else if(!b.dept&&isDept(t)&&!/株式会社/.test(t)) b.dept=t.replace(/^[^一-龠ァ-ヶA-Z]+/,''); }
+      if(!b.co&&isCo(t)) b.co=_faxCoClean(t); else if(!b.dept&&isDept(t)&&!/株式会社/.test(t)) b.dept=t.replace(/^[^一-龠ァ-ヶA-Z]+/,''); }
     return b;
   });
   // 電話番号は数字だけで読んだ結果を優先（高さで、どの区切りの中かを決める）
@@ -10678,13 +10681,19 @@ function faxParse(jl,el,own){
 }
 // ── 保険会社のFAXの写真から（日本語で1回、電話番号を数字だけで1回読む）──
 //   お客様名などは拾わない（返すのは 保険会社名・アジャスター・部署・TEL・FAX だけ）
+// 影やムラをならして文字をくっきりさせる（まわりの明るさとの差を強める）
+function _faxPrep(c){ const W=c.width,H=c.height, x=c.getContext('2d',{willReadFrequently:true}); const d=x.getImageData(0,0,W,H), a=d.data;
+  const g=new Uint8Array(W*H); for(let i=0;i<g.length;i++) g[i]=(a[i*4]*3+a[i*4+1]*6+a[i*4+2])/10;
+  const ii=_integral(g,W,H);
+  for(let y=0;y<H;y++)for(let x2=0;x2<W;x2++){ const i=y*W+x2, m=_boxMean(ii,W,H,x2,y,30,30); const v=Math.max(0,Math.min(255,(g[i]-m)*2.2+235)); a[i*4]=a[i*4+1]=a[i*4+2]=v; }
+  x.putImageData(d,0,0); return c; }
 async function faxFile(f,own){
   _busy('文字認識を準備しています…（初回は少し時間がかかります）');
   let wj=null, we=null;
   const lines=r=>((r&&r.data&&r.data.blocks)||[]).flatMap(b=>(b.paragraphs||[]).flatMap(p=>p.lines||[])).map(l=>({t:l.text,y:l.bbox.y0}));
   try{
     await _loadTesseract();
-    const src=await _fileToCanvas(f,2400);
+    const src=_faxPrep(await _fileToCanvas(f,2400));
     wj=await _newWorker('jpn'); await wj.setParameters({tessedit_pageseg_mode:'6'});
     _busy('FAXの文字を読み取っています…（1/2）');
     const rj=await wj.recognize(src,{},{blocks:true}); try{wj.terminate();}catch(e){} wj=null;
