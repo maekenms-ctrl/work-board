@@ -404,6 +404,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-grp{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.08em;margin:10px 2px 6px;}
 .wo-grp-today{color:#4fc3f7;font-size:12.5px;border-bottom:1px solid rgba(79,195,247,.35);padding-bottom:3px}
 .wo-card .sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wo-card .sub.ln{grid-column:1/-1;}   /* 置き場所・内容・整備などの行は、カードの幅いっぱい（右の列に入って、車種の名前を狭くしないように） */
 .wo-card .rt{text-align:right;font-size:11px;color:var(--muted);white-space:nowrap;}
 .wo-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--sc,var(--surface3));color:#0b0d10;white-space:nowrap;}
 .wo-chip.ghost{background:transparent;color:var(--muted);border:1px dashed var(--border);}
@@ -484,6 +485,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .dc-agh.sun{color:#ff6b6b;}.dc-agh.sat{color:#4ea1ff;}
   .dc-car{font-size:14px;padding:6px 8px;}
 }
+.wo-chb{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.wo-chc{display:inline-flex;align-items:center;gap:2px;}
+.wo-chc .selbtn{padding:4px 10px;min-height:32px;font-weight:800;letter-spacing:.03em;}
+.wo-chc b{cursor:pointer;color:var(--muted);font-size:12px;padding:0 4px;}
 .wo-ins{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface2);}
 .wo-ins .wo-ins-add{border-style:dashed;}
 .wo-ins-card{margin-top:10px;border:2px solid var(--accent);border-radius:10px;padding:10px 12px;background:var(--surface);}
@@ -777,6 +782,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 #wo-detail .wo-sec{margin:12px 0 6px;font-size:11px;}
 #wo-detail .fgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 8px;}
 #wo-detail .field.half{grid-column:span 2;}
+.ins-opt{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}.ins-opt .selbtn{font-size:12px;padding:4px 9px;min-height:0;}
+#wo-detail .wo-scan{display:flex;gap:6px;flex-wrap:wrap;}#wo-detail .wo-scan .btn{flex:1 1 180px;justify-content:center;font-size:13px;}
 #wo-detail .field label{font-size:10.5px;margin-bottom:2px;}
 #wo-detail .field input,#wo-detail .field select,#wo-detail .field textarea{padding:6px 8px;}
 #wo-detail .check-group{gap:5px;margin-top:0;}
@@ -1397,7 +1404,7 @@ function _ydMigrate(spaces,v){
   if(v<6) spaces.forEach(s=>{ if(s.id==='comp-mae'&&s.name==='コンプレッサー前') s.name='コンプ前'; });   // 名前を短く（枠に収まるように）
   return spaces;
 }
-let YARD={spaces:_ydDefault(),lpos:{},staff:WO_STAFF_DEF.map(x=>({...x})),ins:[],updated:'',v:YD_VER};
+let YARD={spaces:_ydDefault(),lpos:{},staff:WO_STAFF_DEF.map(x=>({...x})),ins:[],chassis:{},updated:'',v:YD_VER};
 function woStaffList(){
   const L=Array.isArray(YARD.staff)?YARD.staff:[];
   if(!L.length||L.some(x=>typeof x==='string')){   // 以前の名前だけのリストは置き換え（名前は残す）
@@ -1616,7 +1623,7 @@ async function ydRestoreBak(auto){ const b=_ydBakGet(); if(!b){ toast('この端
   const names=b.spaces.map(x=>x.name).slice(0,8).join('・')+(b.spaces.length>8?' ほか':'');
   if(!await askConfirm(`${auto?'配置図のレイアウトが、トラブルで標準のレイアウトに戻されています。\n':''}この端末に残っている前のレイアウト（${new Date(b.at).toLocaleString('ja-JP')}・置き場所${b.spaces.length}か所：${names}）に戻しますか？\n（全員の配置図が変わります。車の置き場所の記録はそのままなので、元の場所に戻ります）`,'戻す')) return;
   YARD.spaces=b.spaces; _ydChanged(); ydRender(); toast('レイアウトを戻しました'); }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},ins:Array.isArray(y.ins)?y.ins:[],updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},ins:Array.isArray(y.ins)?y.ins:[],chassis:y.chassis&&typeof y.chassis==='object'?y.chassis:{},updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1668,7 +1675,7 @@ function _ydCloudPut(){
   if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb; const d=_woClean(YARD), base=WOC.ybase; WOC.ybase=_woClean(d);
   // 駒の置き場所・メモなどは駒ごとに送る（2台で同時に動かしても、もう片方の変更を消さない）
-  _woSendDiff(fs.doc(CLOUD.db,'yard','layout'),base,d,['lpos','pmemo','lret','shide'],{by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},e=>{ WOC.ybase=null; _woSendErr(e,'yard'); });
+  _woSendDiff(fs.doc(CLOUD.db,'yard','layout'),base,d,['lpos','pmemo','lret','shide','chassis'],{by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},e=>{ WOC.ybase=null; _woSendErr(e,'yard'); });
 }
 // 送れなかったとき：権限がないときだけ共有を止める。それ以外（通信が一瞬切れた・1件だけ送れなかった）は止めずに知らせるだけ
 function _woSendErr(e,name){ if(/permission/.test(String(e&&e.code||e))) return _woCloudErr(e,name); console.warn('送信',name,e); WOC.sendErr=Date.now(); if(!WOC._seT||Date.now()-WOC._seT>20000){ WOC._seT=Date.now(); toast('共有へ送れなかった変更があります（自動で送り直します）：'+_netMsg(e),5000); } }
@@ -1818,6 +1825,8 @@ function woCloudStart(){
     part('sh',fs.query(JC,fs.where('_sheet','==',true)));
   }catch(e){ full(e); }
   WOC._ft=setTimeout(()=>{ if(!['act','arch','del','sh'].every(k=>WOC.got[k])) full('timeout'); },10000);   // 10秒たっても届かなければ切り替え
+  // カラー番号と塗装タイプ（見積りツールと同じ colors。読めなくても作業ボードは普段どおり動く）
+  WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'colors'),snap=>{ const m={}; snap.forEach(d=>{ const v=d.data()||{}; if(v.type) m[_woColKey(v.code||d.id)]=v.type; }); WCOL.map=m; },err=>{ console.warn('colors',err); }));
   // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'estimates'),snap=>{ const L=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); }); WEST.list=L; },err=>{ console.warn('estimates',err); }));
   // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
@@ -1836,7 +1845,7 @@ function woCloudStart(){
       if(first&&_ydIsDefault(v.spaces)){ const bk=!_ydIsDefault(YARD.spaces)&&YARD.spaces.length?{spaces:YARD.spaces,at:YARD.updated||new Date().toISOString()}:_ydBakGet();
         if(bk){ _lsSet('wo-yard-bak',JSON.stringify(bk)); if(!WOC._askBak){ WOC._askBak=true; setTimeout(()=>ydRestoreBak(true),1200); } } }
       else if(!_ydIsDefault(v.spaces)) setTimeout(_ydBakSave,0);
-      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},ins:Array.isArray(v.ins)?v.ins:[],updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
+      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},ins:Array.isArray(v.ins)?v.ins:[],chassis:v.chassis&&typeof v.chassis==='object'?v.chassis:{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
     else if(first){ _ydCloudPut(); }
     WOC._forceR=true; _woRenderSoon();   // 押している最中は待ってから描く
   },err=>_woCloudErr(err,'yard')));
@@ -1914,6 +1923,47 @@ function _woEstFor(j){
 function woEstFill(){ const j=_woCurJob(); if(!j) return; const e=_woEstFor(j); if(!e) return;
   if(e.chassis) j.chassis=e.chassis; if(e.color) j.color=e.color; if(e.ptype) j.paintType=e.ptype;
   woTouch(j,true); woRenderDetail(); woRenderList(); toast('見積りツールの車両情報を入れました'); }
+// ── 車検証QR（型式指定番号・類別区分番号）とコーションプレート（カラー番号）の読み取り ──
+//   読み取りの中身は shaken-read.js（押したときだけ読み込む。見積りツールと同じ読み方）
+//   写真は端末の中で読むだけで、保存・共有しない。お名前は読まない
+let _woSRp=null;
+function _woSR(){
+  if(window.SHAKEN) return Promise.resolve(window.SHAKEN);
+  if(_woSRp) return _woSRp;
+  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-04'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
+  return _woSRp;
+}
+async function woReadQR(){
+  const id=(_woCurJob()||{}).id; if(!id) return;
+  let S; try{ S=await _woSR(); }catch(e){ toast(e.message,6000); return; }
+  const info=await S.qrCamera(()=>document.getElementById('wo-qr-in').click());
+  if(info) _woApplyQR(id,info);
+}
+async function woReadQRFile(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  const id=(_woCurJob()||{}).id; if(!id) return;
+  try{ const S=await _woSR(); _woApplyQR(id,await S.qrFile(f)); }catch(e){ toast('読み取れませんでした：'+(e&&e.message||e),6000); }
+}
+function _woApplyQR(id,info){
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  const tn=String(info.typeNo||'').split('-'), msgs=[];
+  if(tn[0]){ j.typeNo=tn[0]; msgs.push('型式指定番号 '+tn[0]); }
+  if(tn[1]){ j.ruiNo=tn[1]; msgs.push('類別区分番号 '+tn[1]); }
+  if(info.chassis&&!String(j.chassis||'').trim()){ j.chassis=info.chassis; msgs.push('車台番号 '+info.chassis); }
+  if(!msgs.length){ toast(info.chassis?'型式指定番号・類別区分番号はこの車検証のQRに入っていませんでした':'読み取れませんでした。QRコードが大きく写るように近づけてください',6000); return; }
+  woTouch(j,true); if(_woCurJob()===j){ woRenderDetail(); if(msgs.some(m=>/^車台/.test(m))) woChassisLearn(); } woRenderList();
+  toast('車検証QRから入れました：'+msgs.join('、'),5000);
+}
+async function woReadLabel(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  const id=(_woCurJob()||{}).id; if(!id) return;
+  let r; try{ const S=await _woSR(); r=await S.labelFile(f); }catch(e){ toast('読み取れませんでした：'+(e&&e.message||e),6000); return; }
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  if(!r||!r.color){ toast('カラー番号が見つかりませんでした。プレートが大きく、まっすぐ写るように撮ってください',6000); return; }
+  const old=String(j.color||'').trim(); j.color=r.color;
+  _woColorFill(j); woTouch(j,true); if(_woCurJob()===j) woRenderDetail(); woRenderList(); _woColorLearn(j);
+  toast('コーションプレートから カラー番号 '+r.color+(old&&old!==r.color?'（前は '+old+'）':'')+(j.paintType?' ／ 塗装タイプ '+j.paintType:'')+' を入れました。違っていたら直してください',6000);
+}
 // ── 当日の追加入庫から作業指示を作る（どの端末で作っても同じIDになるので重複しない）──
 const WSD={docs:[]};
 // 区分（J列・I列から。Apps Script と同じ決まり）：鈑→鈑金、作→整備、車→車検。J列が空欄で I列に「事前点検」→車検、それ以外→鈑金
@@ -2103,6 +2153,9 @@ function woSet(f,v){ const j=_woCurJob(); if(!j) return; j[f]=v;
   if(f==='dueDate'&&j.loanerUse&&!j.loanerTo){ j.loanerTo=v; woRenderDetail(); }
   if(['plate','car','dueDate','loanerFrom','loanerTo'].includes(f)) lbSync(j);
   if(f==='plate'||f==='car'||f==='inDate'){ const d=document.getElementById('wo-dup'); if(d) d.innerHTML=_woDupHtml(j); }
+  if(f==='car'){ const c=document.getElementById('wo-chb'); if(c) c.innerHTML=_woChassisChips(j); }
+  if(f==='color') _woColorFill(j);
+  if(f==='paintType'){ WO_PTAUTO=null; const n=document.getElementById('wo-pt-note'); if(n) n.textContent=''; _woColorLearn(j); }
   if(f==='plate'||f==='car'){ clearTimeout(_WO_AMT); _WO_AMT=setTimeout(()=>_woAutoMerge(j.id),1500); }
   if(f==='loanerFrom'||f==='loanerTo') lbRenderCars();
   woTouch(j); woRenderList(); if(f==='slot'){ ydRender(); } }
@@ -2591,6 +2644,72 @@ function _woPhState(j){ return j.phSt==='完了'?'完了':j.photoTaken===false?'
 function woPhSt(v){ const j=_woCurJob(); if(!j) return;
   if(v==='完了'){ j.phSt='完了'; j.photoTaken=true; } else if(v==='不要'){ delete j.phSt; j.photoTaken=false; } else { delete j.phSt; j.photoTaken=null; }
   woTouch(j,true); woRenderDetail(); woRenderList(); }
+// ── カラー番号 → 塗装タイプ（11/4）：カラー番号を入れると、覚えている塗装タイプを自動で入れる ──
+//  ・覚えている先：見積りツールと同じ共有の colors（{code, type}）。見積りツールで覚えた番号も使える
+//  ・ほかに、見積りツールの見積り（WEST）と、作業ボードのほかの車の同じカラー番号からも探す
+//  ・塗装タイプが空のときだけ入れる（自動で入れたものは、番号を打ち直すと入れ直す）。塗装タイプを選ぶと、その番号に覚える
+const WCOL={map:{}};
+let WO_PTAUTO=null;
+function _woColKey(c){ return String(c||'').normalize('NFKC').toUpperCase().replace(/\s/g,''); }
+function _woPtFor(color){
+  const k=_woColKey(color); if(!/^[A-Z0-9-]{2,8}$/.test(k)) return '';
+  const ok=t=>PAINT_TYPES.includes(t)?t:'';
+  if(ok(WCOL.map[k])) return WCOL.map[k];
+  const e=(WEST.list||[]).filter(x=>_woColKey(x.color)===k&&ok(x.ptype)).sort((a,b)=>String(b.savedAt||'')<String(a.savedAt||'')?-1:1)[0]; if(e) return e.ptype;
+  const cur=_woCurJob(), o=JOBS.find(x=>x!==cur&&_woColKey(x.color)===k&&ok(x.paintType)); return o?o.paintType:'';
+}
+function _woColorFill(j){
+  if(!j) return; const auto=WO_PTAUTO&&WO_PTAUTO.jid===j.id&&j.paintType===WO_PTAUTO.pt;
+  if(j.paintType&&!auto) return;
+  const pt=_woPtFor(j.color); if(!pt&&!auto) return;
+  j.paintType=pt||''; WO_PTAUTO=pt?{jid:j.id,pt}:null; woTouch(j,true);
+  const el=document.getElementById('wo-pt'); if(el) el.value=j.paintType; const n=document.getElementById('wo-pt-note'); if(n) n.textContent=pt?'（カラー番号から自動）':'';
+}
+function _woColorLearn(j){
+  if(!j||!j.paintType||!PAINT_TYPES.includes(j.paintType)) return; const k=_woColKey(j.color); if(!/^[A-Z0-9-]{2,8}$/.test(k)) return;
+  if(WCOL.map[k]===j.paintType) return;
+  if(WO_PTAUTO&&WO_PTAUTO.jid===j.id&&j.paintType===WO_PTAUTO.pt&&WCOL.map[k]) return;   // 自動で入れたものは、覚え直さない
+  WCOL.map[k]=j.paintType;
+  if(_woCloudOk()){ const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'colors',_cloudKey(k)),{type:j.paintType,code:k,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},{merge:true}).catch(e=>console.warn('colors',e)); }
+}
+// ── 車台番号の型式（11/4）：車台番号の「-」の前（例：RP3）を車種ごとに覚えて、次から押して入れられるようにする ──
+//  ・一覧はチームで共有（yard/layout の chassis = { 車種の目印: {car:'ステップワゴン', p:['RP3','RK5'], x:[外した型式]} }）
+//  ・覚えた型式に加えて、作業ボードにある同じ車種の車台番号からも出す（外した型式は出さない）
+function _woChKey(car){ return _woCarNorm(car).slice(0,40); }
+function _woChPre(v){ const m=String(v||'').normalize('NFKC').toUpperCase().replace(/\s/g,'').match(/^([A-Z0-9]{2,12})[-‐－−ー]/); return m?m[1]:''; }
+function _woChassisList(car){
+  const k=_woChKey(car); if(!k) return [];
+  const e=(YARD.chassis||{})[k]||{}, out=[...(Array.isArray(e.p)?e.p:[])], x=new Set(Array.isArray(e.x)?e.x:[]);
+  const cur=_woCurJob();
+  for(const o of JOBS){ if(o===cur||_woChKey(o.car)!==k) continue; const p=_woChPre(o.chassis); if(p&&!out.includes(p)&&!x.has(p)) out.push(p); }
+  return out.filter(p=>!x.has(p)).slice(0,12);
+}
+function _woChassisChips(j){
+  const L=_woChassisList(j.car); if(!L.length) return j.car?'<span class="sg-note" style="margin:0">「-」の前（型式）を入れると、次から押して入れられます</span>':'';
+  return L.map(p=>`<span class="wo-chc"><button type="button" class="selbtn" onclick="woChassisPick('${p}')">${p}-</button><b onclick="woChassisDel('${p}')" title="この型式を一覧から外す">✕</b></span>`).join('');
+}
+function woChassisPick(p){
+  const j=_woCurJob(); if(!j) return; const el=document.getElementById('wo-chassis');
+  const cur=String(j.chassis||'').normalize('NFKC').trim(), m=cur.match(/^[A-Za-z0-9]{2,12}[-‐－−ー](.*)$/);
+  const rest=m?m[1]:(/^[0-9]+$/.test(cur)?cur:'');   // 型式があれば入れ替え、数字だけなら後ろに残す
+  j.chassis=p+'-'+rest; woTouch(j,true);
+  if(el){ el.value=j.chassis; el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length); }catch(e){} }
+}
+function woChassisLearn(){
+  const j=_woCurJob(); if(!j) return; const k=_woChKey(j.car), p=_woChPre(j.chassis); if(!k||!p) return;
+  YARD.chassis=YARD.chassis&&typeof YARD.chassis==='object'?YARD.chassis:{};
+  const e=YARD.chassis[k]||{car:String(j.car||'').trim().slice(0,40),p:[],x:[]}; e.p=Array.isArray(e.p)?e.p:[]; e.x=Array.isArray(e.x)?e.x:[];
+  if(e.p.includes(p)&&!e.x.includes(p)) return;
+  e.x=e.x.filter(y=>y!==p); if(!e.p.includes(p)) e.p.push(p); YARD.chassis[k]=e; _ydChanged();
+  const c=document.getElementById('wo-chb'); if(c) c.innerHTML=_woChassisChips(j);
+}
+async function woChassisDel(p){
+  const j=_woCurJob(); if(!j) return; const k=_woChKey(j.car); if(!k) return;
+  if(!await askConfirm(`「${j.car}」の型式「${p}」を一覧から外しますか？（入っている車台番号は消えません）`,'外す')) return;
+  YARD.chassis=YARD.chassis&&typeof YARD.chassis==='object'?YARD.chassis:{};
+  const e=YARD.chassis[k]||{car:String(j.car||'').trim().slice(0,40),p:[],x:[]}; e.p=(e.p||[]).filter(y=>y!==p); e.x=[...new Set([...(e.x||[]),p])]; YARD.chassis[k]=e; _ydChanged();
+  const c=document.getElementById('wo-chb'); if(c) c.innerHTML=_woChassisChips(j);
+}
 // ── 保険会社・アジャスター（11/2）：お支払い区分で車両保険・対物保険を選んだとき、それぞれに保険会社とアジャスター（AJ）を選ぶ ──
 //  ・一覧はチームで共有（配置図と同じ yard/layout の ins）。初めての保険会社・AJは手で入れると、次から一覧に出る
 //  ・AJには TEL・FAX・メールを覚えておく。作業指示にも写しを入れる（一覧から消しても、その車の記録には残る）
@@ -2600,13 +2719,16 @@ function _insCo(n){ return _insDir().find(x=>x.n===n)||null; }
 function _woInsKinds(j){ return _woPays(j).filter(p=>/保険/.test(p)); }
 function _woIns(j,k){ if(!j.ins||typeof j.ins!=='object') j.ins={}; if(!j.ins[k]) j.ins[k]={}; return j.ins[k]; }
 function _insSave(){ _ydChanged(); }
+// 保険会社ごとに覚えている部署名（AJの部署＋FAXで読んだ部署 c.dp）
+function _insDepts(c){ if(!c) return []; return [...new Set([...(c.aj||[]).map(y=>y.dept),...(Array.isArray(c.dp)?c.dp:[])].map(d=>String(d||'').trim()).filter(Boolean))].slice(0,20); }
+function _insDeptAdd(c,d){ d=String(d||'').trim().slice(0,60); if(!c||!d) return; c.dp=Array.isArray(c.dp)?c.dp:[]; if(!c.dp.includes(d)) c.dp.push(d); if(c.dp.length>20) c.dp=c.dp.slice(-20); }
 function woInsHtml(j){
   const kinds=_woInsKinds(j); if(!kinds.length) return '';
   return kinds.map(k=>{ const x=(j.ins||{})[k]||{}, co=x.co&&_insCo(x.co), ajs=co?(co.aj||[]):[], ka=JSON.stringify(k).replace(/"/g,'&quot;');
     const a=x.aj?(ajs.find(y=>y.n===x.aj)||{n:x.aj,dept:x.dept,tel:x.tel,fax:x.fax,mail:x.mail}):null;
     const tel=a&&(a.tel||x.tel), fax=a&&(a.fax||x.fax), mail=a&&(a.mail||x.mail), dept=a&&(a.dept||x.dept);
     return `<div class="field span2 wo-ins"><label>🏢 ${esc(k)}の保険会社</label>
-      <div class="check-group">${_insDir().map((c,i)=>`<button type="button" class="selbtn${x.co===c.n?' on':''}" onclick="woInsCo(${ka},${i})">${esc(c.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsCoNew(${ka})">＋ 新しい保険会社</button>${x.co&&!co?`<span class="sg-note" style="margin:0 6px">${esc(x.co)}（一覧から外した会社）</span>`:''}</div>
+      <div class="check-group">${_insDir().map((c,i)=>`<button type="button" class="selbtn${x.co===c.n?' on':''}" onclick="woInsCo(${ka},${i})">${esc(c.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsCoNew(${ka})">＋ 新しい保険会社</button><button type="button" class="selbtn wo-ins-add" onclick="this.nextElementSibling.click()">📠 FAXの写真から読み取る</button><input type="file" accept="image/*" hidden onchange="woInsFax(${ka},this)">${x.co&&!co?`<span class="sg-note" style="margin:0 6px">${esc(x.co)}（一覧から外した会社）</span>`:''}</div>
       ${x.co?`<label style="margin-top:8px">👤 アジャスター（AJ）　<small style="font-weight:400">${esc(x.co)}</small></label>
       <div class="check-group">${ajs.map((y,i)=>`<button type="button" class="selbtn${x.aj===y.n?' on':''}" onclick="woInsAj(${ka},${i})">${esc(y.n)}${y.dept?`<small style="display:block;font-weight:500;font-size:11px;opacity:.8">${esc(y.dept)}</small>`:''}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsAjForm(${ka},-1)">＋ 新しいアジャスター</button>${co?`<button type="button" class="selbtn" onclick="woInsCoEdit(${ka})" title="保険会社の名前を直す・一覧から外す">✏️</button>`:''}</div>`:''}
       ${a?`<div class="wo-ins-card"><div class="wo-ins-nm">${esc(x.co)}${dept?`　<span class="wo-ins-dp">${esc(dept)}</span>`:''}　AJ <b>${esc(a.n)}</b></div>
@@ -2624,11 +2746,14 @@ function woInsAj(k,i){ const j=_woCurJob(); if(!j) return; const x=_woIns(j,k), 
 function _insForm(title,fields,btns){ return new Promise(res=>{
   const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9600;
   ov.innerHTML=`<div class="cf-box lc-form" style="max-width:400px"><div style="font-weight:700;margin-bottom:10px">${esc(title)}</div>
-    ${fields.map((f,i)=>`<div class="field"><label>${esc(f.l)}</label><input data-i="${i}" type="${f.t||'text'}" inputmode="${f.m||'text'}" value="${esc(f.v||'')}" placeholder="${esc(f.p||'')}"></div>`).join('')}
+    ${fields.map((f,i)=>`<div class="field"><label>${esc(f.l)}</label><input data-i="${i}" type="${f.t||'text'}" inputmode="${f.m||'text'}" value="${esc(f.v||'')}" placeholder="${esc(f.p||'')}">${(f.o||[]).length?`<div class="ins-opt">${f.o.map((o,n)=>`<button type="button" class="selbtn" data-o="${i}-${n}">${esc(typeof o==='string'?o:o.l)}</button>`).join('')}</div>`:''}</div>`).join('')}
     <div class="cf-btns" style="grid-template-columns:${btns.map(()=>'1fr').join(' ')}">${btns.map((b,i)=>`<button type="button" class="btn ${b.c||''}" data-b="${i}">${esc(b.l)}</button>`).join('')}</div></div>`;
   const done=v=>{ ov.remove(); res(v); };
   ov.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{ const k=btns[+b.dataset.b].k; done(k==='cancel'?null:{k,v:[...ov.querySelectorAll('input')].map(x=>x.value.trim())}); });
   ov.addEventListener('click',e=>{ if(e.target===ov) done(null); });
+  // 選択肢（覚えている保険会社・AJ・部署）を押すと欄に入る。o.set があればほかの欄も一緒に入れる
+  ov.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{ const [i,n]=b.dataset.o.split('-').map(Number), o=fields[i].o[n], ins=ov.querySelectorAll('input[data-i]');
+    const set=typeof o==='string'?{[i]:o}:(o.set||{[i]:o.l}); for(const k in set){ if(ins[k]&&set[k]!=null) ins[k].value=set[k]; } });
   ov.querySelectorAll('input').forEach(x=>x.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const ok=btns.find(b=>b.k==='ok'); if(ok) done({k:'ok',v:[...ov.querySelectorAll('input')].map(y=>y.value.trim())}); } }));
   document.body.appendChild(ov); setTimeout(()=>{ const f=ov.querySelector('input'); if(f) f.focus(); },50);
 }); }
@@ -2651,7 +2776,7 @@ async function woInsAjForm(k,i){
   if(!c){ toast('先に保険会社を選んでください'); return; }
   c.aj=Array.isArray(c.aj)?c.aj:[]; const a=i>=0?c.aj[i]:null;
   const r=await _insForm(a?`アジャスターの連絡先（${c.n}）`:`アジャスターを追加（${c.n}）`,[
-    {l:'アジャスター（AJ）の名前',v:a?a.n:'',p:'例：山田'},{l:'部署名',v:a?a.dept:'',p:'例：神戸損害サービス第一課'},{l:'TEL',v:a?a.tel:'',t:'tel',m:'tel',p:'例：078-123-4567'},{l:'FAX',v:a?a.fax:'',t:'tel',m:'tel',p:'例：078-123-4568'},{l:'メールアドレス',v:a?a.mail:'',t:'email',m:'email',p:'例：yamada@example.co.jp'}],
+    {l:'アジャスター（AJ）の名前',v:a?a.n:'',p:'例：山田'},{l:'部署名',v:a?a.dept:'',p:'例：神戸損害サービス第一課',o:_insDepts(c)},{l:'TEL',v:a?a.tel:'',t:'tel',m:'tel',p:'例：078-123-4567'},{l:'FAX',v:a?a.fax:'',t:'tel',m:'tel',p:'例：078-123-4568'},{l:'メールアドレス',v:a?a.mail:'',t:'email',m:'email',p:'例：yamada@example.co.jp'}],
     a?[{l:'一覧から外す',k:'del',c:'cf-yes'},{l:'キャンセル',k:'cancel'},{l:'保存',k:'ok',c:'btn-primary'}]:[{l:'キャンセル',k:'cancel'},{l:'追加して選ぶ',k:'ok',c:'btn-primary'}]);
   if(!r) return;
   if(r.k==='del'){ if(!await askConfirm(`アジャスター「${a.n}」を一覧から外しますか？（今までの車の記録には残ります）`,'外す')) return; c.aj=c.aj.filter(y=>y!==a); _insSave(); woRenderDetail(); return; }
@@ -2659,8 +2784,40 @@ async function woInsAjForm(k,i){
   if(a){ const old=a.n; Object.assign(a,{n,dept,tel,fax,mail});
     JOBS.forEach(o=>{ if(!o.ins||o.archived) return; let ch=false; for(const kk in o.ins){ const y=o.ins[kk]; if(y&&y.co===c.n&&y.aj===old){ Object.assign(y,{aj:n,dept,tel,fax,mail}); ch=true; } } if(ch) woTouch(o,true); });   // 作業中の車の写しも直す
   } else { const ex=c.aj.find(y=>y.n===n); if(ex) Object.assign(ex,{dept:dept||ex.dept,tel:tel||ex.tel,fax:fax||ex.fax,mail:mail||ex.mail}); else c.aj.push({n,dept,tel,fax,mail}); }
-  _insSave();
+  _insDeptAdd(c,dept); _insSave();
   const y=c.aj.find(z=>z.n===n)||{n,dept,tel,fax,mail}; Object.assign(x,{aj:y.n,dept:y.dept||'',tel:y.tel||'',fax:y.fax||'',mail:y.mail||''}); woTouch(j,true); woRenderDetail();
+}
+// ── 保険会社のFAXの写真から 保険会社名・アジャスター・部署・TEL・FAX を読み取る（11/4）──
+//   読み取りは shaken-read.js。写真は端末の中で読むだけで保存しない。お客様名は拾わない
+//   読み取った内容は確認の画面に出し、直してから保存する（一覧の保険会社・AJにも覚える）
+const WO_OWN_TEL=['0788816678','0788816733'];   // 自社の TEL・FAX（FAXに書いてあっても拾わない）
+async function woInsFax(k,input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  const id=(_woCurJob()||{}).id; if(!id) return;
+  let S,r; try{ S=await _woSR(); r=await S.faxFile(f,WO_OWN_TEL); }catch(e){ toast('読み取れませんでした：'+(e&&e.message||e),6000); return; }
+  if(!r||!(r.co||r.aj||r.tel||r.fax)){ toast('読み取れませんでした。FAX全体がまっすぐ、明るく写るように撮ってください',6000); return; }
+  const ex=_insDir().find(c=>c.n===r.co||(S.faxInsName(c.n)&&S.faxInsName(c.n)===r.co));
+  const faxCoSame=n=>n===r.co||S.faxInsName(n)===r.co;   // 保存する会社が FAXの会社と同じか（窓口の部署も覚える）
+  const co0=ex?ex.n:r.co;
+  // 選択肢：覚えている保険会社・その会社のAJ（押すと部署・TEL・FAXも入る）・部署。FAXの「窓口」の人と部署も出す
+  const dk=r.desk||{}, ajO=(ex?ex.aj||[]:[]).map(y=>({l:y.n,set:{1:y.n,2:y.dept||'',3:y.tel||'',4:y.fax||''}}));
+  if(r.aj&&!ajO.some(o=>o.l===r.aj)) ajO.unshift({l:r.aj+'（FAX）',set:{1:r.aj,2:r.dept,3:r.tel,4:r.fax}});
+  if(dk.n&&!ajO.some(o=>o.set[1]===dk.n)) ajO.push({l:dk.n+'（FAXの窓口）',set:{1:dk.n,2:dk.dept||'',3:dk.tel||'',4:dk.fax||''}});
+  const dpO=[...new Set([r.dept,dk.dept,..._insDepts(ex)].map(d=>String(d||'').trim()).filter(Boolean))];
+  const f2=await _insForm(`FAXから読み取りました（${k}）　違うところは直してください`,[
+    {l:'保険会社',v:co0,p:'例：東京海上日動',o:[...new Set([co0,..._insDir().map(c=>c.n)].filter(Boolean))]},{l:'アジャスター（AJ）の名前',v:r.aj,p:'例：山田',o:ajO},{l:'部署名',v:r.dept,p:'例：神戸損害サービス第一課',o:dpO},
+    {l:'TEL',v:r.tel,t:'tel',m:'tel'},{l:'FAX',v:r.fax,t:'tel',m:'tel'}],[{l:'キャンセル',k:'cancel'},{l:'この内容で入れる',k:'ok',c:'btn-primary'}]);
+  if(!f2) return;
+  const [cn,n,dept,tel,fax]=f2.v.map(v=>v.slice(0,60)); if(!cn){ toast('保険会社の名前を入れてください'); return; }
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  let c=_insCo(cn.slice(0,40)); if(!c){ c={n:cn.slice(0,40),aj:[]}; _insDir().push(c); }
+  c.aj=Array.isArray(c.aj)?c.aj:[];
+  const x=_woIns(j,k); x.co=c.n; delete x.aj; delete x.dept; delete x.tel; delete x.fax; delete x.mail;
+  if(n){ const a=c.aj.find(y=>y.n===n); if(a) Object.assign(a,{dept:dept||a.dept||'',tel:tel||a.tel||'',fax:fax||a.fax||''}); else c.aj.push({n,dept,tel,fax,mail:''});
+    const y=c.aj.find(z=>z.n===n); Object.assign(x,{aj:y.n,dept:y.dept||'',tel:y.tel||'',fax:y.fax||'',mail:y.mail||''}); }
+  _insDeptAdd(c,dept); if(dk.dept&&faxCoSame(c.n)) _insDeptAdd(c,dk.dept);
+  _insSave(); woTouch(j,true); if(_woCurJob()===j) woRenderDetail();
+  toast(`${k}：${c.n}${n?'　AJ '+n:''} を入れました`,4000);
 }
 // 協定は、お支払い区分で保険（車両保険・対物保険）を選んだときだけ
 function _woNeedKyotei(j){ return _woPays(j).some(p=>/保険/.test(p)); }
@@ -3096,8 +3253,8 @@ function _woRenderList(){
       <div class="rt">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</div>
       <div class="sub">${esc([j.car?j.plate:'',j.color&&'カラー '+j.color].filter(Boolean).join(' ／ ')||'—')}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}${!j.archived&&woColor(j)===WO_SHAKEN_COLOR?';color:#fff':''}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
-      ${j.partsOnly?`<div class="sub">📍 部品単品</div>`:j.outWork?`<div class="sub">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${woSeibiText_(j)?`<div class="sub">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
+      ${j.partsOnly?`<div class="sub ln">📍 部品単品</div>`:j.outWork?`<div class="sub ln">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub ln">📍 ${esc(_woSlotFull(j))}</div>`:''}
+      ${woSeibiText_(j)?`<div class="sub ln">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub ln">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub ln">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub ln">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub ln" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;
   }
   if(WOC._oldBtn) list.insertAdjacentHTML('beforeend',`<button type="button" class="btn" style="width:100%;margin-top:8px" onclick="woLoadOld()">📂 ${WO_ARCH_DAYS}日より前の納車済も読む</button>`);
@@ -3186,9 +3343,11 @@ function _woRenderDetail(box){
   <div class="fgrid">
     <div class="field span2"><label>お名前（入出庫管理表のF列）</label><div class="wo-nmbox">${_woSheetName(j)?esc(_woSheetName(j)):'<span style="color:var(--muted)">入出庫管理表に同じ車が見つかりません（番号を入れると表示されます）</span>'}</div></div>
     ${inp('plate','登録番号','half')}
-    ${inp('car','車種')}${inp('color','カラー番号')}
-    <div class="field"><label>塗装タイプ</label><select onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
-    ${inp('chassis','車台番号')}
+    ${inp('car','車種')}<div class="field"><label>カラー番号</label><input value="${v('color')}" placeholder="例：NH812P" oninput="woSet('color',this.value)" onblur="_woColorLearn(_woCurJob())"></div>
+    <div class="field"><label>塗装タイプ <small id="wo-pt-note" style="font-weight:400;color:var(--muted)"></small></label><select id="wo-pt" onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
+    <div class="field"><label>車台番号</label><input id="wo-chassis" value="${v('chassis')}" placeholder="例：RP3-1234567" oninput="woSet('chassis',this.value)" onblur="woChassisLearn()"><div class="wo-chb" id="wo-chb">${_woChassisChips(j)}</div></div>
+    ${inp('typeNo','型式指定番号','inputmode="numeric" placeholder="例：12345"')}${inp('ruiNo','類別区分番号','inputmode="numeric" placeholder="例：0001"')}
+    <div class="field span2 wo-scan"><button type="button" class="btn" onclick="woReadQR()">📷 車検証QRを読む</button><button type="button" class="btn" onclick="document.getElementById('wo-lbl-in').click()">🏷 コーションプレートからカラー番号</button><input type="file" id="wo-qr-in" accept="image/*" hidden onchange="woReadQRFile(this)"><input type="file" id="wo-lbl-in" accept="image/*" hidden onchange="woReadLabel(this)"></div>
     ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
     ${j.sheetId||j.sheetKey?`<div class="field span2" style="text-align:right;margin-top:-4px"><button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="woSheetUnlink()">🔗 入庫管理表とのつながりを外す</button></div>`:''}
@@ -3374,7 +3533,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <div class="sub">${esc(j.car||'')}</div>
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}
-${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}
+${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}${j.typeNo||j.ruiNo?row('型式指定・類別',esc([j.typeNo||'—',j.ruiNo||'—'].join(' - '))):''}
 ${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${_woInsKinds(j).map(k=>{ const x=(j.ins||{})[k]||{}; return x.co||x.aj?row(esc(k),esc([x.co,x.dept,x.aj?'AJ '+x.aj:'',x.tel?'TEL '+x.tel:'',x.fax?'FAX '+x.fax:'',x.mail].filter(Boolean).join('　'))):''; }).join('')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}${skel}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
