@@ -19,7 +19,7 @@
  *   reloadBtn()  表を読み直すボタン（なければ ''）   warn()  上に出す注意（なければ ''）   errs()  下に出す注意（HTML）
  *   onOpen()  onClose()   formNote(b)  予約の画面に出す説明（HTML）
  * ===================================================================== */
-var LCAL_VER = '2026-10-31';
+var LCAL_VER = '2026-11-04';
 var OPEN_END = '9999-12-31';
 // レンタカーの枠（10/31）：中の名前（n）は前のまま（前の予約を引き継ぐため）。レンタカー1・2＝トヨレン①②（前の「他社レンタカー①②」）、3・4＝キンレン①②
 var RENTAL_ROWS = [{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1}];
@@ -34,7 +34,15 @@ function _lcYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function _lcEsc(s){ return (typeof esc==='function')?esc(s):String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
 function _lcLabel(n){ const A=_lcA(); return A.label?A.label(n):(n||''); }
 function _lcName(b){ const A=_lcA(); return A.name?A.name(b):(b.src==='sheet'?[b.model,b.plate].filter(Boolean).join(' '):(b.name||'')); }
-function _lcAll(){ const A=_lcA(); try{ return A.all?A.all():[]; }catch(e){ return []; } }
+function _lcAll(){ const A=_lcA(); let L=[]; try{ L=A.all?A.all():[]; }catch(e){ return []; } return _lcDedupe(L); }
+// 🗂 記録（表の行を消したときに残したもの）と同じ車が、ほかの予約（表に書き直した行など）にもあれば、記録は出さない（11/4：同じ車どうしの「重なり」がずっと出ていたため）
+function _lcNo(b){ const t=String((b.plate||'')+' '+(b.name||'')+' '+(b.model||'')).normalize('NFKC').replace(/(\d)[・.\-‐ー](?=\d)/g,'$1'); const m=t.match(/\d{2,4}(?!.*\d{2,4})/); return m?m[0].replace(/^0+/,''):''; }
+function _lcDedupe(L){ return L.filter(b=>{ if(b.src!=='hist') return true; const no=_lcNo(b); if(!no) return true;
+  return !L.some(x=>x!==b&&x.src!=='hist'&&x.car===b.car&&x.from<=b.to&&b.from<=x.to&&_lcNo(x)===no); }); }
+// 入れ替え（同じ日に返却と貸出）：a がその日に返却、b がその日から貸出。重なりではない
+function _lcHandover(L,day){ if(L.length!==2) return null; for(const [a,b] of [[L[0],L[1]],[L[1],L[0]]]){ if(a.to===day&&b.from===day&&!(a.from===day&&b.to===day)&&a.from<=b.from) return {a,b}; } return null; }
+// 期間がその日だけ接している（返却日＝次の貸出日）＝重なりではない
+function _lcTouch(x,y){ return (x.to===y.from&&x.from<y.from)||(y.to===x.from&&y.from<x.from); }
 
 function _kindColor(k){ const x=LOANER_KINDS.find(v=>v.k===k); return x?x.c:'#9AA4B2'; }
 // 作業区分（複数可）：kinds 配列。古いデータの kind（文字列）も読む
@@ -109,17 +117,46 @@ function _lcToday(){ const d=new Date(); _lcMonth=new Date(d.getFullYear(),d.get
 function _closeLoanerCal(){ const o=document.getElementById('lc-ov'); if(o) o.remove(); try{ const A=_lcA(); A.onClose&&A.onClose(); }catch(e){} }
 
 // 重なっている予約を選ぶ（同じ代車・同じ日に2つ以上）
-function _lcPick(ids){
+function _lcPick(ids,day){
   const all=_lcAll(), L=String(ids).split('|').map(id=>all.find(b=>b.id===id)).filter(Boolean);
   if(L.length===1){ _loanerForm(L[0].id); return; }
+  const A=_lcA(), ho=day?_lcHandover(L,day):null;
+  const S=L.length===2?L.slice().sort((x,y)=>x.from<y.from?-1:x.from>y.from?1:(x.to<y.to?-1:1)):null;   // 先に貸した方＝返却する方
+  const lo=S?S[1].from:'', hi=S?(S[0].to<S[1].to?S[0].to:S[1].to):'';
+  const d0=S?(day&&day>=lo&&day<=hi?day:lo):'';
   const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
-  ov.innerHTML=`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px;color:#ff4d4d">⚠ 予約が重なっています（${L.length}件）</div>
+  const item=b=>`<button type="button" class="btn lc-pk" data-id="${_lcEsc(b.id)}" style="width:100%;justify-content:flex-start;gap:8px;margin-bottom:6px;text-align:left"><i class="kd" style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${_kindBg(b)}"></i><span><b>${_lcEsc(_lcLabel(b.car))}</b>　${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}<br><small>${b.src==='sheet'?'📄 入出庫管理表　':b.src==='hist'?'🗂 記録　':''}${_lcEsc(_lcName(b)||'予約')}</small></span></button>`;
+  ov.innerHTML=ho?`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px">⇄ ${day.slice(5).replace('-','/')} は返却と貸出の入れ替え日</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">この日に返してもらい、同じ日に次のかたへ貸し出します（重なりではありません）。直す予約を押してください。</div>
+    <div style="font-size:12px;font-weight:700;margin:2px 0 4px">↩ 返却</div>${item(ho.a)}<div style="font-size:12px;font-weight:700;margin:2px 0 4px">→ 貸出</div>${item(ho.b)}
+    <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn lc-pk-x">閉じる</button></div></div>`
+  :`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px;color:#ff4d4d">⚠ 予約が重なっています（${L.length}件）</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">同じ代車に、同じ日の予約が2つ以上あります。直す予約を押してください。</div>
-    ${L.map(b=>`<button type="button" class="btn lc-pk" data-id="${_lcEsc(b.id)}" style="width:100%;justify-content:flex-start;gap:8px;margin-bottom:6px;text-align:left"><i class="kd" style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${_kindBg(b)}"></i><span><b>${_lcEsc(_lcLabel(b.car))}</b>　${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}<br><small>${b.src==='sheet'?'📄 入出庫管理表　':b.src==='hist'?'🗂 記録　':''}${_lcEsc(_lcName(b)||'予約')}</small></span></button>`).join('')}
+    ${L.map(item).join('')}
+    ${S?`<div class="lc-split"><div style="font-weight:700;margin-bottom:4px">⇄ 同じ日に返却と貸出をした（する）とき</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">入れ替えの日を選んで「分割する」を押すと、<b>${_lcEsc(_lcName(S[0])||'先の予約')}</b> の返却日と <b>${_lcEsc(_lcName(S[1])||'あとの予約')}</b> の貸出日をその日にそろえ、カレンダーでは1日を半分ずつに分けて出します。</div>
+      <div style="display:flex;gap:6px;align-items:center"><input type="date" class="lc-sp-d" value="${d0}" min="${lo}" max="${hi}" style="flex:1"><button type="button" class="btn btn-primary lc-sp-go" style="white-space:nowrap">分割する</button></div></div>`:''}
     <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn lc-pk-x">閉じる</button></div></div>`;
   ov.querySelectorAll('.lc-pk').forEach(bt=>bt.onclick=()=>{ ov.remove(); _loanerForm(bt.dataset.id); });
   ov.querySelector('.lc-pk-x').onclick=()=>ov.remove(); ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  const go=ov.querySelector('.lc-sp-go');
+  if(go) go.onclick=async()=>{ const D=ov.querySelector('.lc-sp-d').value; if(!D||D<lo||D>hi){ toast(`入れ替えの日は ${lo.slice(5).replace('-','/')}〜${hi.slice(5).replace('-','/')} の間で選んでください`,5000); return; }
+    if(await _lcSplit(S[0],S[1],D)){ ov.remove(); _renderLoanerCal(); } };
   document.body.appendChild(ov);
+}
+// 分割：a（先に貸した予約）の返却日と b（あとの予約）の貸出日を D にそろえる。表（📄）の予約はここでは直せないので、表で直す所を知らせる
+async function _lcSplit(a,b,D){
+  const A=_lcA(), md=x=>x.slice(5).replace('-','/'), fix=[], sheet=[];
+  const ea=A.ownGet&&A.ownGet(a.id), eb=A.ownGet&&A.ownGet(b.id);
+  if(a.to!==D){ if(ea) fix.push([ea,{to:D}]); else if(a.src==='sheet') sheet.push(`${_lcName(a)||'予約'}：出庫日（返却）を ${md(D)} に`); }
+  if(b.from!==D){ if(eb) fix.push([eb,{from:D}]); else if(b.src==='sheet') sheet.push(`${_lcName(b)||'予約'}：入庫日（貸出）を ${md(D)} に`); }
+  if(!fix.length&&!sheet.length) return true;
+  const msg=(fix.length?fix.map(([x,c])=>`${_lcName(x)||'予約'}：${c.to?'返却日':'貸出日'} ${md(c.to?x.to:x.from)} → ${md(D)}`).join('\n')+'\n':'')+(sheet.length?'\n📄 入出庫管理表の予約は、表で直してください：\n'+sheet.join('\n'):'');
+  if(fix.length){ if(!await askConfirm('分割します。\n'+msg,'分割する')) return false; }
+  else { await askConfirm(msg,'わかりました'); return false; }
+  for(const [x,c] of fix){ const n={id:x.id,car:x.car,from:x.from,to:x.to,name:x.name||'',kinds:_kinds(x),kind:_kinds(x).join('・'),memo:x.memo||'',...c}; try{ if(A.put&&A.put(n,x)===false) return false; }catch(e){ console.warn(e); toast('保存できませんでした',5000); return false; } }
+  if(sheet.length) toast('入出庫管理表の予約は、表の日付を直すと分かれます',6000);
+  return true;
 }
 
 // ─── カレンダーを描く（前の月〜3か月先までを1本につないで横にスクロール） ───
@@ -145,23 +182,28 @@ function _renderLoanerCal(){
     ${A.reloadBtn?A.reloadBtn():''}
     <button class="btn" type="button" style="margin-left:auto" onclick="_closeLoanerCal()">✕ 閉じる</button></div>
     ${A.warn&&A.warn()?`<div style="color:#ffb020;font-size:12px;margin-bottom:6px">${_lcEsc(A.warn())}</div>`:''}
-    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span><span><i class="lg-ov"></i>予約の重なり</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。赤い斜線の日が店休日です。日付（いちばん上の行）を押すと、店休日にするか確認します。赤い枠の「⚠ 重なり」は、同じ代車に同じ日の予約が2つ以上あるところです。${_lcEsc(A.other||'')}${A.other?'のカレンダーと同じ予約です。':''}</div>
+    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span><span><i class="lg-ov"></i>予約の重なり</span><span><b style="color:var(--text)">⇄</b> 返却と貸出の入れ替え</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。赤い斜線の日が店休日です。日付（いちばん上の行）を押すと、店休日にするか確認します。赤い枠の「⚠ 重なり」は、同じ代車に同じ日の予約が2つ以上あるところです（押すと、同じ日に返却と貸出をしたときの「分割」ができます）。「⇄」は、その日に返却して同じ日に次へ貸し出す入れ替えの日です（重なりではありません）。${_lcEsc(A.other||'')}${A.other?'のカレンダーと同じ予約です。':''}</div>
     <div class="lc-scroll"><table class="lc-grid"><colgroup><col class="c-car"><col class="c-d" span="${N}"></colgroup><tr class="lc-mrow"><th class="lc-car"></th>${months.map(o=>`<th class="lc-mon" colspan="${o.n}"><span>${o.y}年${o.m}月</span></th>`).join('')}</tr>
     <tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" data-d="${x.d}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?_lcEsc(x.hol):''}${x.closed?' 店休日':''}">${x.n===1?`<span class="mlab">${x.m}月</span>`:''}${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':''}</th>`).join('')}</tr>`;
   for(const c of [...LOANER_CARS,...RENTAL_ROWS]){
     h+=`<tr><td class="lc-car${c.low?' low':''}${c.ext?' ext':''}">${c.lab||c.n}${c.low?'<small>1550mm以下</small>':''}</td>`;
-    const on=days.map(x=>_lcOn(all,c.n,x.d)), key=i=>on[i].map(b=>b.id).sort().join('|');
+    const on=days.map(x=>_lcOn(all,c.n,x.d)), hos=days.map((x,i)=>_lcHandover(on[i],x.d)), key=i=>(hos[i]?'H:':'')+on[i].map(b=>b.id).sort().join('|');
     for(let i=0;i<N;){
       const x=days[i], L=on[i];
       if(!L.length){ h+=`<td class="free ${cls(x)}" onclick="_loanerForm(null,'${c.n}','${x.d}')"></td>`; i++; continue; }
       let span=1; const k0=key(i); while(i+span<N&&key(i+span)===k0) span++;
       const seg=days.slice(i,i+span), tn=seg.map(tint); let bg='';
       if(tn.some(Boolean)) bg=`background:linear-gradient(90deg,${tn.map((t,q)=>`${t||'transparent'} ${(q*100/span).toFixed(3)}% ${((q+1)*100/span).toFixed(3)}%`).join(',')});`;
+      if(hos[i]){   // 入れ替え：この日に返却して、同じ日に次の貸出（1日を半分ずつに分けて出す）
+        const {a,b}=hos[i];
+        h+=`<td class="bk ho${x.n===1?' m1':''}" style="${bg}" onclick="_lcPick('${_lcEsc(a.id+'|'+b.id)}','${x.d}')" title="${_lcEsc('入れ替え：'+(_lcName(a)||'予約')+' 返却 → '+(_lcName(b)||'予約')+' 貸出')}"><div class="lc-ho"><div class="bk-bar" style="background:${_kindBg(a)}"></div><b>⇄</b><div class="bk-bar" style="background:${_kindBg(b)}"></div></div></td>`;
+        i++; continue;
+      }
       if(L.length>1){   // 重なり：同じ代車に同じ日の予約が2つ以上
         L.forEach(b=>ovIds.add(b.id));
         const nm=L.map(b=>_lcName(b)||'予約').join(' ／ ');
-        h+=`<td class="bk ov${span<=2?' short':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_lcPick('${_lcEsc(k0)}')" title="${_lcEsc('予約が重なっています：'+nm)}"><div class="bk-bar lc-ovbar"><span class="bk-t"><span class="bk-n">⚠ 重なり ${L.length}件</span>${span>=2?`<span class="bk-m">${_lcEsc(nm)}</span>`:''}</span></div></td>`;
+        h+=`<td class="bk ov${span<=2?' short':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_lcPick('${_lcEsc(k0)}','${x.d}')" title="${_lcEsc('予約が重なっています：'+nm)}"><div class="bk-bar lc-ovbar"><span class="bk-t"><span class="bk-n">⚠ 重なり ${L.length}件</span>${span>=2?`<span class="bk-m">${_lcEsc(nm)}</span>`:''}</span></div></td>`;
       } else {
         const b=L[0], kt=_kinds(b).join('・'), lab=[_lcName(b)||'予約',kt].filter(Boolean).join(' '), [cu,mo]=_barNames(b);
         h+=`<td class="bk${b.src==='sheet'?' sh':''}${b.src==='hist'?' hist':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_loanerForm('${_lcEsc(b.id)}')" title="${_lcEsc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':b.src==='hist'?'<i class="shm">🗂</i>':''}${_lcEsc(cu||'予約')}</span>${mo?`<span class="bk-m">${_lcEsc(mo)}</span>`:''}${kt&&span>=3?`<small>${_lcEsc(kt)}</small>`:''}</span></div></td>`;
@@ -175,6 +217,8 @@ function _renderLoanerCal(){
   const list=all.filter(b=>b.to>=today&&b.from<=to).sort((a,b)=>a.from<b.from?-1:1);
   const lim=_lcYmd(new Date(Date.now()+62*864e5)), hols=days.filter(x=>x.hol&&x.d>=today&&x.d<=lim).map(x=>`${x.m}/${x.n} ${x.hol}`);
   h+=`<div class="lc-list"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">今日から先の予約</div>${list.length?list.map(b=>`<div class="lc-item${ovIds.has(b.id)?' ov':''}" onclick="_loanerForm('${_lcEsc(b.id)}')"><i class="kd" style="background:${_kindBg(b)}"></i><b>${_lcEsc(_lcLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}</span><span>${_lcEsc(_lcName(b))}</span><span>${_lcEsc(_kinds(b).join('・'))}</span><span style="color:var(--muted)">${_lcEsc(b.memo||'')}</span>${ovIds.has(b.id)?'<span class="lc-ovtag">⚠ 重なり</span>':''}</div>`).join(''):'<div style="color:var(--muted)">予約はありません</div>'}
+    ${(()=>{ const lim30=_lcYmd(new Date(Date.now()-30*864e5)), L=all.filter(b=>b.to===OPEN_END&&b.from<lim30).sort((a,b)=>a.from<b.from?-1:1);   // 11/4：返却日が入らないまま30日以上たった代車（終わった車の日付の入れ忘れ）
+      return L.length?`<div class="lc-stale"><b>⚠ 返却日が入らないまま30日以上たった代車</b><div style="font-size:11px;opacity:.85;margin:2px 0 4px">ずっと貸出中として出て、次の予約と重なって見えます。返した車なら、📄入出庫管理表は出庫日（C列）を、それ以外は予約の返却日を入れてください。</div>${L.map(b=>`<div class="lc-item" onclick="_loanerForm('${_lcEsc(b.id)}')"><b>${_lcEsc(_lcLabel(b.car))}</b><span>${b.from.slice(5).replace('-','/')}〜返却未定</span><span>${b.src==='sheet'?'📄 ':''}${_lcEsc(_lcName(b))}</span></div>`).join('')}</div>`:''; })()}
     ${hols.length?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">祝日（2か月先まで）：${hols.join('、')}</div>`:''}
     ${(()=>{ const c=_closedSoon(today,lim); return `<div class="lc-closed-soon"><b>🏪 店休日（2か月先まで）</b>${c.length?c.map(x=>`<span>${x}</span>`).join(''):'<span style="opacity:.7">登録されていません</span>'}<button type="button" class="btn" onclick="_shopClosedForm()">設定</button></div>`; })()}
     ${A.errs?A.errs():''}</div>
@@ -221,7 +265,7 @@ function _loanerForm(id,car,day){
     const n={id:b?b.id:(A.newId?A.newId():'cal-'+Date.now().toString(36)),car:ov.querySelector('#lf-car').value,from:ov.querySelector('#lf-from').value,to,name:ov.querySelector('#lf-name').value.trim(),kinds,kind:kinds.join('・'),memo:ov.querySelector('#lf-memo').value.trim()};
     if(!n.from||!n.to){ toast('貸出日と返却予定日を入れてください'); return; }
     if(n.to<n.from){ const t=n.from; n.from=n.to; n.to=t; }
-    const clash=_lcAll().find(x=>x.id!==n.id&&x.car===n.car&&x.from<=n.to&&n.from<=x.to);
+    const clash=_lcAll().find(x=>x.id!==n.id&&x.car===n.car&&x.from<=n.to&&n.from<=x.to&&!_lcTouch(x,n));   // 返却日＝貸出日（入れ替え）は重なりにしない
     if(clash&&!await askConfirm(`${_lcLabel(n.car)}は ${clash.from.slice(5)}〜${_toLabel(clash.to)}（${_lcName(clash)||'予約'}）と重なっています。このまま保存しますか？`,'保存する')) return;
     let ok=false; try{ ok=A.put?A.put(n,b):false; }catch(e){ console.warn(e); toast('保存できませんでした',5000); }
     if(ok===false) return;
@@ -241,6 +285,16 @@ function _lcCss(){
 .lc-grid td.bk.hist .bk-bar{opacity:.75;}
 .lc-legend .lg-ov{display:inline-block;background:transparent!important;border:2px solid #ff4d4d;}
 .lc-item.ov{box-shadow:inset 3px 0 0 #ff4d4d;}
-.lc-item .lc-ovtag{color:#ff4d4d;font-weight:800;font-size:12px;}`;
+.lc-item .lc-ovtag{color:#ff4d4d;font-weight:800;font-size:12px;}
+.lc-grid td.bk.ho{cursor:pointer;padding:3px 0;}
+.lc-ho{display:flex;align-items:stretch;gap:0;height:100%;min-height:26px;}
+.lc-ho .bk-bar{flex:1;min-width:0;padding:0!important;}
+.lc-ho .bk-bar:first-child{border-radius:6px 0 0 6px;margin-right:1px;}
+.lc-ho .bk-bar:last-child{border-radius:0 6px 6px 0;margin-left:1px;}
+.lc-ho b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-weight:900;color:#111;background:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;font-family:system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #111;}
+.lc-grid td.bk.ho{position:relative;}
+.lc-stale{margin-top:10px;padding:8px 10px;border:1px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,.10);color:var(--text);font-size:12px;}
+.lc-stale>b{color:#fbbf24;}
+.lc-split{border:1px dashed var(--border,#555);border-radius:10px;padding:8px 10px;margin:6px 0 8px;font-size:13px;}`;
   document.head.appendChild(st);
 }

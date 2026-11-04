@@ -1829,7 +1829,8 @@ function woCloudStart(){
   // カラー番号と塗装タイプ（見積りツールと同じ colors。読めなくても作業ボードは普段どおり動く）
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'colors'),snap=>{ const m={}; snap.forEach(d=>{ const v=d.data()||{}; if(v.type) m[_woColKey(v.code||d.id)]=v.type; }); WCOL.map=m; },err=>{ console.warn('colors',err); }));
   // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
-  WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'estimates'),snap=>{ const L=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); }); WEST.list=L; },err=>{ console.warn('estimates',err); }));
+  // 11/4：60日以内に保存した見積りだけ読む（前は全部。見積りが増えるほど読み込みが増えていた）
+  WOC.unsubs.push(fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'estimates'),fs.where('savedAt','>=',new Date(Date.now()-60*864e5).toISOString())),snap=>{ const L=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); }); WEST.list=L; },err=>{ console.warn('estimates',err); }));
   // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'daily'),snap=>{
     const t=_woToday(); WSD.docs=[];
@@ -3584,7 +3585,9 @@ function _shCloudDel(id){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; fs.dele
 // 共有の内容と合わせる（初回はこの端末だけの分を送る／以降は共有で消えた分を端末からも消す）
 function _shSync(cm,first){
   const known=new Set(SHEETS.map(x=>x.id));
-  for(const x of SHEETS){ if(!cm[x.id]){ if(first){ cm[x.id]=x; _shCloudPut(x); } else _shDelLocal(x.id); } }
+  // 11/4：共有で整理された古い版（保存から14日・その車が作業中でない）は、この端末からも消す（送り直さない）
+  const lim=new Date(Date.now()-14*864e5).toISOString(), act=new Set(JOBS.filter(j=>!j.archived).map(j=>String(j.id)));
+  for(const x of SHEETS){ if(!cm[x.id]){ if(first&&(String(x.savedAt||'')>=lim||act.has(String(x.jobId||'')))){ cm[x.id]=x; _shCloudPut(x); } else _shDelLocal(x.id); } }
   SHEETS=_shSort(Object.values(cm));
   if(!SEC.ok) _shPutLocal(null); else for(const x of SHEETS) if(!known.has(x.id)) _shPutLocal(x);
   shRenderBadge();
@@ -4094,10 +4097,11 @@ function _lbAll(){
   _LB_ALLC={book:LB.book,sheet:LB.sheet,n:JOBS.length,at:Date.now(),res}; return res;
 }
 // 期間と重なる、ほかの予約（j：いま選んでいる作業指示。その車の📄の予約は、自分の予約なので数えない）
+//   返却日と貸出日が同じ日だけ接しているもの（入れ替え）は重なりにしない（11/4）
 function lbClash(car,from,to,selfId,j){
   if(!car||!from) return null; to=to||from;
   const x=j&&_woSheetMatch(j), key=x?_woSheetKey(x):'', no=j?_woPlateNo(j.plate):'';
-  return _lbAll().find(b=>!b.returned&&b.id!==selfId&&b.car===car&&b.from<=to&&from<=b.to&&!(j&&b.src==='sheet'&&((key&&b.key===key)||(no&&_woPlateNo(b.plate)===no))))||null;
+  return _lbAll().find(b=>!b.returned&&b.id!==selfId&&b.car===car&&b.from<=to&&from<=b.to&&!((b.to===from&&b.from<from)||(b.from===to&&from<to))&&!(j&&b.src==='sheet'&&((key&&b.key===key)||(no&&_woPlateNo(b.plate)===no))))||null;
 }
 function lbStart(){
   if(LB.live||!CLOUD.started) return;
