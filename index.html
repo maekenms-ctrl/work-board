@@ -782,6 +782,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 #wo-detail .wo-sec{margin:12px 0 6px;font-size:11px;}
 #wo-detail .fgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 8px;}
 #wo-detail .field.half{grid-column:span 2;}
+.wo-plw{margin-top:5px;padding:6px 9px;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.12);color:#fbbf24;font-size:12px;font-weight:600;line-height:1.5;}
 .ins-opt{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}.ins-opt .selbtn{font-size:12px;padding:4px 9px;min-height:0;}
 #wo-detail .wo-scan{display:flex;gap:6px;flex-wrap:wrap;}#wo-detail .wo-scan .btn{flex:1 1 180px;justify-content:center;font-size:13px;}
 #wo-detail .field label{font-size:10.5px;margin-bottom:2px;}
@@ -1923,6 +1924,12 @@ function _woEstFor(j){
 function woEstFill(){ const j=_woCurJob(); if(!j) return; const e=_woEstFor(j); if(!e) return;
   if(e.chassis) j.chassis=e.chassis; if(e.color) j.color=e.color; if(e.ptype) j.paintType=e.ptype;
   woTouch(j,true); woRenderDetail(); woRenderList(); toast('見積りツールの車両情報を入れました'); }
+// 登録番号の注意（11/4）：入出庫管理表とまだつながっていない作業指示で、番号（数字）が無いとき
+//   表に書いたとき、番号が同じ車につながる。番号が無いと作業指示が2つに分かれることがある
+function _woPlateWarn(j){
+  if(!j||j.archived||j.sheetId||j.sheetKey||_woPlateNo(j.plate)) return '';
+  return '<div class="wo-plw">⚠ 登録番号を入れてください。入出庫管理表に書いたとき、同じ番号の車に自動でつながります。番号が無いと、作業指示が2つに分かれることがあります</div>';
+}
 // ── 車検証QR（型式指定番号・類別区分番号）とコーションプレート（カラー番号）の読み取り ──
 //   読み取りの中身は shaken-read.js（押したときだけ読み込む。見積りツールと同じ読み方）
 //   写真は端末の中で読むだけで、保存・共有しない。お名前は読まない
@@ -1930,7 +1937,7 @@ let _woSRp=null;
 function _woSR(){
   if(window.SHAKEN) return Promise.resolve(window.SHAKEN);
   if(_woSRp) return _woSRp;
-  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-04c'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
+  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-04d'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
   return _woSRp;
 }
 async function woReadQR(){
@@ -2153,6 +2160,7 @@ function woSet(f,v){ const j=_woCurJob(); if(!j) return; j[f]=v;
   if(f==='dueDate'&&j.loanerUse&&!j.loanerTo){ j.loanerTo=v; woRenderDetail(); }
   if(['plate','car','dueDate','loanerFrom','loanerTo'].includes(f)) lbSync(j);
   if(f==='plate'||f==='car'||f==='inDate'){ const d=document.getElementById('wo-dup'); if(d) d.innerHTML=_woDupHtml(j); }
+  if(f==='plate'){ const w=document.getElementById('wo-plw'); if(w) w.innerHTML=_woPlateWarn(j); }
   if(f==='car'){ const c=document.getElementById('wo-chb'); if(c) c.innerHTML=_woChassisChips(j); }
   if(f==='color') _woColorFill(j);
   if(f==='paintType'){ WO_PTAUTO=null; const n=document.getElementById('wo-pt-note'); if(n) n.textContent=''; _woColorLearn(j); }
@@ -2745,7 +2753,7 @@ function woInsAj(k,i){ const j=_woCurJob(); if(!j) return; const x=_woIns(j,k), 
 // 入力の小さな画面（保険会社・AJ）
 function _insForm(title,fields,btns){ return new Promise(res=>{
   const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9600;
-  ov.innerHTML=`<div class="cf-box lc-form" style="max-width:400px"><div style="font-weight:700;margin-bottom:10px">${esc(title)}</div>
+  ov.innerHTML=`<div class="cf-box lc-form" style="max-width:400px"><div style="font-weight:700;margin-bottom:10px;white-space:pre-line">${esc(title)}</div>
     ${fields.map((f,i)=>`<div class="field"><label>${esc(f.l)}</label><input data-i="${i}" type="${f.t||'text'}" inputmode="${f.m||'text'}" value="${esc(f.v||'')}" placeholder="${esc(f.p||'')}">${(f.o||[]).length?`<div class="ins-opt">${f.o.map((o,n)=>`<button type="button" class="selbtn" data-o="${i}-${n}">${esc(typeof o==='string'?o:o.l)}</button>`).join('')}</div>`:''}</div>`).join('')}
     <div class="cf-btns" style="grid-template-columns:${btns.map(()=>'1fr').join(' ')}">${btns.map((b,i)=>`<button type="button" class="btn ${b.c||''}" data-b="${i}">${esc(b.l)}</button>`).join('')}</div></div>`;
   const done=v=>{ ov.remove(); res(v); };
@@ -2794,7 +2802,7 @@ const WO_OWN_TEL=['0788816678','0788816733'];   // 自社の TEL・FAX（FAXに�
 async function woInsFax(k,input){
   const f=input.files&&input.files[0]; input.value=''; if(!f) return;
   const id=(_woCurJob()||{}).id; if(!id) return;
-  let S,r; try{ S=await _woSR(); r=await S.faxFile(f,WO_OWN_TEL); }catch(e){ toast('読み取れませんでした：'+(e&&e.message||e),6000); return; }
+  let S,r; try{ S=await _woSR(); r=await S.faxFile(f,WO_OWN_TEL,_insDir()); /* 覚えている保険会社・AJ・部署（手で入れたものも）で読み違いを直す */ }catch(e){ toast('読み取れませんでした：'+(e&&e.message||e),6000); return; }
   if(!r||!(r.co||r.aj||r.tel||r.fax)){ toast('読み取れませんでした。FAX全体がまっすぐ、明るく写るように撮ってください',6000); return; }
   const ex=_insDir().find(c=>c.n===r.co||(S.faxInsName(c.n)&&S.faxInsName(c.n)===r.co));
   const faxCoSame=n=>n===r.co||S.faxInsName(n)===r.co;   // 保存する会社が FAXの会社と同じか（窓口の部署も覚える）
@@ -2804,7 +2812,7 @@ async function woInsFax(k,input){
   if(r.aj&&!ajO.some(o=>o.l===r.aj)) ajO.unshift({l:r.aj+'（FAX）',set:{1:r.aj,2:r.dept,3:r.tel,4:r.fax}});
   if(dk.n&&!ajO.some(o=>o.set[1]===dk.n)) ajO.push({l:dk.n+'（FAXの窓口）',set:{1:dk.n,2:dk.dept||'',3:dk.tel||'',4:dk.fax||''}});
   const dpO=[...new Set([r.dept,dk.dept,..._insDepts(ex)].map(d=>String(d||'').trim()).filter(Boolean))];
-  const f2=await _insForm(`FAXから読み取りました（${k}）　違うところは直してください`,[
+  const f2=await _insForm(`FAXから読み取りました（${k}）　違うところは直してください`+(r.fixed&&r.fixed.length?`\n覚えている内容で直しました：${r.fixed.join('、')}`:''),[
     {l:'保険会社',v:co0,p:'例：東京海上日動',o:[...new Set([co0,..._insDir().map(c=>c.n)].filter(Boolean))]},{l:'アジャスター（AJ）の名前',v:r.aj,p:'例：山田',o:ajO},{l:'部署名',v:r.dept,p:'例：神戸損害サービス第一課',o:dpO},
     {l:'TEL',v:r.tel,t:'tel',m:'tel'},{l:'FAX',v:r.fax,t:'tel',m:'tel'}],[{l:'キャンセル',k:'cancel'},{l:'この内容で入れる',k:'ok',c:'btn-primary'}]);
   if(!f2) return;
@@ -3342,7 +3350,7 @@ function _woRenderDetail(box){
   <div class="wo-sec"><span class="bar"></span>車両</div>
   <div class="fgrid">
     <div class="field span2"><label>お名前（入出庫管理表のF列）</label><div class="wo-nmbox">${_woSheetName(j)?esc(_woSheetName(j)):'<span style="color:var(--muted)">入出庫管理表に同じ車が見つかりません（番号を入れると表示されます）</span>'}</div></div>
-    ${inp('plate','登録番号','half')}
+    <div class="field half"><label>登録番号</label><input value="${v('plate')}" oninput="woSet('plate',this.value)"><div id="wo-plw">${_woPlateWarn(j)}</div></div>
     ${inp('car','車種')}<div class="field"><label>カラー番号</label><input value="${v('color')}" placeholder="例：NH812P" oninput="woSet('color',this.value)" onblur="_woColorLearn(_woCurJob())"></div>
     <div class="field"><label>塗装タイプ <small id="wo-pt-note" style="font-weight:400;color:var(--muted)"></small></label><select id="wo-pt" onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>車台番号</label><input id="wo-chassis" value="${v('chassis')}" placeholder="例：RP3-1234567" oninput="woSet('chassis',this.value)" onblur="woChassisLearn()"><div class="wo-chb" id="wo-chb">${_woChassisChips(j)}</div></div>
