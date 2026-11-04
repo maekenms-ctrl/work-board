@@ -1773,7 +1773,8 @@ async function _woCheckPush(j){
   const {fs}=CLOUD.fb; j._chk=true;
   try{ const d=fs.getDoc?await fs.getDoc(fs.doc(CLOUD.db,'jobs',_cloudKey(j.id))):null; const v=d&&d.exists()?d.data():null;
     delete j._chk;
-    if(!v){ _woCloudPut(j); return; }
+    // 共有に無い：この端末で作って送れていなかったものなら送る。14日より前から変わっていないものは、ほかの端末で削除して印も整理済みのものなので送らない（11/4：消した作業指示が戻らないように）
+    if(!v){ const t=String(j.updatedAt||j.createdAt||''); if(t&&t<new Date(Date.now()-14*864e5).toISOString()){ JOBS=JOBS.filter(x=>x!==j); woRenderAll(true); _woSaveLocal(); return; } _woCloudPut(j); return; }
     if(v.deleted){ JOBS=JOBS.filter(x=>x!==j); }
     else{ delete v.at; delete v.by; WOC.base[v.id||j.id]=_woClean(v); WO_ORIG.set(v,_woClean(v)); if(v.archived) WOC.old[j.id]=v; JOBS=JOBS.map(x=>x===j?v:x); }
     woRenderAll(true); _woSaveLocal();

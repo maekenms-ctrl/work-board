@@ -126,14 +126,14 @@ function _lcPick(ids,day){
   const d0=S?(day&&day>=lo&&day<=hi?day:lo):'';
   const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
   const item=b=>`<button type="button" class="btn lc-pk" data-id="${_lcEsc(b.id)}" style="width:100%;justify-content:flex-start;gap:8px;margin-bottom:6px;text-align:left"><i class="kd" style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${_kindBg(b)}"></i><span><b>${_lcEsc(_lcLabel(b.car))}</b>　${b.from.slice(5).replace('-','/')}〜${_toLabel(b.to)}<br><small>${b.src==='sheet'?'📄 入出庫管理表　':b.src==='hist'?'🗂 記録　':''}${_lcEsc(_lcName(b)||'予約')}</small></span></button>`;
-  ov.innerHTML=ho?`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px">⇄ ${day.slice(5).replace('-','/')} は返却と貸出の入れ替え日</div>
+  ov.innerHTML=ho?`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px">🔁 ${day.slice(5).replace('-','/')} は返却と貸出の入れ替え日</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">この日に返してもらい、同じ日に次のかたへ貸し出します（重なりではありません）。直す予約を押してください。</div>
     <div style="font-size:12px;font-weight:700;margin:2px 0 4px">↩ 返却</div>${item(ho.a)}<div style="font-size:12px;font-weight:700;margin:2px 0 4px">→ 貸出</div>${item(ho.b)}
     <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn lc-pk-x">閉じる</button></div></div>`
   :`<div class="cf-box" style="max-width:420px"><div style="font-weight:700;margin-bottom:6px;color:#ff4d4d">⚠ 予約が重なっています（${L.length}件）</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px">同じ代車に、同じ日の予約が2つ以上あります。直す予約を押してください。</div>
     ${L.map(item).join('')}
-    ${S?`<div class="lc-split"><div style="font-weight:700;margin-bottom:4px">⇄ 同じ日に返却と貸出をした（する）とき</div>
+    ${S?`<div class="lc-split"><div style="font-weight:700;margin-bottom:4px">🔁 同じ日に返却と貸出をした（する）とき</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">入れ替えの日を選んで「分割する」を押すと、<b>${_lcEsc(_lcName(S[0])||'先の予約')}</b> の返却日と <b>${_lcEsc(_lcName(S[1])||'あとの予約')}</b> の貸出日をその日にそろえ、カレンダーでは1日を半分ずつに分けて出します。</div>
       <div style="display:flex;gap:6px;align-items:center"><input type="date" class="lc-sp-d" value="${d0}" min="${lo}" max="${hi}" style="flex:1"><button type="button" class="btn btn-primary lc-sp-go" style="white-space:nowrap">分割する</button></div></div>`:''}
     <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn lc-pk-x">閉じる</button></div></div>`;
@@ -182,8 +182,8 @@ function _renderLoanerCal(){
     ${A.reloadBtn?A.reloadBtn():''}
     <button class="btn" type="button" style="margin-left:auto" onclick="_closeLoanerCal()">✕ 閉じる</button></div>
     ${A.warn&&A.warn()?`<div style="color:#ffb020;font-size:12px;margin-bottom:6px">${_lcEsc(A.warn())}</div>`:''}
-    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span><span><i class="lg-ov"></i>予約の重なり</span><span><b style="color:var(--text)">⇄</b> 返却と貸出の入れ替え</span></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。赤い斜線の日が店休日です。日付（いちばん上の行）を押すと、店休日にするか確認します。赤い枠の「⚠ 重なり」は、同じ代車に同じ日の予約が2つ以上あるところです（押すと、同じ日に返却と貸出をしたときの「分割」ができます）。「⇄」は、その日に返却して同じ日に次へ貸し出す入れ替えの日です（重なりではありません）。${_lcEsc(A.other||'')}${A.other?'のカレンダーと同じ予約です。':''}</div>
+    <div class="lc-legend">${LOANER_KINDS.map(x=>`<span><i style="background:${x.c}"></i>${x.k}</span>`).join('')}<span><i style="background:#9AA4B2"></i>その他</span><span><i class="lg-sun"></i>日曜・祝日</span><span><i class="lg-sat"></i>土曜</span><span><i class="lg-closed"></i>店休日</span><span><i class="lg-ov"></i>予約の重なり</span><span><b style="color:var(--text)">🔁</b> 返却と貸出の入れ替え</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">横にスクロールすると月をまたいで続きます。空いているマスで予約、色の帯で変更・削除。赤い斜線の日が店休日です。日付（いちばん上の行）を押すと、店休日にするか確認します。赤い枠の「⚠ 重なり」は、同じ代車に同じ日の予約が2つ以上あるところです（押すと、同じ日に返却と貸出をしたときの「分割」ができます）。「🔁」は、その日に返却して同じ日に次へ貸し出す入れ替えの日です（重なりではありません）。${_lcEsc(A.other||'')}${A.other?'のカレンダーと同じ予約です。':''}</div>
     <div class="lc-scroll"><table class="lc-grid"><colgroup><col class="c-car"><col class="c-d" span="${N}"></colgroup><tr class="lc-mrow"><th class="lc-car"></th>${months.map(o=>`<th class="lc-mon" colspan="${o.n}"><span>${o.y}年${o.m}月</span></th>`).join('')}</tr>
     <tr><th class="lc-car">車両</th>${days.map(x=>`<th class="${cls(x)}" data-d="${x.d}" onclick="_toggleClosedDay('${x.d}')" title="${x.hol?_lcEsc(x.hol):''}${x.closed?' 店休日':''}">${x.n===1?`<span class="mlab">${x.m}月</span>`:''}${x.n}<br>${W[x.w]}${x.hol?'<span class="hol">祝</span>':''}</th>`).join('')}</tr>`;
   for(const c of [...LOANER_CARS,...RENTAL_ROWS]){
@@ -197,7 +197,7 @@ function _renderLoanerCal(){
       if(tn.some(Boolean)) bg=`background:linear-gradient(90deg,${tn.map((t,q)=>`${t||'transparent'} ${(q*100/span).toFixed(3)}% ${((q+1)*100/span).toFixed(3)}%`).join(',')});`;
       if(hos[i]){   // 入れ替え：この日に返却して、同じ日に次の貸出（1日を半分ずつに分けて出す）
         const {a,b}=hos[i];
-        h+=`<td class="bk ho${x.n===1?' m1':''}" style="${bg}" onclick="_lcPick('${_lcEsc(a.id+'|'+b.id)}','${x.d}')" title="${_lcEsc('入れ替え：'+(_lcName(a)||'予約')+' 返却 → '+(_lcName(b)||'予約')+' 貸出')}"><div class="lc-ho"><div class="bk-bar" style="background:${_kindBg(a)}"></div><b>⇄</b><div class="bk-bar" style="background:${_kindBg(b)}"></div></div></td>`;
+        h+=`<td class="bk ho${x.n===1?' m1':''}" style="${bg}" onclick="_lcPick('${_lcEsc(a.id+'|'+b.id)}','${x.d}')" title="${_lcEsc('入れ替え：'+(_lcName(a)||'予約')+' 返却 → '+(_lcName(b)||'予約')+' 貸出')}"><div class="lc-ho"><div class="bk-bar" style="background:${_kindBg(a)}"></div><b>🔁</b><div class="bk-bar" style="background:${_kindBg(b)}"></div></div></td>`;
         i++; continue;
       }
       if(L.length>1){   // 重なり：同じ代車に同じ日の予約が2つ以上
@@ -291,7 +291,7 @@ function _lcCss(){
 .lc-ho .bk-bar{flex:1;min-width:0;padding:0!important;}
 .lc-ho .bk-bar:first-child{border-radius:6px 0 0 6px;margin-right:1px;}
 .lc-ho .bk-bar:last-child{border-radius:0 6px 6px 0;margin-left:1px;}
-.lc-ho b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-weight:900;color:#111;background:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;font-family:system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #111;}
+.lc-ho b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:400;color:#111;background:#fff;border-radius:50%;width:20px;height:20px;line-height:20px;font-family:system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1px #111;}
 .lc-grid td.bk.ho{position:relative;}
 .lc-stale{margin-top:10px;padding:8px 10px;border:1px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,.10);color:var(--text);font-size:12px;}
 .lc-stale>b{color:#fbbf24;}
