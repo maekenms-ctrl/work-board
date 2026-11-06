@@ -2,7 +2,7 @@
 <html>
 <head>
 <base target="_top">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
 <script>
 // パソコンのスプレッドシートのパネル（NotifyPanel.html の中）で開いたとき：
@@ -124,6 +124,20 @@ if(/github\.io$/.test(location.hostname)){
   .sr select{width:100%;padding:7px 8px;border:1px solid #c4c7c5;border-radius:8px;font:inherit;background:#fff}
   .cf{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:12px;color:var(--sub)}
 </style>
+<style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
+<script>
+// iPhone：タップ位置のずれ・反応しなくなるのを防ぐ（11/7）
+//  ・入力欄を押したときの自動の拡大と、2本指・2回タップでの画面全体の拡大を止める（拡大したままだと、押した所と反応する所がずれる）
+//  ・キーボードを閉じたあとに画面の位置がずれたまま残るのを直す
+(function(){
+  var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!ios) return;
+  document.addEventListener('gesturestart',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.wo-pv,.pv-stage,[data-zoom]')) return; e.preventDefault(); },{passive:false});
+  var fix=function(){ setTimeout(function(){ var a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    window.scrollTo(window.scrollX,window.scrollY); try{ if(window.parent!==window) window.parent.postMessage({ark:'blur'},location.origin); }catch(e){} },150); };
+  document.addEventListener('focusout',fix,true);
+})();
+</script>
 </head>
 <body>
 
@@ -398,6 +412,7 @@ function evHtml(list, past){
   return h;
 }
 function renderFeed(){
+  if(PANE_HIDDEN){ PANE_DIRTY=true; return; }   // hub で見えていないときは描き直さない（作業ボードの反応を遅らせないため。見えたときにまとめて描く）
   const b = dayStart();
   const list = S.events.filter(e => e.ts >= b && (S.filter==='all' || e.src===S.filter));
   if(!list.length){ $('feed').innerHTML = `<div class="empty">今日（${RESET_HOUR}:00以降）の通知はまだありません。<br>前日までの通知は「過去」タブにあります。</div>${estNote()}`; }
@@ -467,6 +482,10 @@ function sheetGo(k){
 // この端末の印（作業ボードと同じ。hub・同じアドレスのタブで共通）
 const MY_DEV = (()=>{ try{ let d=localStorage.getItem('ark-dev'); if(!d){ d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('ark-dev',d); } return d; }catch(e){ return ''; } })();
 function isMyDev(d){ const me = MY_DEV || (()=>{ try{ return localStorage.getItem('ark-dev')||''; }catch(e){ return ''; } })(); return !!(d && me && d === me); }
+// hub（作業ボード＋通知）で、この画面が見えているか（11/7）
+var PANE_HIDDEN=false, PANE_DIRTY=false; window._arkPane=()=>PANE_HIDDEN;
+window.addEventListener('message',e=>{ if(e.origin!==location.origin||e.source!==window.parent) return; const m=e.data||{}; if(m.ark!=='vis') return;
+  PANE_HIDDEN=!m.on; if(m.on&&PANE_DIRTY){ PANE_DIRTY=false; try{ renderFeed(); renderBadge(); if(S.tab==='today') renderToday(); }catch(err){} } });
 function hubSend(m){ try{ if(IN_HUB) window.parent.postMessage(m, location.origin); }catch(e){} }
 // リンクを押したとき：hub の中なら、同じ画面の作業ボードに切り替えて開く
 function hubLink(e){

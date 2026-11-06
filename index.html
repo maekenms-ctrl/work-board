@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>作業ボード</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -882,6 +882,20 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .lc-closed-soon span{background:#c62828;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;}
 .lc-closed-soon .btn{margin-left:auto;font-size:12px;padding:3px 10px;min-height:0;}
 </style>
+<style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
+<script>
+// iPhone：タップ位置のずれ・反応しなくなるのを防ぐ（11/7）
+//  ・入力欄を押したときの自動の拡大と、2本指・2回タップでの画面全体の拡大を止める（拡大したままだと、押した所と反応する所がずれる）
+//  ・キーボードを閉じたあとに画面の位置がずれたまま残るのを直す
+(function(){
+  var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!ios) return;
+  document.addEventListener('gesturestart',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.wo-pv,.pv-stage,[data-zoom]')) return; e.preventDefault(); },{passive:false});
+  var fix=function(){ setTimeout(function(){ var a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    window.scrollTo(window.scrollX,window.scrollY); try{ if(window.parent!==window) window.parent.postMessage({ark:'blur'},location.origin); }catch(e){} },150); };
+  document.addEventListener('focusout',fix,true);
+})();
+</script>
 </head>
 <body>
 
@@ -1693,7 +1707,12 @@ let _woPress=0, _woLastSig='';
 function _woSigNow(){ try{ return JSON.stringify(JOBS.map(j=>[j.id,j.updatedAt,j.archived,j.slot]))+'|'+WO_CUR; }catch(e){ return ''; } }
 ['pointerdown','touchstart','mousedown'].forEach(ev=>document.addEventListener(ev,()=>{ _woPress=Date.now(); },{capture:true,passive:true}));
 ['pointerup','touchend','mouseup','click'].forEach(ev=>document.addEventListener(ev,()=>{ setTimeout(()=>{ _woPress=0; },350); },{capture:true,passive:true}));
+// hub（作業ボード＋通知）で、ARK通知の方を見ている間は描き直さない（見えたときにまとめて描く。11/7）
+let WO_PANE_HIDDEN=false, WO_PANE_DIRTY=false;
+window.addEventListener('message',e=>{ if(e.origin!==location.origin||e.source!==window.parent) return; const m=e.data||{}; if(m.ark!=='vis') return;
+  WO_PANE_HIDDEN=!m.on; if(m.on&&WO_PANE_DIRTY){ WO_PANE_DIRTY=false; WOC._forceR=true; _woRenderSoon(); } });
 function _woRenderSoon(){
+  if(WO_PANE_HIDDEN){ WO_PANE_DIRTY=true; return; }
   clearTimeout(WOC._rt2);
   const busy=_woPress&&Date.now()-_woPress<1500;
   WOC._rt2=setTimeout(()=>{ if(_woPress&&Date.now()-_woPress<1500) return _woRenderSoon();
@@ -3142,14 +3161,19 @@ window.addEventListener('hashchange',_woDeepLink);
 let _woUnlinkDone=false;
 // 画面の一部で失敗しても、ほかの部分は描く（失敗した場所と理由は画面に出す）
 function _woSafe(name,f){ try{ f(); }catch(e){ console.error(name,e); WOC.renderErr=`${name}：${e&&e.message||e}`; try{ const s=String(e&&e.stack||'').split('\n').slice(1,3).join(' ').replace(/https?:\/\/[^ )]+\//g,''); WOC.renderErr+=s?`（${s.trim().slice(0,160)}）`:''; }catch(_){} } }
+let _WO_DSIG='';
 function woRenderAll(fromCloud){
   _woSafe('リンク',_woDeepLink);
   if(!_woUnlinkDone&&JOBS.length&&!(SEC.ok&&!SEC.key)){ _woUnlinkDone=true; try{ _woUnlinkArchived(); }catch(e){ console.warn(e); } }
   _woSafe('表示',woRenderBadges); _woSafe('担当者',woRenderStaff); _woSafe('一覧',woRenderList); _woSafe('一覧の畳み',_woListFoldPaint);
   const act=document.activeElement, det=document.getElementById('wo-detail');
   // 入力中は詳細を描き直さない（カーソルが飛ばないように）
-  if(!(fromCloud&&det&&act&&det.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))) _woSafe('詳細',woRenderDetail);
-  _woSafe('配置図',ydRender);
+  // 共有から届いた変更が、開いている作業指示のものでなければ、詳細は描き直さない（描き直しで画面がずれて、押した所と違う所が反応するのを防ぐ。11/7）
+  const cj=_woCurJob&&_woCurJob(), dsig=(WO_CUR||'')+'|'+(cj?cj.updatedAt||'':'')+'|'+(cj?!!cj.archived:'');
+  const skipDet=fromCloud&&dsig===_WO_DSIG&&det&&det.childElementCount;
+  if(!skipDet&&!(fromCloud&&det&&act&&det.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))){ _WO_DSIG=dsig; _woSafe('詳細',woRenderDetail); }
+  // 配置図は、車両配置のタブを開いているときだけ描く（タブを開いたときに描く）
+  const yt=document.getElementById('tab-yard'); if(!fromCloud) _woSafe('配置図',ydRender); else if(!yt||yt.classList.contains('active')) _woSafe('配置図',_ydRenderCloud);
   if(document.getElementById('dc-ov')) _woSafe('納期カレンダー',_renderDueCal);
 }
 // ── 納期カレンダー（11/2）：作業中の車を「納車予定日」の日に並べる。月ごと。押すとその作業指示を開く ──
@@ -3830,6 +3854,9 @@ function _ydLcHtml(c){
 function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; else delete YARD.pmemo[n]; _ydChanged();
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
 function ydRender(){
+  // 車を指で動かしている最中は描き直さない（描き直すと、指の下の車が入れ替わって、離しても置けない・固まることがある。11/7）
+  if(YD.cd){ YD._pend=true; return; }
+  YD._pend=false;
   const cv=document.getElementById('yd-canvas'); if(!cv) return;
   const locked=SEC.ok&&!SEC.key;
   cv.classList.toggle('edit',YD.edit);
@@ -3893,7 +3920,9 @@ async function ydDeliver(id){
   const keep=WO_CUR; WO_CUR=id;
   try{ await woArchive(true); }finally{ if(!_woJob(id)||_woJob(id).archived){ YD.carSel=null; } if(keep&&keep!==id) WO_CUR=keep; ydRender(); }
 }
-function ydTapCar(e,id){ e.stopPropagation(); if(YD.edit||Date.now()-(YD.noClick||0)<500) return; YD.carSel=YD.carSel===id?null:id; ydRender(); }
+function ydTapCar(e,id){ e.stopPropagation(); if(YD.edit||Date.now()-(YD.noClick||0)<300) return; YD.carSel=YD.carSel===id?null:id; YD.selAt=Date.now(); ydRender(); }
+// 共有・代車・表から届いた変更での配置図の描き直し：車を選んで置き場所を押すまで（15秒まで）は待つ（途中で並びが変わって、違う所を押してしまうのを防ぐ。11/7）
+function _ydRenderCloud(){ clearTimeout(YD._ct); if(YD.cd||(YD.carSel&&Date.now()-(YD.selAt||0)<15000)){ YD._ct=setTimeout(_ydRenderCloud,1000); return; } ydRender(); }
 // 置き場所のコメント（例：コインパーキング・3丁目）。チーム全員で共有
 async function ydSpaceNote(id){
   if(SEC.ok&&!SEC.key){ toast('ロックを解除してから操作してください'); return; }
@@ -4005,6 +4034,7 @@ function _ydCarDrag(){
       try{ d.el.releasePointerCapture&&d.el.releasePointerCapture(e.pointerId); }catch(_){}
     }
     e.preventDefault();
+    d.lx=e.clientX; d.ly=e.clientY;
     d.ghost.style.transform=`translate(${e.clientX-d.ox}px,${e.clientY-d.oy}px)`;
     clear(); const t=target(e.clientX,e.clientY); if(t) t.classList.add('hover');
     // 端に近づいたら自動でスクロール
@@ -4012,17 +4042,22 @@ function _ydCarDrag(){
     if(e.clientY<56) window.scrollBy(0,-14); else if(e.clientY>window.innerHeight-56) window.scrollBy(0,14);
   },{passive:false});
   const end=e=>{
-    const d=YD.cd; if(!d||e.pointerId!==d.pid) return; YD.cd=null;
-    if(!d.ghost) return;
+    const d=YD.cd; if(!d||(e.pointerId!==d.pid&&!e._ark)) return; YD.cd=null;
+    if(!d.ghost){ if(YD._pend) ydRender(); return; }
     const t=e.type==='pointerup'?target(e.clientX,e.clientY):null;
     d.ghost.remove(); d.el.classList.remove('yd-dragging'); document.getElementById('tab-yard').classList.remove('yd-dragmode'); clear();
     YD.noClick=Date.now();
-    if(!t) return;
+    if(!t){ if(YD._pend) ydRender(); return; }
     const sid=(t.id==='yd-pool'||t.id==='yd-lpool')?'':t.dataset.sp;
-    if(d.id.startsWith('lc:')){ if(((YARD.lpos||{})[d.id.slice(3)]||'')!==sid) ydMove(d.id,sid); return; }
-    const j=_woJob(d.id); if(j&&(j.slot||'')!==sid) ydMove(d.id,sid);
+    if(d.id.startsWith('lc:')){ if(((YARD.lpos||{})[d.id.slice(3)]||'')!==sid) ydMove(d.id,sid); else if(YD._pend) ydRender(); return; }
+    const j=_woJob(d.id); if(j&&(j.slot||'')!==sid) ydMove(d.id,sid); else if(YD._pend) ydRender();
   };
   document.addEventListener('pointerup',end); document.addEventListener('pointercancel',end);
+  // 念のため：指を離したのに終わりの合図が届かなかったとき（iPhoneでまれにある）、最後の位置に置いて終わる（車の影が残って固まるのを防ぐ）
+  const tend=ev=>{ const d=YD.cd; if(!d) return; setTimeout(()=>{ if(YD.cd!==d) return;
+    const tp=ev.changedTouches&&ev.changedTouches[0], x=tp?tp.clientX:(d.lx||d.sx), y=tp?tp.clientY:(d.ly||d.sy);
+    end({type:ev.type==='touchcancel'?'pointercancel':'pointerup',pointerId:d.pid,clientX:x,clientY:y,_ark:true}); },250); };
+  window.addEventListener('touchend',tend,{capture:true,passive:true}); window.addEventListener('touchcancel',tend,{capture:true,passive:true});
 }
 function ydPrint(){
   if(SEC.ok&&!SEC.key){ toast('ロックを解除してから操作してください'); return; }
@@ -4118,9 +4153,15 @@ function lbStart(){
     LB.book=L;
     _lbAdopt();
     if(url!==LB.sheetUrl){ LB.sheetUrl=url; LB.sheet=[]; LB.nos=null; if(url) _lbSheetLoad(); }
-    lbRenderCars(); woRenderList(); try{ ydRender(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();
+    _lbRenderSoon();
   },err=>{ LB.live=false; LB.err=/permission/.test(String(err&&err.code))?'代車カレンダーを読む権限がありません':'代車カレンダーに接続できません：'+_netMsg(err); lbRenderCars(); }));
 }
+// 代車の予約が届いたときの描き直し：押している最中・ARK通知を見ている間は待つ（11/7。押した所が描き直しで消えて反応しないのを防ぐ）
+let _LB_RT=0;
+function _lbRenderSoon(){ clearTimeout(_LB_RT); _LB_RT=setTimeout(()=>{
+  if((typeof _woPress!=='undefined'&&_woPress&&Date.now()-_woPress<1500)||(typeof WO_PANE_HIDDEN!=='undefined'&&WO_PANE_HIDDEN)) return _lbRenderSoon();
+  lbRenderCars(); woRenderList(); const yt=document.getElementById('tab-yard'); if(!yt||yt.classList.contains('active')){ try{ _ydRenderCloud(); }catch(e){} }
+  if(document.getElementById('lc-ov')) _renderLoanerCal(); },250); }
 function lbStop(){ LB.unsubs.forEach(f=>{try{f();}catch(e){}}); LB.unsubs=[]; LB.live=false; LB.book=[]; LB.sheet=[]; LB.sheetUrl=''; LB.nos=null; }
 // 入庫管理表は3分ごと・アプリに戻ったときに読み直す
 setInterval(()=>{ if(LB.live&&LB.sheetUrl&&!SEC.locked) _lbSheetLoad(); },180000);
@@ -4165,7 +4206,7 @@ async function _lbSheetLoad(){
     if((j.rows||[]).length){ LB.hasPlate=hasPlate; LB.nos=hasPlate?nos:null; try{ woSheetCheck(); }catch(e){ console.warn(e); } }
     else { LB.nos=null; try{ WSC.last='入庫管理表が空でした（納車済の確認はしていません）'; }catch(e){} }
   }catch(e){ LB.sheetErr='入庫管理表を読み込めませんでした'; }
-  lbRenderCars(); try{ if(WO_SORT==='sheet') woRenderList(); ydRender(); renderSettings(); }catch(e){} if(document.getElementById('lc-ov')) _renderLoanerCal();   // 表の並びが変わったら一覧の順も変える
+  _lbRenderSoon(); try{ const st=document.getElementById('tab-settings'); if(st&&st.classList.contains('active')) renderSettings(); }catch(e){}   // 表の並びが変わったら一覧の順も変える
 }
 // 予約の登録・更新・削除（入力が落ち着いてから）
 function lbSync(j){

@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1d21">
 <title>作業ボード＋通知</title>
 <link rel="manifest" href="hub.webmanifest">
@@ -21,6 +21,20 @@
   .pane.on{visibility:visible}
   #board{background:#1a1d21}
 </style>
+<style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
+<script>
+// iPhone：タップ位置のずれ・反応しなくなるのを防ぐ（11/7）
+//  ・入力欄を押したときの自動の拡大と、2本指・2回タップでの画面全体の拡大を止める（拡大したままだと、押した所と反応する所がずれる）
+//  ・キーボードを閉じたあとに画面の位置がずれたまま残るのを直す
+(function(){
+  var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!ios) return;
+  document.addEventListener('gesturestart',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.wo-pv,.pv-stage,[data-zoom]')) return; e.preventDefault(); },{passive:false});
+  var fix=function(){ setTimeout(function(){ var a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    window.scrollTo(window.scrollX,window.scrollY); try{ if(window.parent!==window) window.parent.postMessage({ark:'blur'},location.origin); }catch(e){} },150); };
+  document.addEventListener('focusout',fix,true);
+})();
+</script>
 </head>
 <body>
 <div class="bar">
@@ -39,6 +53,9 @@
     $('board').classList.toggle('on',k==='board'); $('notify').classList.toggle('on',k==='notify');
     $('b-board').classList.toggle('on',k==='board'); $('b-notify').classList.toggle('on',k==='notify');
     if(k==='notify'){ unseen=0; badge(); }
+    // 見えていない方の画面は描き直しを止める（同じ画面の中で2つが動くと、押しても反応が遅れるため。11/7）
+    try{ $('notify').contentWindow.postMessage({ark:'vis',on:k==='notify'},location.origin); }catch(e){}
+    try{ $('board').contentWindow.postMessage({ark:'vis',on:k==='board'},location.origin); }catch(e){}
     try{ localStorage.setItem('hub-tab',k); }catch(e){}
   }
   function badge(){ var d=$('dot'); d.textContent=unseen>99?'99+':unseen; d.classList.toggle('show',unseen>0); }
@@ -48,6 +65,8 @@
   addEventListener('message',function(e){
     if(e.origin!==location.origin) return;
     var m=e.data||{};
+    if(m.ark==='blur'){ resetPos(); return; }
+    if(m.ark==='ready'){ show(cur); return; }
     if(m.ark==='new' && cur!=='notify'){ unseen+=m.n||1; badge(); }
     if(m.ark==='openJob' && m.jid){
       try{ $('board').contentWindow.location.hash='job='+encodeURIComponent(m.jid); }catch(err){ $('board').src='./index.html#job='+encodeURIComponent(m.jid); }
@@ -59,6 +78,11 @@
     }
     if(m.ark==='openEst'){ window.open('https://maekenms-ctrl.github.io/estimate-tool/','_blank','noopener'); }
   });
+  // iPhone：キーボードを閉じたあと、画面全体が上にずれたまま残る（押した所と反応する所がずれる）のを元の位置に戻す（11/7）
+  function resetPos(){ setTimeout(function(){ if(window.scrollX||window.scrollY) window.scrollTo(0,0); var se=document.scrollingElement; if(se&&se.scrollTop) se.scrollTop=0; },60); }
+  if(window.visualViewport){ var vh=0; visualViewport.addEventListener('resize',function(){ var h=visualViewport.height; if(h>vh+80) resetPos(); vh=h; }); }
+  addEventListener('scroll',function(){ if(window.scrollY&&(!window.visualViewport||visualViewport.height>innerHeight*0.85)) resetPos(); },{passive:true});
+  $('notify').addEventListener('load',function(){ show(cur); }); $('board').addEventListener('load',function(){ show(cur); });
   var first='board'; try{ first=localStorage.getItem('hub-tab')||'board'; }catch(e){}
   show(first==='notify'?'notify':'board');
   if('serviceWorker' in navigator && location.protocol==='https:') addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
