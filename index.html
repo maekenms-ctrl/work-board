@@ -908,6 +908,21 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-card .rt{font-size:13px;}
 .wo-card .wo-due{font-size:16px;font-weight:800;color:var(--text);}
 .wo-card .wo-due.none{font-size:13px;font-weight:600;color:var(--muted);}
+.wo-sec.wo-foldh{width:100%;box-sizing:border-box;cursor:pointer;-webkit-user-select:none;user-select:none;padding:8px 10px;margin:10px 0 6px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);font-size:14px;color:var(--text);}
+.wo-sec.wo-foldh .fold-sum{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wo-sec.wo-foldh.open .fold-sum{flex:1;}
+.wo-sec.wo-foldh .fold-i{margin-left:auto;font-size:12px;color:var(--muted);transition:transform .15s;transform:rotate(-90deg);}
+.wo-sec.wo-foldh.open .fold-i{transform:none;}
+.wo-fold-b.closed{display:none!important;}
+.wo-pk{display:inline-block;max-width:100%;vertical-align:top;}
+.wo-pk-btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 12px;border-radius:8px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font:inherit;font-size:14px;font-weight:800;cursor:pointer;text-align:left;}
+.wo-pk-btn .wo-pk-i{font-size:11px;color:var(--muted);margin-left:4px;}
+.wo-pk-sub{display:block;font-size:11px;font-weight:500;opacity:.8;}
+.wo-pk-list{display:none;margin-top:6px;}
+.wo-pk.open .wo-pk-list{display:block;}
+.wo-pk.open .wo-pk-btn{border-color:var(--accent);}
+.wo-pkrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;}
+.wo-chb .wo-pk-list{display:none;}.wo-chb .wo-pk.open .wo-pk-list{display:flex;flex-wrap:wrap;gap:4px;}
 .wo-card .wo-plate{font-size:17px;font-weight:800;color:var(--text);letter-spacing:.03em;}
 #wo-detail .wo-head .wo-plate-d{font-size:17px;font-weight:800;color:var(--text);letter-spacing:.03em;margin-top:3px;}
 .wo-card .wo-outd{font-size:13px;font-weight:700;color:var(--muted);}
@@ -1392,7 +1407,7 @@ const WO_STEPS=[
   {k:'kensa',    n:'洗車・完成検査',c:'#4ea1ff'},
 ];
 const WO_DONE_COLOR='#e4ff1a';
-const WO_TASK_TYPES=['鈑金','塗装','鈑金塗装','取替','脱着','付属品脱着','調整','エイミング','その他'];
+const WO_TASK_TYPES=['鈑金','塗装','ボカシ','鈑金塗装','取替','脱着','付属品脱着','調整','エイミング','その他'];
 const WO_SUPPLIERS=['HONDAパーツ','神姫産業','日産部販','ワールドパーツ','ヤナセ','多田自動車商会','川島商会','その他'];
 // 依頼元（系列ごとに色分け）
 const WO_OUT_GROUPS={honda:{n:'ホンダカーズ',c:'#ff5c5c'},netz:{n:'ネッツゾナ',c:'#4ea1ff'},ippan:{n:'一般',c:'#c084fc'},other:{n:'その他',c:'#f472b6'}};
@@ -1400,7 +1415,7 @@ const WO_OUTSRC=[{n:'ホンダカーズ中央',g:'honda'},{n:'ホンダカーズ
 function _woOutColor(n){ const o=WO_OUTSRC.find(x=>x.n===n); return WO_OUT_GROUPS[o?o.g:'other'].c; }
 const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
-const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
+const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','ボカシ':'#93c5fd','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
 const WO_PHOTO_MAX=15;
 const YD_COLS=24, YD_ROWS=24, YD_VER=6;
 const YD_KINDS=[
@@ -1977,6 +1992,54 @@ function _woPlateWarn(j){
   if(!j||j.archived||j.sheetId||j.sheetKey||_woPlateNo(j.plate)) return '';
   return '<div class="wo-plw">⚠ 登録番号を入れてください。入出庫管理表に書いたとき、同じ番号の車に自動でつながります。番号が無いと、作業指示が2つに分かれることがあります</div>';
 }
+
+// ── 作業指示の項目を畳む（11/7）：見出しを押すと開く・畳む。作業箇所より上の項目は、車を開いたときは畳んだ状態
+//  ・同じ車を開いている間は、開いた・畳んだ状態を覚える（ほかの車を開くと、また畳んだ状態から）
+//  ・畳んでいるときは、見出しの横に中身の要約を出す
+const WO_FOLD={jid:null,st:{}};
+function _woFoldSum(k,j){
+  const md=d=>d?_woMD(d):'';
+  try{
+    if(k==='photo'){ const n=(typeof WO_PHOTOS!=='undefined'&&WO_PHOTOS_FOR===j.id)?WO_PHOTOS.length:0; return (n?n+'枚・':'')+(j.photoTaken===false?'不要':(j.phSt||'未完')); }
+    if(k==='src') return [(j.outsrc||[]).map(x=>x==='その他'?(j.outsrcOther||'その他'):x).join('・'),j.outsrcNote].filter(Boolean).join('　')||'未選択';
+    if(k==='car') return [j.plate,j.color&&('カラー '+j.color+(j.paintType?' '+j.paintType:'')),j.chassis].filter(Boolean).join(' ／ ')||'未入力';
+    if(k==='pay'){ const ins=_woInsKinds(j).map(x=>{ const y=(j.ins||{})[x]||{}; return [y.co,y.aj&&('AJ '+y.aj)].filter(Boolean).join(' '); }).filter(Boolean);
+      return [ydCats(j).join('・'),_woPays(j).join('・'),...ins].filter(Boolean).join(' ／ ')||'未選択'; }
+    if(k==='loan') return j.loanerUse===true?([_lbLabel(j.loanerCar)||'代車あり',(j.loanerFrom?md(j.loanerFrom)+'〜'+(md(j.loanerTo)||''):'')].filter(Boolean).join(' ')):j.loanerUse===false?'代車なし':'未選択';
+    if(k==='sup'){ const n=(typeof WO_FILES!=='undefined'?WO_FILES.length:0); return [(j.suppliers||[]).join('・'),j.glassVendor&&('ガラス '+j.glassVendor),j.coating&&'コーティング',n&&('PDF '+n)].filter(Boolean).join(' ／ ')||'なし'; }
+  }catch(e){}
+  return '';
+}
+function _woFold(box,j){
+  if(!box||!j) return;
+  if(WO_FOLD.jid!==j.id){ WO_FOLD.jid=j.id; WO_FOLD.st={}; }
+  const heads=[...box.querySelectorAll('.wo-sec[data-sec]')], area=box.querySelector('.wo-sec[data-sec="area"]');
+  const stop=el=>!el||el.matches('.wo-sec[data-sec],.wo-two,.wo-acts,.wo-nofold');
+  for(const h of heads){
+    const k=h.dataset.sec;
+    const body=document.createElement('div'); body.className='wo-fold-b'; body.dataset.for=k;
+    let n=h.nextElementSibling; const L=[]; while(n&&!stop(n)){ L.push(n); n=n.nextElementSibling; }
+    if(!L.length) continue;
+    h.after(body); L.forEach(x=>body.appendChild(x));
+    const before=area&&(h.compareDocumentPosition(area)&Node.DOCUMENT_POSITION_FOLLOWING);
+    const open=k in WO_FOLD.st?WO_FOLD.st[k]:!before;
+    h.classList.add('wo-foldh'); h.insertAdjacentHTML('beforeend',`<span class="fold-sum"></span><span class="fold-i">▼</span>`);
+    _woFoldSet(h,body,open,j);
+    h.addEventListener('click',e=>{ if(e.target.closest('button,input,select,a,label')) return; const o=!h.classList.contains('open'); WO_FOLD.st[k]=o; _woFoldSet(h,body,o,_woCurJob()); });
+  }
+}
+function _woFoldSet(h,body,open,j){
+  h.classList.toggle('open',open); body.classList.toggle('closed',!open);
+  const s=h.querySelector('.fold-sum'); if(s) s.textContent=open?'':(j?_woFoldSum(h.dataset.sec,j):'');
+}
+// 選ぶ項目を開く・畳む（車台番号の候補・保険会社・アジャスター。11/7）：押すと候補が開き、選ぶと畳む
+const WO_PK=new Set();
+function _woPk(key,label,inner,hint){
+  const open=WO_PK.has(key);
+  return `<div class="wo-pk${open?' open':''}" data-pk="${esc(key)}"><button type="button" class="wo-pk-btn" onclick="_woPkToggle(this)">${label}<span class="wo-pk-i">${open?'▲':'▼'}</span></button>${hint?`<span class="sg-note" style="margin:0 0 0 6px">${hint}</span>`:''}<div class="wo-pk-list">${inner}</div></div>`;
+}
+function _woPkToggle(btn){ const w=btn.closest('.wo-pk'); if(!w) return; const k=w.dataset.pk, o=!w.classList.contains('open'); if(o) WO_PK.add(k); else WO_PK.delete(k); w.classList.toggle('open',o); const i=w.querySelector('.wo-pk-i'); if(i) i.textContent=o?'▲':'▼'; }
+function _woPkDone(k){ WO_PK.delete(k); document.querySelectorAll('.wo-pk').forEach(w=>{ if(w.dataset.pk===k){ w.classList.remove('open'); const i=w.querySelector('.wo-pk-i'); if(i) i.textContent='▼'; } }); }
 // ── 車検証QR（型式指定番号・類別区分番号）とコーションプレート（カラー番号）の読み取り ──
 //   読み取りの中身は shaken-read.js（押したときだけ読み込む。見積りツールと同じ読み方）
 //   写真は端末の中で読むだけで、保存・共有しない。お名前は読まない
@@ -2129,13 +2192,63 @@ async function woFileAdd(input){
     if(!/pdf$/i.test(f.type)&&!/\.pdf$/i.test(f.name)){ toast(`${f.name} はPDFではないため追加しませんでした`,5000); continue; }
     if(f.size>WO_FILE_MAX){ toast(`${f.name} は大きすぎます（20MBまで）`,5000); continue; }
     try{
-      const buf=await f.arrayBuffer(); const meta={name:f.name,size:f.size,at:new Date().toISOString()};
-      const key=j.id+'|'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-      const v=SEC.ok?{meta:await _enc(SEC.key,meta),...(await _encBytes(SEC.key,buf))}:{meta,iv:'',ct:buf,plain:true};
-      await _woIdbReq('readwrite',s=>s.put(v,key),'files'); n++;
+      const buf=await f.arrayBuffer(); const fid=Date.now().toString(36)+Math.random().toString(36).slice(2,6); const meta={name:f.name,size:f.size,at:new Date().toISOString(),fid};
+      const key=await _woFileStore(j.id,fid,meta,buf); n++;
+      if(f.size>WO_PDF_SHARE_MAX) toast(`${f.name} は大きいため、この端末だけに入れました（チームで共有できるのは8MBまで）`,6000);
+      else _woPdfUp(j.id,key,meta,buf);
     }catch(e){ toast(`${f.name} を保存できませんでした（容量不足の可能性）`,6000); }
   }
   _busy(null); WO_FILES_FOR=null; await woRenderFiles(); if(n) toast(`PDFを${n}件添付しました`);
+}
+// ── 部品発注のPDFをチームで共有（11/7）──
+//  ・共有の photos に kind:'pdf' として入れる（1件に入る大きさに限りがあるので、約0.9MBずつに分けて入れる）。写真と同じく、開いている作業指示の分だけ読む
+//  ・ほかの端末で入れたPDFは、その作業指示を開いたときに届いて、この端末にも保存される。どこかの端末で削除すると、全部の端末から消える
+//  ・8MBより大きいPDFは、入れた端末だけ（共有しない）。納車済から1週間でドライブへ写したあと、共有からは消える（写真と同じ）
+const WO_PDF_SHARE_MAX=8*1024*1024, WO_PDF_CH=900000;
+function _woPdfKey(jid,fid,i){ return _cloudKey(jid+'_pdf_'+fid+'_'+i); }
+function _ab2b64(buf){ const u=new Uint8Array(buf); let x=''; for(let i=0;i<u.length;i+=0x8000) x+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(x); }
+function _b642ab(b){ const x=atob(b); const u=new Uint8Array(x.length); for(let i=0;i<x.length;i++) u[i]=x.charCodeAt(i); return u.buffer; }
+function _woPdfDels(){ try{ const o=JSON.parse(_lsGet('wo-pdf-del')||'{}')||{}; const lim=Date.now()-30*864e5; for(const k in o) if(o[k]<lim) delete o[k]; return o; }catch(e){ return {}; } }
+function _woPdfDelMark(fid){ const o=_woPdfDels(); o[fid]=Date.now(); _lsSet('wo-pdf-del',JSON.stringify(o)); }
+async function _woFileStore(jid,fid,meta,buf){
+  const key=jid+'|'+fid;
+  const v=SEC.ok?{meta:await _enc(SEC.key,meta),...(await _encBytes(SEC.key,buf))}:{meta,iv:'',ct:buf,plain:true};
+  await _woIdbReq('readwrite',s=>s.put(v,key),'files'); return key;
+}
+async function _woFileMetaPut(key,meta){ const v=await _woIdbReq('readonly',s=>s.get(key),'files'); if(!v) return; v.meta=SEC.ok?await _enc(SEC.key,meta):meta; await _woIdbReq('readwrite',s=>s.put(v,key),'files'); }
+const _WO_PDF_UP=new Set();
+async function _woPdfUp(jid,key,meta,buf){
+  if(!_woCloudOk()||!buf||buf.byteLength>WO_PDF_SHARE_MAX||_WO_PDF_UP.has(meta.fid)) return false;
+  _WO_PDF_UP.add(meta.fid);
+  try{
+    const {fs}=CLOUD.fb, b=_ab2b64(buf), n=Math.max(1,Math.ceil(b.length/WO_PDF_CH));
+    for(let i=0;i<n;i++) await fs.setDoc(fs.doc(CLOUD.db,'photos',_woPdfKey(jid,meta.fid,i)),{jid:String(jid),kind:'pdf',fid:meta.fid,name:String(meta.name||'parts.pdf').slice(0,120),size:meta.size||buf.byteLength,fat:meta.at||'',i,n,d:b.slice(i*WO_PDF_CH,(i+1)*WO_PDF_CH),by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,at:fs.serverTimestamp()});
+    meta.up=true; meta.n=n; await _woFileMetaPut(key,meta); return true;
+  }catch(e){ console.warn('PDFの共有',e); toast('PDFをチームで共有できませんでした'+(/permission/.test(String(e&&e.code))?'（Firestoreのルールで、photos に新しい項目を書けない可能性があります）':'（通信を確かめてください）')+'。この端末には入っています',8000); return false; }
+  finally{ _WO_PDF_UP.delete(meta.fid); }
+}
+function _woPdfDelCloud(jid,fid,n){ if(!_woCloudOk()) return; const {fs}=CLOUD.fb; for(let i=0;i<(n||1);i++) fs.deleteDoc(fs.doc(CLOUD.db,'photos',_woPdfKey(jid,fid,i))).catch(()=>{}); }
+// 写真の共有を読んだときに、PDFも合わせる（同じ読み込みに入っているので、読む回数は増えない）
+let _WO_PDF_SYNC=null, _WO_PDF_NEXT=null;
+async function _woPdfSync(jid,docs){
+  if(_WO_PDF_SYNC){ _WO_PDF_NEXT=[jid,docs]; return; } _WO_PDF_SYNC=jid;
+  try{
+    const cloud={}; for(const v of docs){ const c=cloud[v.fid]||(cloud[v.fid]={name:v.name,size:v.size,fat:v.fat,n:v.n,c:{}}); c.c[v.i]=v.d; }
+    const local=await woFilesList(jid), dels=_woPdfDels(); let ch=false;
+    for(const f of local){ const fid=f.fid||String(f.key).split('|')[1];
+      if(cloud[fid]) continue;
+      if(f.up){ await _woIdbReq('readwrite',s=>s.delete(f.key),'files').catch(()=>{}); ch=true; continue; }   // ほかの端末で削除された
+      if(!f.fid){ f.fid=fid; }
+      if((f.size||0)<=WO_PDF_SHARE_MAX){ const blob=await _woFileBlob(f.key).catch(()=>null); if(blob){ const {key,...meta}=f; _woPdfUp(jid,f.key,meta,await blob.arrayBuffer()); } }   // まだ共有していないPDF（前からこの端末にあったPDFなど）
+    }
+    for(const fid of Object.keys(cloud)){ const c=cloud[fid];
+      if(dels[fid]||local.some(f=>(f.fid||String(f.key).split('|')[1])===fid)) continue;
+      const parts=[]; for(let i=0;i<c.n;i++){ if(c.c[i]==null){ parts.length=0; break; } parts.push(c.c[i]); } if(!parts.length) continue;   // まだ全部届いていない
+      try{ await _woFileStore(jid,fid,{name:c.name||'parts.pdf',size:c.size||0,at:c.fat||new Date().toISOString(),fid,up:true,n:c.n},_b642ab(parts.join(''))); ch=true; }catch(e){ console.warn('PDFの保存',e); }
+    }
+    if(ch&&WO_CUR===jid){ WO_FILES_FOR=null; woRenderFiles(); }
+  }catch(e){ console.warn('PDFの共有を合わせる',e); }
+  finally{ _WO_PDF_SYNC=null; if(_WO_PDF_NEXT){ const [a,b]=_WO_PDF_NEXT; _WO_PDF_NEXT=null; _woPdfSync(a,b); } }
 }
 async function _woFileBlob(key){
   const v=await _woIdbReq('readonly',s=>s.get(key),'files'); if(!v) return null;
@@ -2157,7 +2270,9 @@ async function woFileDel(key){
   const f=WO_FILES.find(x=>x.key===key);
   if(!await askConfirm(`このPDFを削除しますか？
 ${f?f.name:''}`)) return;
-  await _woIdbReq('readwrite',s=>s.delete(key),'files').catch(()=>{}); WO_FILES_FOR=null; woRenderFiles();
+  await _woIdbReq('readwrite',s=>s.delete(key),'files').catch(()=>{});
+  const j=_woCurJob(), fid=f&&(f.fid||String(f.key).split('|')[1]); if(j&&fid){ _woPdfDelMark(fid); _woPdfDelCloud(j.id,fid,f.n||Math.ceil((f.size||1)*4/3/WO_PDF_CH)+1); }   // チームの全端末から消す
+  WO_FILES_FOR=null; woRenderFiles();
 }
 async function woFilesDelAll(jid){ try{ const keys=await _woIdbReq('readonly',s=>s.getAllKeys(_woFileRange(jid)),'files'); for(const k of keys) await _woIdbReq('readwrite',s=>s.delete(k),'files'); }catch(e){} }
 function _woSize(n){ return n>=1048576?(n/1048576).toFixed(1)+'MB':Math.max(1,Math.round(n/1024))+'KB'; }
@@ -2570,6 +2685,7 @@ function _woPhWatch(jid){
   if(WOPH.jid===jid) return; _woPhStop(); if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb; WOPH.jid=jid;
   WOPH.unsub=fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',String(jid))),snap=>{
+    if(!(snap.metadata&&snap.metadata.fromCache)){ const pd=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.kind==='pdf'&&v.fid) pd.push(v); }); _woPdfSync(jid,pd); }   // 端末の控えだけの結果では合わせない（消していないPDFを消さないように）
     if(WO_PHOTOS_FOR!==jid) return;
     const cloud={}; snap.forEach(d=>{ const v=d.data()||{}; if(!v.pid) return; if(_woPhIsDel(jid,v.pid)){ _woPhDelCloud(jid,v.pid); return; } cloud[v.pid]=v; });
     let ch=false; const out=[];
@@ -2589,6 +2705,29 @@ function _woPhWatch(jid){
 function _woPhDelAll(jid){
   if(!_woCloudOk()) return; const {fs}=CLOUD.fb;
   fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',String(jid)))).then(sn=>sn.forEach(d=>fs.deleteDoc(d.ref).catch(()=>{}))).catch(()=>{});
+}
+
+// ── 見積りツールで共有した写真（11/7）：同じ登録番号の写真を見る・作業前写真に入れる（押したときだけ読む）──
+function _woEstPlateKey(p){ return String(p||'').normalize('NFKC').replace(/[\s　]/g,'').replace(/[‐－−ー・.\-]/g,''); }
+async function woEstPhotos(){
+  const j=_woCurJob(); if(!j) return;
+  if(!_woCloudOk()){ toast('チーム共有にログインすると見られます',4000); return; }
+  const k=_woEstPlateKey(j.plate); if(!_woPlateNo(j.plate)||!k){ toast('登録番号を入れてください',4000); return; }
+  const {fs}=CLOUD.fb, jid='estp-'+k; let L=[];
+  try{ const sn=await fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',jid))); sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)) L.push(v); }); }
+  catch(e){ toast('見積りツールの写真を読めませんでした：'+_netMsg(e),6000); return; }
+  if(!L.length){ toast('この車の見積りツールの写真はありません（見積りツールで「💾 履歴に保存」「LINEで送る」をすると共有されます）',6000); return; }
+  const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9600;
+  ov.innerHTML=`<div class="cf-box" style="max-width:560px;width:100%;max-height:88vh;overflow:auto"><div style="font-weight:700;margin-bottom:8px">🧾 見積りツールの写真（${L.length}枚）</div>
+    ${L.map((v,i)=>`<div style="margin-bottom:10px"><img src="${v.d}" style="width:100%;border-radius:8px;display:block"><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="flex:1;font-size:12px;color:var(--muted)">${esc(v.tag||'写真')}</span><button type="button" class="btn" data-add="${i}">＋ 作業前写真に入れる</button></div></div>`).join('')}
+    <div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn ep-x">閉じる</button></div></div>`;
+  ov.querySelector('.ep-x').onclick=()=>ov.remove(); ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ const v=L[+b.dataset.add], cj=_woCurJob(); if(!cj||cj.id!==j.id) return;
+    if(WO_PHOTOS_FOR!==j.id){ toast('写真を読み込み中です。少し待ってからもう一度押してください',4000); return; }
+    if(WO_PHOTOS.length>=WO_PHOTO_MAX){ toast(`作業前写真は${WO_PHOTO_MAX}枚までです`,4000); return; }
+    const ph={pid:_woPid(),d:v.d,tag:v.tag?('見積り：'+v.tag).slice(0,30):'見積り'}; WO_PHOTOS.push(ph); woPhotosPut(j.id,WO_PHOTOS).catch(()=>{}); _woPhUp(j.id,ph); woRenderPhotos();
+    b.disabled=true; b.textContent='✓ 入れました'; });
+  document.body.appendChild(ov);
 }
 // ── ドラッグ（スワイプ）で写真・PDFを追加：作業指示の画面に落とすと、写真は写真に、PDFはPDFに入る ──
 function _woDropInit(){
@@ -2741,9 +2880,10 @@ function _woChassisList(car){
 }
 function _woChassisChips(j){
   const L=_woChassisList(j.car); if(!L.length) return j.car?'<span class="sg-note" style="margin:0">「-」の前（型式）を入れると、次から押して入れられます</span>':'';
-  return L.map(p=>`<span class="wo-chc"><button type="button" class="selbtn" onclick="woChassisPick('${p}')">${p}-</button><b onclick="woChassisDel('${p}')" title="この型式を一覧から外す">✕</b></span>`).join('');
+  return _woPk('ch',`前に使った型式から選ぶ（${L.length}）`,L.map(p=>`<span class="wo-chc"><button type="button" class="selbtn" onclick="woChassisPick('${p}')">${p}-</button><b onclick="woChassisDel('${p}')" title="この型式を一覧から外す">✕</b></span>`).join(''));
 }
 function woChassisPick(p){
+  _woPkDone('ch');
   const j=_woCurJob(); if(!j) return; const el=document.getElementById('wo-chassis');
   const cur=String(j.chassis||'').normalize('NFKC').trim(), m=cur.match(/^[A-Za-z0-9]{2,12}[-‐－−ー](.*)$/);
   const rest=m?m[1]:(/^[0-9]+$/.test(cur)?cur:'');   // 型式があれば入れ替え、数字だけなら後ろに残す
@@ -2783,9 +2923,9 @@ function woInsHtml(j){
     const a=x.aj?(ajs.find(y=>y.n===x.aj)||{n:x.aj,dept:x.dept,tel:x.tel,fax:x.fax,mail:x.mail}):null;
     const tel=a&&(a.tel||x.tel), fax=a&&(a.fax||x.fax), mail=a&&(a.mail||x.mail), dept=a&&(a.dept||x.dept);
     return `<div class="field span2 wo-ins"><label>🏢 ${esc(k)}の保険会社</label>
-      <div class="check-group">${_insDir().map((c,i)=>`<button type="button" class="selbtn${x.co===c.n?' on':''}" onclick="woInsCo(${ka},${i})">${esc(c.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsCoNew(${ka})">＋ 新しい保険会社</button><button type="button" class="selbtn wo-ins-add" onclick="this.nextElementSibling.click()">📠 FAXの写真から読み取る</button><input type="file" accept="image/*" hidden onchange="woInsFax(${ka},this)">${x.co&&!co?`<span class="sg-note" style="margin:0 6px">${esc(x.co)}（一覧から外した会社）</span>`:''}</div>
+      <div class="wo-pkrow">${_woPk('co:'+k,x.co?esc(x.co):'保険会社を選ぶ',`<div class="check-group">${_insDir().map((c,i)=>`<button type="button" class="selbtn${x.co===c.n?' on':''}" onclick="_woPkDone('co:'+${ka});woInsCo(${ka},${i})">${esc(c.n)}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="_woPkDone('co:'+${ka});woInsCoNew(${ka})">＋ 新しい保険会社</button></div>`,x.co&&!co?esc(x.co)+'（一覧から外した会社）':'')}<button type="button" class="selbtn wo-ins-add" onclick="this.nextElementSibling.click()">📠 FAXの写真から読み取る</button><input type="file" accept="image/*" hidden onchange="woInsFax(${ka},this)"></div>
       ${x.co?`<label style="margin-top:8px">👤 アジャスター（AJ）　<small style="font-weight:400">${esc(x.co)}</small></label>
-      <div class="check-group">${ajs.map((y,i)=>`<button type="button" class="selbtn${x.aj===y.n?' on':''}" onclick="woInsAj(${ka},${i})">${esc(y.n)}${y.dept?`<small style="display:block;font-weight:500;font-size:11px;opacity:.8">${esc(y.dept)}</small>`:''}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="woInsAjForm(${ka},-1)">＋ 新しいアジャスター</button>${co?`<button type="button" class="selbtn" onclick="woInsCoEdit(${ka})" title="保険会社の名前を直す・一覧から外す">✏️</button>`:''}</div>`:''}
+      ${_woPk('aj:'+k,a?esc(a.n)+(dept?`<small class="wo-pk-sub">${esc(dept)}</small>`:''):'アジャスターを選ぶ',`<div class="check-group">${ajs.map((y,i)=>`<button type="button" class="selbtn${x.aj===y.n?' on':''}" onclick="_woPkDone('aj:'+${ka});woInsAj(${ka},${i})">${esc(y.n)}${y.dept?`<small style="display:block;font-weight:500;font-size:11px;opacity:.8">${esc(y.dept)}</small>`:''}</button>`).join('')}<button type="button" class="selbtn wo-ins-add" onclick="_woPkDone('aj:'+${ka});woInsAjForm(${ka},-1)">＋ 新しいアジャスター</button>${co?`<button type="button" class="selbtn" onclick="woInsCoEdit(${ka})" title="保険会社の名前を直す・一覧から外す">✏️ 保険会社を直す</button>`:''}</div>`)}`:''}
       ${a?`<div class="wo-ins-card"><div class="wo-ins-nm">${esc(x.co)}${dept?`　<span class="wo-ins-dp">${esc(dept)}</span>`:''}　AJ <b>${esc(a.n)}</b></div>
         <div class="wo-ins-ct">${tel?`<a href="tel:${esc(String(tel).replace(/[^0-9+]/g,''))}">📞 TEL ${esc(tel)}</a>`:'<span>📞 TEL —</span>'}${fax?`<span>📠 FAX ${esc(fax)}</span>`:'<span>📠 FAX —</span>'}${mail?`<a href="mailto:${esc(mail)}">✉️ ${esc(mail)}</a>`:'<span>✉️ メール —</span>'}</div>
         <button type="button" class="btn wo-ins-ed" onclick="woInsAjForm(${ka},${ajs.indexOf(ajs.find(y=>y.n===x.aj))})">✏️ 連絡先を直す</button></div>`:''}
@@ -3377,13 +3517,14 @@ function _woRenderDetail(box){
   const n=woNext(j);
   const _phTop=window.innerWidth<900;   // スマホ・タブレットは、写真をいちばん上の方に出す（撮りやすいように）
   const _phS=_woPhState(j);
-  const _phHtml=`<div class="wo-sec" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">作業前写真</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
+  const _phHtml=`<div class="wo-sec" data-sec="photo" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">作業前写真</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
   <div class="check-group wo-phst" style="margin-top:8px"><button type="button" class="selbtn wo-st-no${_phS==='未完'?' on':''}" onclick="woPhSt('未完')">未完</button><button type="button" class="selbtn wo-st-ok${_phS==='完了'?' on':''}" onclick="woPhSt('完了')">完了</button><button type="button" class="selbtn${_phS==='不要'?' on':''}" onclick="woPhSt('不要')">不要</button></div>
   <div class="ph-btns wo-phb" style="margin-top:8px">
     <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()">📷 撮影する（連続OK）</button>
     <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
     <label class="btn ph-add">📸 カメラアプリで撮る<input type="file" accept="image/*" capture="environment" style="display:none" id="wo-cam-native" onchange="woPhotoAdd(this)"></label>
     <button type="button" class="btn btn-line" onclick="woPhotoShare()">💬 LINEで送る</button>
+    <button type="button" class="btn" onclick="woEstPhotos()">🧾 見積りツールの写真</button>
     <button type="button" class="btn ph-pc" onclick="woPhotoSavePC()" title="写真の一覧で Ctrl・Shift を押しながらクリックすると、保存する写真を選べます">💾 PCに保存（まとめて）</button>
   </div>
   <div class="wo-ph" id="wo-ph" style="margin-top:8px"></div>`;
@@ -3393,7 +3534,7 @@ function _woRenderDetail(box){
     <span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)};font-size:13px;padding:4px 12px">${j.archived?'納車済':n?'次の工程：'+esc(n.n):'全工程 完了'}</span>
   </div>
   ${_phTop?_phHtml:''}
-  <div class="wo-sec"><span class="bar"></span>依頼元</div>
+  <div class="wo-sec" data-sec="src"><span class="bar"></span>依頼元</div>
   <div class="fgrid">
     <div class="field span2">
       <div class="check-group">${WO_OUTSRC.map(o=>`<button type="button" class="selbtn wo-out${(j.outsrc||[]).includes(o.n)?' on':''}" style="--oc:${WO_OUT_GROUPS[o.g].c}" onclick="woOutsrc('${o.n}')">${o.n}</button>`).join('')}</div>
@@ -3401,8 +3542,8 @@ function _woRenderDetail(box){
       ${(j.outsrc||[]).length?`<input style="margin-top:8px" value="${v('outsrcNote')}" placeholder="依頼内容（例：エイミング・ホイール修理）" oninput="woSet('outsrcNote',this.value)">`:''}
     </div>
   </div>
-  <div id="wo-dup">${_woDupHtml(j)}</div>
-  <div class="wo-sec"><span class="bar"></span>車両</div>
+  <div id="wo-dup" class="wo-nofold">${_woDupHtml(j)}</div>
+  <div class="wo-sec" data-sec="car"><span class="bar"></span>車両</div>
   <div class="fgrid">
     <div class="field span2"><label>お名前（入出庫管理表のF列）</label><div class="wo-nmbox">${_woSheetName(j)?esc(_woSheetName(j)):'<span style="color:var(--muted)">入出庫管理表に同じ車が見つかりません（番号を入れると表示されます）</span>'}</div></div>
     <div class="field half"><label>登録番号</label><input value="${v('plate')}" oninput="woSet('plate',this.value)"><div id="wo-plw">${_woPlateWarn(j)}</div></div>
@@ -3421,7 +3562,7 @@ function _woRenderDetail(box){
     <div class="field half"><label>受付担当</label>${woWhoHtml(j.staff||'','woWhoRecv(')}</div>
     <div class="field span2"><label>置き場所</label><div style="display:flex;gap:6px;align-items:stretch"><select style="flex:1;min-width:0" onchange="woSet('slot',this.value)"${j.partsOnly||j.outWork?' disabled':''}>${j.partsOnly?'<option>車両なし</option>':j.outWork?'<option>外注先へ</option>':slotOpts}</select><button type="button" class="selbtn wo-p1btn${j.partsOnly?' on':''}" style="white-space:nowrap" onclick="woPartsOnly()">📦 部品単品</button><button type="button" class="selbtn wo-p1btn${j.outWork?' on':''}" style="white-space:nowrap" onclick="woOutWork()">🏭 外注作業</button></div>${j.outWork?`<input style="margin-top:6px" value="${v('outWorkTo')}" placeholder="外注先・内容（例：〇〇ボデー　フレーム修正）" oninput="woSet('outWorkTo',this.value)" onblur="woRenderList()">`:''}</div>
   </div>
-  <div class="wo-two"><div class="wo-two-l"><div class="fgrid">
+  <div class="wo-two"><div class="wo-two-l"><div class="wo-sec" data-sec="pay" style="margin-top:4px"><span class="bar"></span>区分・お支払い・保険</div><div class="fgrid">
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
     ${ydCats(j).includes('整備')?`<div class="field span2"><label>整備内容（複数選べます）</label>${woSeibiHtml(j)}</div>`:''}
     ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}</div>`:''}
@@ -3432,10 +3573,10 @@ function _woRenderDetail(box){
     ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>`:''}
     ${woInsHtml(j)}
   </div>
-  <div class="wo-sec"><span class="bar"></span>代車</div>
+  <div class="wo-sec" data-sec="loan"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
   </div><div class="wo-two-r">
-  <div class="wo-sub" style="margin-top:0">部品発注元・ガラス・コーティング</div>
+  <div class="wo-sec" data-sec="sup" style="margin-top:4px"><span class="bar"></span>部品発注元・ガラス・コーティング・PDF</div>
   <div class="wo-inl">
     <div class="field span2"><label>部品発注元（複数選べます）</label>
       <div class="check-group">${WO_SUPPLIERS.map(g=>`<button type="button" class="selbtn${(j.suppliers||[]).includes(g)?' on':''}" onclick="woSupplier('${g}')">${g}</button>`).join('')}</div>
@@ -3450,11 +3591,11 @@ function _woRenderDetail(box){
       ${j.coating?`<input style="margin-top:8px" value="${v('coatType')}" placeholder="コーティングの種類（例：ガラス系 3年）" oninput="woSet('coatType',this.value)">`:''}
     </div>
   </div>
-  <div class="wo-sub">部品発注のPDF <span>（この端末のみ・複数選べます・画面にドラッグでも追加できます）</span></div>
+  <div class="wo-sub">部品発注のPDF <span>（チームで共有・1件8MBまで・複数選べます・画面にドラッグでも追加できます）</span></div>
   <div id="wo-files"></div>
   <label class="btn btn-add" style="cursor:pointer">📎 PDFを添付<input type="file" accept="application/pdf,.pdf" multiple style="display:none" onchange="woFileAdd(this)"></label>
   </div></div>
-  <div class="wo-sec"><span class="bar"></span>作業箇所</div>
+  <div class="wo-sec" data-sec="area"><span class="bar"></span>作業箇所</div>
   ${_woMapsHtml(j)}
   <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl wo-tasks">
     <tr class="wo-th"><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
@@ -3464,7 +3605,7 @@ function _woRenderDetail(box){
       <td class="tdel"><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
   </table></div>
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
-  <div class="wo-sec"><span class="bar"></span>工程・担当</div>
+  <div class="wo-sec" data-sec="steps"><span class="bar"></span>工程・担当</div>
   <div class="wo-steps">
     <div class="wo-st hd"><span>工程</span><span>担当（タップで選択）</span><span>開始日</span><span>完了・完成日</span></div>
     ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; const off=!st.need; return `<div class="wo-st${off?' skip':''}${st.done?' done':''}" style="--sc:${s.c}">
@@ -3474,7 +3615,7 @@ function _woRenderDetail(box){
       <div class="fin"><button type="button" class="ok${st.done?' on':''}" onclick="woStep('${s.k}','done',${!st.done})"${off?' disabled':''}>${st.done?'✓ 完了':'完了'}</button>${st.done?`<input type="date" value="${esc(st.doneDate||'')}" onchange="woStep('${s.k}','doneDate',this.value)" title="完成日">`:''}</div>
     </div>`; }).join('')}
   </div>
-  <div class="wo-sec"><span class="bar"></span>部品</div>
+  <div class="wo-sec" data-sec="parts"><span class="bar"></span>部品</div>
   <div class="wo-scroll"><table class="wo-tbl">
     <tr><th style="min-width:140px">部品名</th><th style="width:60px">数</th><th style="min-width:96px">状況</th><th style="min-width:130px">入荷予定</th><th></th></tr>
     ${(j.parts||[]).map(p=>`<tr><td><input value="${esc(p.name)}" oninput="woPart('${p.id}','name',this.value)"></td>
@@ -3485,7 +3626,7 @@ function _woRenderDetail(box){
   </table></div>
   <div class="wo-row"><button type="button" class="btn btn-add" onclick="woPartAdd()">＋ 部品を追加</button>
   <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
-  <div class="wo-sec"><span class="bar"></span>注意事項</div>
+  <div class="wo-sec" data-sec="note"><span class="bar"></span>注意事項</div>
   <div class="field"><textarea rows="3" placeholder="例：左Fドアはプレスラインに注意／車内に私物あり／ドラレコ配線あり" oninput="woSet('caution',this.value)">${v('caution')}</textarea></div>
   ${_phTop?'':_phHtml}
   <div class="wo-acts">
@@ -3497,6 +3638,7 @@ function _woRenderDetail(box){
     ${j.archived?`<button type="button" class="btn" onclick="woArchive(false)">↩ 作業中に戻す</button>`:`<button type="button" class="btn" onclick="woArchive(true)">🚗 納車済にする</button>`}
     <button type="button" class="btn danger" onclick="woDelete()">🗑 削除</button>
   </div>`;
+  _woFold(box,j);
   lbRenderCars(); if(WO_FILES_FOR!==j.id) WO_FILES=[]; WO_FILES_FOR=null; woRenderFiles();
   if(WO_PHOTOS_FOR!==j.id){ WO_PHOTOS=[]; WO_PHOTOS_FOR=j.id; WOPH.loaded=null; woRenderPhotos(); _woPhStop(); woPhotosGet(j.id).then(a=>{ if(WO_CUR===j.id&&WO_PHOTOS_FOR===j.id){ WO_PHOTOS=_woPhDrop(j.id,a); WOPH.loaded=j.id; woRenderPhotos(); _woPhWatch(j.id); } }); }
   else { woRenderPhotos(); if(WOPH.loaded===j.id) _woPhWatch(j.id); }   // 端末の写真を読み終わってから共有と合わせる
