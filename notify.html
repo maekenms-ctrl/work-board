@@ -261,6 +261,7 @@ function diffJob(prev, cur, id=''){
   if(!prev || (!named(prev) && named(cur))){
     if(!named(cur)) return ev;
     if(cur.sync) return ev;   // 入出庫管理表との突き合わせで作った車（貼り付けた行・先の予定）は知らせない
+    if(cur.createdAt && tsOf(cur.createdAt) && Date.now() - tsOf(cur.createdAt) > 2*864e5) return ev;   // 11/9：2日より前に作った車（つなぎ直しなどで届き直しただけ）は「登録」として知らせない
     ev.push({...base, ic:'🆕', c:'#0b57d0', quiet: !!(cur.sameDay||cur.fromSheet), t:`作業指示を登録${cur.sameDay?'（当日入庫・シートから）':cur.fromSheet?'（入庫管理表から）':''}：${L}`,
       d:[(cur.tasks||[]).map(t=>t.part).filter(Boolean).join('・'), cur.dueDate?`納期 ${md(cur.dueDate)}`:''].filter(Boolean).join(' ／ '), mk:'new|'+id});
     return ev;
@@ -324,7 +325,11 @@ function diffLoaner(prev, cur, id){
   const d = [b.src === 'wb' ? b.name : '', `${md(b.from)}〜${md(b.to)}`, kinds].filter(Boolean).join(' ／ ');
   // 作業ボードで代車を選んだときの予約（src:'wb'）は「代車を手配」と同じく音なし。見積りツールの予約は音あり
   const base = {src:'loan', key:{num:'', car:''}, by, mine: isMyDev(b.dev), quiet: b.src === 'wb'};
-  if(!prev) return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${carName(b.car)}`, d}];
+  if(!prev){
+    if(b.src === 'hist') return [];                           // 11/9：表の行を消したときの記録（Apps Script）は予約ではないので知らせない
+    if(b.to && b.to !== '9999-12-31' && b.to < today()) return [];   // 返却日が過ぎた予約（届き直しただけ）は知らせない
+    return [{...base, ic:'🚙', c:'#8430ce', t:`代車予約：${carName(b.car)}`, d}];
+  }
   if(!cur)  return [{...base, ic:'🗑️', c:'#9aa0a6', t:`代車予約を取消：${carName(b.car)}`, d}];
   if(prev.car!==cur.car || prev.from!==cur.from || prev.to!==cur.to)
     return [{...base, ic:'🔁', c:'#8430ce', t:`代車予約を変更：${carName(cur.car)}`, d:`${carName(prev.car)} ${md(prev.from)}〜${md(prev.to)} → ${md(cur.from)}〜${md(cur.to)}`}];
@@ -670,7 +675,9 @@ function listen(name, onSnap, q, key){
   const {F} = fb; const k = key || name;
   S.first[k] = true;
   S.unsubs.push(F.onSnapshot(q || F.collection(db, name), snap => {
-    const first = S.first[k]; S.first[k] = false;
+    // 11/9：つなぎ直したとき、最初は端末の控え（一部だけ）が届き、そのあと共有の全部が「追加」として届く。
+    //  控えからの間は「最初の読み込み」として扱う（今までの車や予約を、新しい登録・予約として大量に通知しないように）
+    const first = S.first[k]; if(!(snap.metadata && snap.metadata.fromCache)) S.first[k] = false;
     onSnap(snap, first);
     // パネルを閉じている間に削除されたものも、開いたときに通知から消す
     if(first && !q && name !== 'daily'){ const ids = new Set();   // 入庫予定の記録は翌朝に消すので、記録が消えても「過去」の通知は残す
