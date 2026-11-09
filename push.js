@@ -30,7 +30,8 @@
     var b = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
     FB = Promise.all([import(b + 'firebase-app.js'), import(b + 'firebase-auth.js'), import(b + 'firebase-firestore.js'), import(b + 'firebase-messaging.js')]).then(function(m){
       var A = m[0], U = m[1], F = m[2], M = m[3];
-      var app = A.getApps().length ? A.getApp() : A.initializeApp(CFG);
+      // 作業ボードと同じ名前（wb）で開く：ログインの記録は名前ごとに分かれているため、同じ名前にしないと「ログインしていない」扱いになる
+      var app = A.getApps().filter(function(x){ return x.name === 'wb'; })[0] || A.initializeApp(CFG, 'wb');
       var auth = U.getAuth(app), db = F.getFirestore(app);
       var user = new Promise(function(res){ var off = U.onAuthStateChanged(auth, function(u){ off(); res(u || null); }); });
       return {A: A, U: U, F: F, M: M, app: app, auth: auth, db: db, user: user};
