@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="bedfd9cdea">
+<meta name="ark-ver" content="b3f8cc3483">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1d21">
@@ -21,6 +21,15 @@
   .pane{position:fixed;left:0;right:0;top:46px;bottom:0;border:0;width:100%;height:calc(100% - 46px);background:#fff;visibility:hidden}
   .pane.on{visibility:visible}
   #board{background:#1a1d21}
+  .sw.bell{flex:0 0 52px;font-size:20px}
+  .sw.bell.off{background:#d93025;border-color:#d93025;color:#fff;animation:bellp 2s infinite}
+  .sw.bell.on{background:#188038;border-color:#188038;color:#fff}
+  @keyframes bellp{50%{opacity:.6}}
+  .bellbox{position:fixed;top:50px;right:6px;left:6px;max-width:420px;margin-left:auto;z-index:5;background:#23272d;color:var(--ink);border:1px solid #3a3f46;border-radius:12px;padding:14px;font-size:14px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .bellbox b{color:var(--acc)} .bellbox button{display:block;width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid #3a3f46;background:#2c3036;color:var(--ink);font:inherit;font-weight:800;cursor:pointer}
+  .bellbox button.pri{background:var(--acc);color:#111;border-color:var(--acc)}
+  .htoast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:6;background:#111;color:var(--acc);border:1px solid var(--acc);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s}
+  .htoast.on{opacity:1}
 </style>
 <style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
 <script>
@@ -41,10 +50,42 @@
 <div class="bar">
   <button class="sw" id="b-board" type="button">🛠 作業ボード</button>
   <button class="sw" id="b-notify" type="button">📣 ARK通知 <span class="dot" id="dot"></span></button>
+  <button class="sw bell" id="b-bell" type="button" title="プッシュ通知">🔕</button>
 </div>
+<div id="bellbox" class="bellbox" hidden></div>
+<div id="htoast" class="htoast"></div>
 <!-- どちらも読み込んだまま切り替える（ARK通知は裏でも受信・通知音あり） -->
 <iframe class="pane" id="board" src="./index.html" title="作業ボード" allow="autoplay; screen-wake-lock; clipboard-write; camera"></iframe>
 <iframe class="pane" id="notify" src="./notify.html" title="ARK通知" allow="autoplay; screen-wake-lock"></iframe>
+<script src="push.js?v=1109"></script>
+<script>
+// ── プッシュ通知の受け取り（11/9）：上の 🔔 で、この端末をプッシュ通知を受け取る端末にする ──
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function toast(t,ms){ var el=$('htoast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(function(){ el.classList.remove('on'); },ms||4000); }
+  function paint(){ var b=$('b-bell'); if(!window.ARKPUSH){ b.style.display='none'; return; } var st=ARKPUSH.state();
+    b.classList.toggle('on',st==='on'); b.classList.toggle('off',st==='off'||st==='denied'); b.textContent=st==='on'?'🔔':'🔕'; }
+  function box(html){ var x=$('bellbox'); x.innerHTML=html; x.hidden=false; }
+  function close(){ $('bellbox').hidden=true; }
+  $('b-bell').onclick=function(){
+    if(!$('bellbox').hidden){ close(); return; }
+    var st=window.ARKPUSH?ARKPUSH.state():'unsupported';
+    if(st==='on') box('<b>🔔 この端末はプッシュ通知を受け取ります</b><br>アプリを閉じていても、工程の完了・部品入荷・納車済・代車予約・コメントなどが届きます。<button class="pri" id="bt-test">テスト通知を送る（この端末だけ・1分以内）</button><button id="bt-off">この端末で受け取るのをやめる</button><button id="bt-x">閉じる</button>');
+    else if(st==='need-home') box('<b>ホーム画面のアプリから開いてください</b><br>iPhone は、Safari で開いて 共有ボタン（□に↑）→「ホーム画面に追加」で追加したアプリから開くと、プッシュ通知を受け取れます（iOS 16.4 以上）。<button id="bt-x">閉じる</button>');
+    else if(st==='unsupported') box('<b>この端末はプッシュ通知に対応していません</b><br>iPhone は iOS 16.4 以上が必要です。パソコンは Chrome で開いてください。<button id="bt-x">閉じる</button>');
+    else if(st==='denied') box('<b>通知が「許可しない」になっています</b><br>iPhone：「設定」→「通知」→ このアプリ →「通知を許可」をオン。<br>パソコン：アドレス欄の左の鍵マーク →「通知」を「許可」。<br>そのあと、もう一度 🔕 を押してください。<button id="bt-x">閉じる</button>');
+    else box('<b>🔕 この端末はまだプッシュ通知を受け取りません</b><br>大事なお知らせを見落とさないように、各端末で1回だけ「受け取る」を押して、出てきた画面で「許可」を押してください。<button class="pri" id="bt-on">プッシュ通知を受け取る</button><button id="bt-x">閉じる</button>');
+    var on=$('bt-on'), off=$('bt-off'), te=$('bt-test'), x=$('bt-x');
+    if(x) x.onclick=close;
+    if(on) on.onclick=function(){ on.disabled=true; on.textContent='登録しています…'; ARKPUSH.enable().then(function(){ close(); paint(); toast('この端末でプッシュ通知を受け取ります。🔔 → テスト通知で確かめられます',6000); },function(e){ on.disabled=false; on.textContent='プッシュ通知を受け取る'; toast(String(e&&e.message||e),8000); paint(); }); };
+    if(off) off.onclick=function(){ ARKPUSH.disable().then(function(){ close(); paint(); toast('この端末で受け取るのをやめました'); }); };
+    if(te) te.onclick=function(){ te.disabled=true; ARKPUSH.test().then(function(){ close(); toast('テスト通知を頼みました。1分以内に届きます（アプリを閉じて待ってみてください）',7000); },function(e){ te.disabled=false; toast('送れませんでした：'+(e&&e.message||e),6000); }); };
+  };
+  paint();
+  if(window.ARKPUSH) ARKPUSH.refresh().then(paint,paint);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&window.ARKPUSH) ARKPUSH.refresh().then(paint,paint); });
+})();
+</script>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};

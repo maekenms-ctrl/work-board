@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="ark-ver" content="6c16a2e82e">
+<meta name="ark-ver" content="fa6855cb6c">
 <base target="_top">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
@@ -357,7 +357,7 @@ function diffSheet(d){
 // ───────── 状態 ─────────
 const S = {
   events: ls.get('ark-ev', []), seen: ls.get('ark-seen', 0), sound: ls.get('ark-sound', true),
-  filter:'all', tab:'feed', stat:{}, jobs:{}, loaner:{}, est:{}, first:{}, unsubs:[], estDenied:false, user:null
+  filter:'all', tab:'feed', stat:{}, jobs:{}, loaner:{}, est:{}, first:{}, unsubs:[], estDenied:false, user:null, pushWait:{}, pushOk:0, pushErr:''
 };
 // 削除された作業指示・予約・見積りの通知を消す
 function dropWhere(fn){
@@ -366,9 +366,13 @@ function dropWhere(fn){
 }
 function dropRef(ref){ dropWhere(e => e.ref === ref); }
 // 削除した通知（全員の画面から消す）。印は daily/hide-… に保存（古い版のパネルや作業ボードは読み飛ばす）
-const hideKey = e => (e.ref||'') + '|' + (e.mk || e.t || '');
+// 11/9：前は「その車・その内容」で覚えていたため、消したあと同じ車の同じ内容が起きても出なかった → そのお知らせ1件だけを覚える
+const HIDE_V2 = Date.parse('2026-11-09T19:00:00+09:00');
+const hideKeyOld = e => (e.ref||'') + '|' + (e.mk || e.t || '');
+const hideKey = e => e.lid ? 'ev:' + e.lid : hideKeyOld(e) + '|' + Math.floor((e.ts||0)/60000);
+const isHidden = e => HIDDEN.has(hideKey(e)) || ((e.ts||0) < HIDE_V2 && HIDDEN.has(hideKeyOld(e)));
 const HIDDEN = new Set(ls.get('ark-hide', []));
-function hideAdd(k){ if(!k || HIDDEN.has(k)) return; HIDDEN.add(k); ls.set('ark-hide', [...HIDDEN].slice(-500)); dropWhere(e => hideKey(e) === k); }
+function hideAdd(k){ if(!k || HIDDEN.has(k)) return; HIDDEN.add(k); ls.set('ark-hide', [...HIDDEN].slice(-500)); dropWhere(e => hideKey(e) === k || (!e.lid && hideKeyOld(e) === k)); }
 function hashId(t){ let h1=0x811c9dc5, h2=0x1505; for(let i=0;i<t.length;i++){ const c=t.charCodeAt(i); h1=Math.imul(h1^c,16777619)>>>0; h2=(Math.imul(h2,33)+c)>>>0; } return h1.toString(36)+h2.toString(36); }
 async function delEvent(id){
   const e = S.events.find(x=>x.id===id); if(!e) return;
@@ -384,10 +388,14 @@ try{ const n=S.events.length; S.events=S.events.filter(e=>e.src!=='sheet'); if(S
 // お客様名はスプレッドシートだけ：この端末に残っている入庫予定の通知（名前入り）を消し、代車予約の名前欄も消す（1回だけ）
 try{ if(!ls.get('ark-noname-1', false)){ S.events=S.events.filter(e=>e.src!=='daily').map(e=>e.src==='loan'?{...e, d:String(e.d||'').split(' ／ ').filter(x=>/〜|・|^$/.test(x)).join(' ／ ')}:e); ls.set('ark-ev', S.events); ls.set('ark-noname-1', true); } }catch(e){}
 function push(evs, live){
-  evs = evs.filter(e => !HIDDEN.has(hideKey(e)));
+  evs = evs.filter(e => !isHidden(e));
   if(!evs.length) return;
   const now = Date.now();
   evs.forEach((e,i)=>{ e.ts = e.ts || now; e.id = e.id || (now+'-'+Math.random().toString(36).slice(2,7)+i); e.live = !!live; });
+  // 同じお知らせが2つ出ないように（ARK通知が自分で見つけたものと、通知の台帳から届いたもの。15分以内の同じ車・同じ内容は1つに）
+  const sig = e => (e.ref||'') + '|' + (e.t||''), near = (a,b) => Math.abs((a.ts||0)-(b.ts||0)) < 15*60000;
+  evs = evs.filter((e,i) => !S.events.some(x => sig(x)===sig(e) && near(x,e)) && !evs.slice(0,i).some(x => sig(x)===sig(e) && near(x,e)));
+  if(!evs.length) return;
   // 入力途中の連続更新は1件にまとめる（同じ車両・同じ種類・5分以内）
   const mks = new Set(evs.filter(e=>e.mk).map(e=>e.mk));
   const keep = S.events.filter(e => !(e.mk && mks.has(e.mk) && now - e.ts < 5*60000));
@@ -492,6 +500,17 @@ function isMyDev(d){ const me = MY_DEV || (()=>{ try{ return localStorage.getIte
 var PANE_HIDDEN=false, PANE_DIRTY=false; window._arkPane=()=>PANE_HIDDEN;
 window.addEventListener('message',e=>{ if(e.origin!==location.origin||e.source!==window.parent) return; const m=e.data||{}; if(m.ark!=='vis') return;
   PANE_HIDDEN=!m.on; if(m.on&&PANE_DIRTY){ PANE_DIRTY=false; try{ renderFeed(); renderBadge(); if(S.tab==='today') renderToday(); }catch(err){} } });
+// プッシュ通知が止まっていないか（11/9）：送る待ちが3分以上残っている・送れなかったときに、上に赤い注意を出す
+function pushWarnPaint(){
+  let el = document.getElementById('pushWarn');
+  const old = Object.values(S.pushWait||{}).filter(t => t && Date.now() - t > 3*60000).length;
+  const msg = S.pushErr ? '⚠ プッシュ通知を送れませんでした：' + S.pushErr + '（管理者に知らせてください）'
+    : (old && S.pushOk) ? `⚠ プッシュ通知が ${old}件 送られていません（Apps Script の見回りが止まっている可能性があります。管理者に知らせてください）` : '';
+  if(!msg){ if(el) el.remove(); return; }
+  if(!el){ el = document.createElement('div'); el.id = 'pushWarn'; el.style.cssText = 'background:#d93025;color:#fff;font-weight:700;font-size:13px;padding:8px 12px;line-height:1.5'; document.body.insertBefore(el, document.body.firstChild); }
+  el.textContent = msg;
+}
+setInterval(()=>{ try{ pushWarnPaint(); }catch(e){} }, 30000);
 function hubSend(m){ try{ if(IN_HUB) window.parent.postMessage(m, location.origin); }catch(e){} }
 // リンクを押したとき：hub の中なら、同じ画面の作業ボードに切り替えて開く
 function hubLink(e){
@@ -816,7 +835,21 @@ function start(){
     const out = [], me = (S.user && S.user.email) || '';
     snap.docChanges().forEach(ch => {
       const id = ch.doc.id, d = ch.doc.data() || {};
-      if(ch.type === 'removed' || d.deleted){ dropRef('comments/'+id); return; }
+      if(ch.type === 'removed' || d.deleted){ dropRef('comments/'+id); delete S.pushWait[id]; return; }
+      // プッシュ通知の送り状況（11/9）：Apps Script が送ると push が 'done' になる
+      if(d.push === 'wait') S.pushWait[id] = tsOf(d.at) || Date.now(); else delete S.pushWait[id];
+      if(d.push === 'done') S.pushOk = Math.max(S.pushOk||0, tsOf(d.pushAt) || Date.parse(d.pushAt||'') || Date.now());
+      if(d.push === 'err' && (tsOf(d.at)||0) > Date.now() - 6*3600e3) S.pushErr = d.pushErr || '送れませんでした';
+      pushWarnPaint();
+      // 通知の台帳（11/9）：作業ボード・見積りツールが残した大事な変化。閉じていた間の分も、開いたときに全部出す
+      if(d.kind === 'ev'){
+        if(ch.type !== 'added' || d.to) return;               // 送り状況の書き換え・テスト通知は出さない
+        if(S.events.some(x => x.lid === id)) return;
+        out.push({src: d.src || 'wb', ic: d.ic || '🔔', c: d.c || '#0b57d0', ts: Date.parse(d.ts||'') || tsOf(d.at) || Date.now(), quiet: !!d.quiet, mine: isMyDev(d.dev),
+          t: d.t || '', d: d.d || '', key: d.key || {}, by: who(d.by), ref: d.ref || ('comments/'+id), jid: d.jid || '', lid: id});
+        return;
+      }
+      if(ch.type === 'modified') return;                      // 送り状況の書き換えだけ
       const ts = tsOf(d.at) || Date.now();
       if(first && ts < dayStart()) return;                      // 開いたときは今日（8:00以降）の分だけ
       if(S.events.some(x=>x.ref==='comments/'+id)) return;
@@ -854,7 +887,7 @@ async function sendComment(){
   if(S.cmtDenied){ toast('コメントを送る権限がありません。Firestoreのルールに comments を追加してください', 7000); return; }
   const {F} = fb; $('cmtSend').disabled = true;
   try{
-    await F.addDoc(F.collection(db, 'comments'), {text: text.slice(0,300), by: (S.user && S.user.email) || '', dev: MY_DEV, at: F.serverTimestamp(), date: today()});
+    await F.addDoc(F.collection(db, 'comments'), {text: text.slice(0,300), by: (S.user && S.user.email) || '', dev: MY_DEV, at: F.serverTimestamp(), date: today(), push: 'wait'});   // push：Apps Script がプッシュ通知で全員へ送る（11/9）
     ta.value = ''; cmtSize(); toast('コメントを送りました');
   }catch(e){
     toast(/permission/.test(String(e&&e.code)) ? 'コメントを送る権限がありません。Firestoreのルールに comments を追加してください' : 'コメントを送れませんでした：' + (e&&e.code||e), 7000);

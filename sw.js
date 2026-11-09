@@ -20,10 +20,17 @@ self.addEventListener('fetch', e => {
     }).catch(() => caches.match(req).then(r => r || (req.mode === 'navigate' ? caches.match('./') : undefined)))
   );
 });
+// プッシュ通知（11/9）：Apps Script が Firebase Cloud Messaging で送ったお知らせを、画面に出す（iPhone は、届いたら必ず出す決まり）
+self.addEventListener('push', e => {
+  let p = {}; try { p = e.data ? e.data.json() : {}; } catch (_) { try { p = { data: { body: e.data.text() } }; } catch (__) {} }
+  const d = p.data || {}, n = p.notification || {};
+  const title = d.title || n.title || 'ARK通知', body = d.body || n.body || '';
+  e.waitUntil(self.registration.showNotification(title, { body, tag: d.tag || undefined, renotify: !!d.tag, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: d.url || './hub.html' } }));
+});
 // 通知を押したとき：開いている画面を前に出す（作業指示の通知なら作業ボードを開く）
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || './notify.html';
+  const url = (e.notification.data && e.notification.data.url) || './hub.html';
   e.waitUntil(self.clients.matchAll({type:'window', includeUncontrolled:true}).then(cs => {
     const want = new URL(url, self.location.href).href.split('#')[0];
     for (const c of cs) { if (c.url.split('#')[0] === want && 'focus' in c) { if (url.includes('#')) c.navigate(url).catch(()=>{}); return c.focus(); } }
