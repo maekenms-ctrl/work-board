@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
+<meta name="ark-ver" content="bedfd9cdea">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1a1d21">
@@ -101,11 +102,16 @@
     b.querySelector('button').onclick=function(){ location.reload(); };
     document.body.appendChild(b);
   }
+  // 11/9：前は、GitHubの「最終更新の印」を比べていた。GitHubはどれか1つのファイルを入れ直すと全部の印が変わるため、
+  //  中身が変わっていないのに「新しい版」と何度も出ていた。→ ファイルの頭に書いた版の番号（ark-ver）だけを読んで比べる
+  var mine=(document.querySelector('meta[name="ark-ver"]')||{}).content||'';
   function check(){
-    fetch(location.pathname+'?v='+Date.now(),{method:'HEAD',cache:'no-store'}).then(function(r){
-      var v=r.headers.get('etag')||r.headers.get('last-modified'); if(!r.ok||!v) return;
-      if(base===null){ base=v; return; }
-      if(v!==base) show();
+    if(!mine) return;
+    fetch(location.pathname+'?v='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-4095'}}).then(function(r){
+      if(!r.ok) return null; return r.text();
+    }).then(function(t){
+      if(!t) return; var m=t.slice(0,8192).match(/<meta name="ark-ver" content="([^"]+)"/); if(!m) return;
+      if(m[1]!==mine) show();
     }).catch(function(){});
   }
   check(); setInterval(check, 5*60*1000);
