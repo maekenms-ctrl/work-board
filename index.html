@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="60debd2093">
+<meta name="ark-ver" content="e63b87a812">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -940,6 +940,26 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .wo-card .wo-due{font-size:14.5px;} .wo-card .wo-plate,#wo-detail .wo-head .wo-plate-d{font-size:16px;} .wo-card .wo-chip{font-size:12.5px;padding:3px 9px;}
 }
 </style>
+<style id="wo-0911">
+/* 11/9：スマホでは、未配置の車・駒を画面の下にいつも出す（配置図のすぐ下から引っぱれるように） */
+@media(max-width:760px){
+  #tab-yard .yd-tray{position:sticky;bottom:0;z-index:40;background:var(--bg);margin:0 -16px;padding:4px 10px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 18px rgba(0,0,0,.5);max-height:34vh;overflow-y:auto;border-top:2px solid var(--accent);}
+  #tab-yard .yd-tray .card{margin:4px 0;padding:6px 8px;}
+  #tab-yard .yd-tray .card-title{font-size:12px;margin-bottom:4px;}
+  #tab-yard .yd-tray .yd-pool{min-height:40px;padding:5px;}
+}
+/* 11/9：カメラを横向きにしたとき：映像を大きく、シャッターは右（右手の親指の所）に */
+@media (orientation:landscape) and (max-height:600px){
+  .wo-cam{flex-direction:row;}
+  .wo-cam video{height:100%;width:auto;flex:1;}
+  .wo-cam-th{position:absolute;left:calc(8px + env(safe-area-inset-left));bottom:8px;right:150px;min-height:0;background:rgba(0,0,0,.35);border-radius:8px;padding:4px;}
+  .wo-cam-th img{height:40px;}
+  .wo-cam-th:empty{display:none;}
+  .wo-cam-bar{flex-direction:column-reverse;justify-content:space-between;width:130px;padding:calc(12px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 14px 10px;}
+  .wo-cam-bar .wo-cam-sh{width:84px;height:84px;min-width:84px;}
+  .wo-cam-top{right:150px;}
+}
+</style>
 </head>
 <body>
 
@@ -1028,13 +1048,15 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <div class="yd-scroll"><div class="yd-canvas" id="yd-canvas"></div></div>
     <div class="yd-legend" id="yd-legend" style="margin-top:10px"></div>
   </div>
+  <div class="yd-tray">
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>未配置の車両（置き場所へスワイプ、またはタップして選ぶ）</div>
+    <div class="yd-pool" id="yd-pool"></div>
+  </div>
   <div class="card">
     <div class="card-title"><span class="bar"></span>駒（待機中の代車・レンタカー・その他車両）置き場所へスワイプ</div>
     <div class="yd-pool" id="yd-lpool"></div>
   </div>
-  <div class="card">
-    <div class="card-title"><span class="bar"></span>未配置の車両（置き場所へスワイプ、またはタップして選ぶ）</div>
-    <div class="yd-pool" id="yd-pool"></div>
   </div>
 </div>
 
@@ -4048,8 +4070,8 @@ function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; els
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
 function ydRender(){
   // 車を指で動かしている最中は描き直さない（描き直すと、指の下の車が入れ替わって、離しても置けない・固まることがある。11/7）
-  if(YD.cd){ YD._pend=true; return; }
-  YD._pend=false;
+  if(YD.cd){ YD._rpend=true; return; }
+  YD._rpend=false;
   const cv=document.getElementById('yd-canvas'); if(!cv) return;
   const locked=SEC.ok&&!SEC.key;
   cv.classList.toggle('edit',YD.edit);
@@ -4113,7 +4135,33 @@ async function ydDeliver(id){
   const keep=WO_CUR; WO_CUR=id;
   try{ await woArchive(true); }finally{ if(!_woJob(id)||_woJob(id).archived){ YD.carSel=null; } if(keep&&keep!==id) WO_CUR=keep; ydRender(); }
 }
-function ydTapCar(e,id){ e.stopPropagation(); if(YD.edit||Date.now()-(YD.noClick||0)<300) return; YD.carSel=YD.carSel===id?null:id; YD.selAt=Date.now(); ydRender(); }
+function ydTapCar(e,id){ e.stopPropagation(); if(YD.edit||Date.now()-(YD.noClick||0)<300) return;
+  // 11/9：車を選んでいるときに、置き場所にある別の車を押すと入れ替える
+  if(YD.carSel&&YD.carSel!==id&&e.target&&e.target.closest&&e.target.closest('#tab-yard .yd-sp')){ const a=YD.carSel; YD.carSel=null; ydSwap(a,id); return; }
+  YD.carSel=YD.carSel===id?null:id; YD.selAt=Date.now(); ydRender(); }
+// ── 入れ替え（11/9）：いっぱいの置き場所へ車を持っていくと、そこにあった車と場所を入れ替える（未配置の車なら、あった車は未配置へ）──
+function _ydSlotOf(k){ if(String(k).startsWith('lc:')) return (YARD.lpos||{})[String(k).slice(3)]||''; const j=_woJob(k); return j?(j.slot||''):''; }
+function _ydSetSlot(k,sid){ if(String(k).startsWith('lc:')){ const n=String(k).slice(3); YARD.lpos=YARD.lpos||{}; if(sid) YARD.lpos[n]=sid; else delete YARD.lpos[n]; _ydChanged(); return; }
+  const j=_woJob(k); if(!j) return; j.slot=sid||''; j.slotNote=''; _ydMergeLoaner(j,sid); woTouch(j,true); }
+function _ydKeyName(k){ return String(k).startsWith('lc:')?(YD_XPIECES.some(x=>x.n===String(k).slice(3))?_ydPn(String(k).slice(3)):'代車 '+String(k).slice(3)):_woTitle(_woJob(k)||{}); }
+function ydSwap(a,b){
+  if(SEC.ok&&!SEC.key){ toast('ロックを解除してから操作してください'); return; }
+  const sa=_ydSlotOf(a), sb=_ydSlotOf(b); if(sa===sb){ ydRender(); return; }
+  _ydSetSlot(a,sb); _ydSetSlot(b,sa);
+  const nm=x=>{ const s=YARD.spaces.find(y=>y.id===x); return s?s.name:'未配置'; };
+  toast(`${_ydKeyName(a)}（→ ${nm(sb)}）と ${_ydKeyName(b)}（→ ${nm(sa)}）を入れ替えました`,4500);
+  woRenderList(); ydRender(); if(WO_CUR===a||WO_CUR===b) woRenderDetail();
+}
+// 置き場所へ動かす。いっぱいなら、指を離した所の車（または1台だけの車）と入れ替える
+function ydMoveOrSwap(id,sid,under){
+  if(sid&&_ydFull(sid,String(id))){
+    if(!String(id).startsWith('lc:')){ const jj=_woJob(id); const lc=jj?_woLoanerPiece(jj):''; if(lc&&(YARD.lpos||{})[lc]===sid&&!_ydJobsIn(sid).some(x=>x.id!==id)&&_ydLcIn(sid).every(c=>c.n===lc)) return ydMove(id,sid); }
+    const occ=[..._ydJobsIn(sid).filter(x=>x.id!==id).map(x=>x.id),..._ydLcIn(sid).map(c=>'lc:'+c.n).filter(k=>k!==id)];
+    const b=under&&occ.includes(under)?under:(occ.length===1?occ[0]:null);
+    if(b){ YD.carSel=null; return ydSwap(id,b); }
+  }
+  return ydMove(id,sid);
+}
 // 共有・代車・表から届いた変更での配置図の描き直し：車を選んで置き場所を押すまで（15秒まで）は待つ（途中で並びが変わって、違う所を押してしまうのを防ぐ。11/7）
 function _ydRenderCloud(){ clearTimeout(YD._ct); if(YD.cd||(YD.carSel&&Date.now()-(YD.selAt||0)<15000)){ YD._ct=setTimeout(_ydRenderCloud,1000); return; } ydRender(); }
 // 置き場所のコメント（例：コインパーキング・3丁目）。チーム全員で共有
@@ -4127,7 +4175,7 @@ async function ydSpaceNote(id){
 }
 function ydTapSpace(e,id){
   if(YD.edit){ YD.sel=id; ydRender(); return; }
-  if(YD.carSel) ydMove(YD.carSel,id);
+  if(YD.carSel) ydMoveOrSwap(YD.carSel,id);
 }
 // 枠がいっぱいか（動かしている車・駒は数えない）
 function _ydFull(sid,selfKey){
@@ -4236,14 +4284,15 @@ function _ydCarDrag(){
   },{passive:false});
   const end=e=>{
     const d=YD.cd; if(!d||(e.pointerId!==d.pid&&!e._ark)) return; YD.cd=null;
-    if(!d.ghost){ if(YD._pend) ydRender(); return; }
+    if(!d.ghost){ if(YD._rpend) ydRender(); return; }
     const t=e.type==='pointerup'?target(e.clientX,e.clientY):null;
     d.ghost.remove(); d.el.classList.remove('yd-dragging'); document.getElementById('tab-yard').classList.remove('yd-dragmode'); clear();
     YD.noClick=Date.now();
-    if(!t){ if(YD._pend) ydRender(); return; }
+    if(!t){ if(YD._rpend) ydRender(); return; }
     const sid=(t.id==='yd-pool'||t.id==='yd-lpool')?'':t.dataset.sp;
-    if(d.id.startsWith('lc:')){ if(((YARD.lpos||{})[d.id.slice(3)]||'')!==sid) ydMove(d.id,sid); else if(YD._pend) ydRender(); return; }
-    const j=_woJob(d.id); if(j&&(j.slot||'')!==sid) ydMove(d.id,sid); else if(YD._pend) ydRender();
+    const uc=(()=>{ const el=document.elementFromPoint(e.clientX,e.clientY), c=el&&el.closest&&el.closest('#tab-yard .yd-sp .yd-car'); return c&&c!==d.el?(c.dataset.job||(c.dataset.lc?'lc:'+c.dataset.lc:'')):''; })();
+    if(d.id.startsWith('lc:')){ if(((YARD.lpos||{})[d.id.slice(3)]||'')!==sid) ydMoveOrSwap(d.id,sid,uc); else if(YD._rpend) ydRender(); return; }
+    const j=_woJob(d.id); if(j&&(j.slot||'')!==sid) ydMoveOrSwap(d.id,sid,uc); else if(YD._rpend) ydRender();
   };
   document.addEventListener('pointerup',end); document.addEventListener('pointercancel',end);
   // 念のため：指を離したのに終わりの合図が届かなかったとき（iPhoneでまれにある）、最後の位置に置いて終わる（車の影が残って固まるのを防ぐ）
