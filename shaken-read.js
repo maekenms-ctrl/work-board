@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-04c';
+const SR_VER='2026-11-04d';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10684,6 +10684,48 @@ function faxParse(jl,el,own){
   if(co) res.desk={co:String(co.co||'').trim(),dept:co.dept,n:co.aj,tel:faxFmtTel(co.tel),fax:faxFmtTel(co.fax)};
   return res;
 }
+// ── 覚えている保険会社・AJ・部署（手で入れたものも含む）で、読み違いを直す ──
+//   known＝作業ボードの保険会社の一覧 [{n, aj:[{n,dept,tel,fax}], dp:[部署]}]
+function _lev(a,b){ a=String(a||''); b=String(b||''); const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  let p=Array.from({length:n+1},(_,j)=>j); for(let i=1;i<=m;i++){ const q=[i]; for(let j=1;j<=n;j++) q[j]=Math.min(p[j]+1,q[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1)); p=q; } return p[n]; }
+const _sim=(a,b)=>{ const L=Math.max(String(a||'').length,String(b||'').length); return L?1-_lev(a,b)/L:0; };
+const _nk=t=>_fz(t).replace(/株式会社|\(株\)|㈱/g,'');
+// 文章の中に、名前とほぼ同じ並びがあるか（1〜2文字の読み違いまで）
+function _inText(name,text){ const k=_nk(name); if(k.length<2) return 0; if(text.includes(k)) return 1; let best=0;
+  for(const w of [k.length-1,k.length,k.length+1]){ if(w<2) continue; for(let i=0;i+w<=text.length;i++){ const v=_sim(k,text.slice(i,i+w)); if(v>best) best=v; } } return best; }
+function _telNear(a,b){ a=String(a||'').replace(/\D/g,''); b=String(b||'').replace(/\D/g,''); return a&&b&&a.length>=10&&b.length>=10&&_lev(a,b)<=1; }
+function faxFix(res,lines,known){
+  const fixed=[]; known=Array.isArray(known)?known:[]; if(!known.length) return res;
+  const text=lines.join('');
+  // 保険会社：覚えている会社名が FAX の中にあれば、その書き方にそろえる（一覧に無い会社でも、手で入れてあれば見つかる）
+  let co=known.find(c=>c.n===res.co)||known.find(c=>faxInsName(c.n)&&faxInsName(c.n)===res.co)||null;
+  if(!co){ let bs=0; for(const c of known){ const v=_inText(c.n,text); if(v>bs){bs=v;co=c;} } if(bs<(_nk(co&&co.n).length>=4?0.75:1)) co=null; }
+  if(co&&co.n!==res.co){ if(res.co) fixed.push('保険会社 '+res.co+'→'+co.n); res.co=co.n; }
+  const ajs=co?(co.aj||[]):[], allAj=known.flatMap(c=>c.aj||[]);
+  const depts=[...new Set([...(co?[...(co.aj||[]).map(y=>y.dept),...(co.dp||[])]:[]),...known.flatMap(c=>[...(c.aj||[]).map(y=>y.dept),...(c.dp||[])])].map(d=>String(d||'').trim()).filter(Boolean))];
+  const fixDept=d=>{ if(!d) return d; if(depts.includes(d)) return d; let best=null,bs=0; for(const k of depts){ const v=Math.max(_sim(_fz(d),_fz(k)),_sim(_fz(d.split(' ').pop()),_fz(k.split(' ').pop()))); if(v>bs){bs=v;best=k;} }
+    if(best&&bs>=0.75){ fixed.push('部署 '+d+'→'+best); return best; } return d; };
+  const fixPerson=(o,kN,kD,kT,kF,label)=>{
+    // TEL・FAX がほぼ同じ人がいれば、その人（名前・番号を覚えている書き方にそろえる）
+    //   同じ課の人は TEL・FAX が同じことが多いので、番号だけで決めるのは「名前が読めず、その番号の人が1人だけ」のとき
+    const pool=ajs.length?ajs:allAj; let a=pool.find(y=>y.n===o[kN]);
+    const byTel=pool.filter(y=>_telNear(y.tel,o[kT])||_telNear(y.fax,o[kF]));
+    if(!a&&o[kN]) a=byTel.find(y=>_lev(y.n,o[kN])<=1);
+    if(!a&&!o[kN]&&byTel.length===1) a=byTel[0];
+    // 名前が1文字違いで、部署も同じ（または近い）人
+    if(!a&&o[kN]) a=pool.find(y=>_lev(y.n,o[kN])<=1&&Math.max(y.n.length,o[kN].length)>=2&&y.dept&&o[kD]&&_sim(_fz(y.dept),_fz(o[kD]))>=0.75);
+    if(!a) return;
+    if(o[kN]!==a.n){ fixed.push(label+' '+(o[kN]||'（空）')+'→'+a.n); o[kN]=a.n; }
+    if(a.dept&&(!o[kD]||_sim(_fz(a.dept),_fz(o[kD]))>=0.6)) o[kD]=a.dept;
+    if(a.tel&&(!o[kT]||_telNear(a.tel,o[kT]))) o[kT]=a.tel;
+    if(a.fax&&(!o[kF]||_telNear(a.fax,o[kF]))) o[kF]=a.fax;
+  };
+  res.dept=fixDept(res.dept);
+  fixPerson(res,'aj','dept','tel','fax','AJ');
+  if(res.desk){ res.desk.dept=fixDept(res.desk.dept); fixPerson(res.desk,'n','dept','tel','fax','窓口'); }
+  if(fixed.length) res.fixed=fixed;
+  return res;
+}
 // ── 保険会社のFAXの写真から（日本語で1回、電話番号を数字だけで1回読む）──
 //   お客様名などは拾わない（返すのは 保険会社名・アジャスター・部署・TEL・FAX だけ）
 // 影やムラをならして文字をくっきりさせる（まわりの明るさとの差を強める）
@@ -10692,7 +10734,7 @@ function _faxPrep(c){ const W=c.width,H=c.height, x=c.getContext('2d',{willReadF
   const ii=_integral(g,W,H);
   for(let y=0;y<H;y++)for(let x2=0;x2<W;x2++){ const i=y*W+x2, m=_boxMean(ii,W,H,x2,y,30,30); const v=Math.max(0,Math.min(255,(g[i]-m)*2.2+235)); a[i*4]=a[i*4+1]=a[i*4+2]=v; }
   x.putImageData(d,0,0); return c; }
-async function faxFile(f,own){
+async function faxFile(f,own,known){
   _busy('文字認識を準備しています…（初回は少し時間がかかります）');
   let wj=null, we=null;
   const lines=r=>((r&&r.data&&r.data.blocks)||[]).flatMap(b=>(b.paragraphs||[]).flatMap(p=>p.lines||[])).map(l=>({t:l.text,y:l.bbox.y0}));
@@ -10705,9 +10747,9 @@ async function faxFile(f,own){
     we=await _newWorker('eng'); await we.setParameters({tessedit_pageseg_mode:'6',tessedit_char_whitelist:'TELFAX0123456789:-() '});
     _busy('電話番号を読み取っています…（2/2）');
     const re=await we.recognize(src,{},{blocks:true});
-    return faxParse(lines(rj),lines(re),own);
+    const lj=lines(rj); return faxFix(faxParse(lj,lines(re),own),lj.map(l=>_fz(l.t)),known);
   }catch(e){ throw new Error(_errMsg(e)); }
   finally{ _busy(null); [wj,we].forEach(w=>{ if(w) try{w.terminate();}catch(e){} }); }
 }
-window.SHAKEN={ver:SR_VER, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName};
+window.SHAKEN={ver:SR_VER, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName, faxFix};
 })();

@@ -923,6 +923,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-pk.open .wo-pk-btn{border-color:var(--accent);}
 .wo-pkrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;}
 .wo-chb .wo-pk-list{display:none;}.wo-chb .wo-pk.open .wo-pk-list{display:flex;flex-wrap:wrap;gap:4px;}
+.wo-grp.wo-grp-step{display:flex;align-items:center;gap:8px;color:var(--text);border-left:5px solid var(--sc);padding:4px 10px;background:var(--surface2);border-radius:6px;letter-spacing:.02em;}
+.wo-grp.wo-grp-step b{margin-left:auto;font-size:13px;color:var(--muted);}
 .wo-card .wo-plate{font-size:17px;font-weight:800;color:var(--text);letter-spacing:.03em;}
 #wo-detail .wo-head .wo-plate-d{font-size:17px;font-weight:800;color:var(--text);letter-spacing:.03em;margin-top:3px;}
 .wo-card .wo-outd{font-size:13px;font-weight:700;color:var(--muted);}
@@ -967,6 +969,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     <input class="wo-search" id="wo-q" placeholder="🔍 登録番号・車種・カラー" oninput="woRenderList()">
     <select class="wo-search wo-sort" id="wo-sort" onchange="woSetSort(this.value)" title="並び順">
       <option value="sheet">並び順：入出庫管理表と同じ（月のタブ・行の順）</option>
+      <option value="step">並び順：工程（今どこにいるか：板金中・塗装待ち など）</option>
       <option value="std">並び順：配置図の表示（区分→段階 前・途中・完成）・入庫が新しい順</option>
       <option value="old">並び順：入庫が古い順</option>
       <option value="due">並び順：納車予定が近い順</option>
@@ -1491,9 +1494,27 @@ function _woCmpNew(a,b){ const x=_woInKey(a), y=_woInKey(b); return x<y?1:x>y?-1
 // 入出庫管理表の中の位置（タブの順・行の順）。作業ボードが3分ごとに読んでいる表の内容から、この端末の中だけで決める（共有へは何も書かない）
 function _woSheetPos(j){ const raw=(typeof LB!=='undefined'&&LB.sheetRaw)||[]; if(!raw.length) return null; const x=_woSheetMatch(j); if(!x) return null; const I=_woSheetIdx(raw); return I.pos?{i:I.pos.get(x),tab:x.tab||''}:null; }
 function _woCmpSheet(a,b){ const x=_woSheetPos(a), y=_woSheetPos(b); if(x&&y) return x.i-y.i; if(x) return -1; if(y) return 1; return -_woCmpNew(a,b); }   // 表にない車（手打ち・部品単品など）は最後に、入庫が古い順
+// ── 工程の並び（11/9）：車が今どの工程にいるかで分ける ──
+//  入庫前 → 作業前 → 各工程の「待ち」→「作業中」（工程の順）→ 完成・納車待ち → 納車済。同じ所の中は納車予定が近い順
+//  ・作業中＝その工程の開始日が入っている（まだ完了していない）
+//  ・待ち＝前の工程が完了して、次の工程がまだ始まっていない（例：板金・取替 完了 → 塗装待ち）
+function _woStepName(j,s){ return s.k==='seibi'&&_woSeibiAs(j)?_woSeibiAs(j):s.n; }
+function _woPos(j){
+  if(j.archived) return {r:9000,g:'納車済'};
+  if(j.partsOnly) return {r:8500,g:'部品単品'};
+  if(woIsBefore(j)) return {r:0,g:'入庫前'};
+  const i=WO_STEPS.findIndex(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&!st.done; });
+  if(i<0) return {r:8000,g:'完成・納車待ち'};
+  const s=WO_STEPS[i], st=j.steps[s.k]||{}, nm=_woStepName(j,s);
+  if(st.date) return {r:100+i*10+5,g:`${nm} 作業中`};
+  let prev=null; for(let k=i-1;k>=0;k--){ const q=j.steps&&j.steps[WO_STEPS[k].k]; if(q&&q.need&&q.done){ prev=WO_STEPS[k]; break; } }
+  if(!prev) return woIsPre(j)?{r:50,g:'作業前（'+nm+'から）'}:{r:100+i*10,g:`${nm}待ち`};
+  return {r:100+i*10,g:`${_woStepName(j,prev)} 完了 → ${nm}待ち`};
+}
 function _woSortRows(rows){
   const std=(a,b)=>_woCatRank(a)-_woCatRank(b)||_woStageRank(a)-_woStageRank(b)||_woCmpNew(a,b);
   if(WO_SORT==='sheet'){ const pos=new Map(rows.map(j=>[j,_woSheetPos(j)])); rows.sort((a,b)=>{ const x=pos.get(a), y=pos.get(b); if(x&&y) return x.i-y.i; if(x) return -1; if(y) return 1; return -_woCmpNew(a,b); }); }
+  else if(WO_SORT==='step'){ const P=new Map(rows.map(j=>[j,_woPos(j)])); rows.sort((a,b)=>P.get(a).r-P.get(b).r||(a.dueDate||'9999').localeCompare(b.dueDate||'9999')||_woCmpNew(a,b)); }
   else if(WO_SORT==='old') rows.sort((a,b)=>-_woCmpNew(a,b));
   else if(WO_SORT==='due') rows.sort((a,b)=>(a.dueDate||'9999')<(b.dueDate||'9999')?-1:(a.dueDate||'9999')>(b.dueDate||'9999')?1:_woCmpNew(a,b));
   else if(WO_SORT==='manual') rows.sort((a,b)=>{ const x=a.ord==null, y=b.ord==null; if(x!==y) return x?-1:1; if(x&&y) return std(a,b); return a.ord-b.ord||std(a,b); });   // 新しく入った車（順番未設定）は上に
@@ -3448,7 +3469,8 @@ function _woRenderList(){
     const due=woDueTag(j), n=woNext(j);
     let head='';
     if(_today&&_today.has(j)){ if(lastGrp!=='\u0001today'){ lastGrp='\u0001today'; head=`<div class="wo-grp wo-grp-today">🚗 本日入庫 ${_today.size}台</div>`; } }
-    else if(_today&&lastGrp==='\u0001today'&&WO_SORT!=='std'&&WO_SORT!=='sheet'){ lastGrp='pre'; head='<div class="wo-grp">作業前</div>'; }
+    else if(_today&&lastGrp==='\u0001today'&&WO_SORT!=='std'&&WO_SORT!=='sheet'&&WO_SORT!=='step'){ lastGrp='pre'; head='<div class="wo-grp">作業前</div>'; }
+    else if(WO_SORT==='step'){ const g=_woPos(j).g; if(g!==lastGrp){ lastGrp=g; const nn=rows.filter(x=>_woPos(x).g===g).length; head=`<div class="wo-grp wo-grp-step" style="--sc:${j.archived?'var(--border)':woColor(j)}">${esc(g)}<b>${nn}台</b></div>`; } }
     else if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     else if(WO_SORT==='sheet'&&WO_FILTER!=='archived'){ const ps=_woSheetPos(j); const g=ps?(ps.tab||'入出庫管理表'):'入出庫管理表にない車'; if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
     return head+`<div class="wo-card${j.id===WO_CUR?' cur':''}" data-id="${j.id}" style="--sc:${j.archived?'var(--border)':woColor(j)}" onclick="woOpen('${j.id}')">${canDrag?`<button type="button" class="wo-drag" title="ドラッグで並べ替え" aria-label="並べ替え" onclick="event.stopPropagation()">⠿</button>`:''}
