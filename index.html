@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="52da73d7ce">
+<meta name="ark-ver" content="13d10d14cd">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -2000,7 +2000,7 @@ function woCloudStart(){
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'colors'),snap=>{ const m={}; snap.forEach(d=>{ const v=d.data()||{}; if(v.type) m[_woColKey(v.code||d.id)]=v.type; }); WCOL.map=m; },err=>{ console.warn('colors',err); }));
   // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
   // 11/4：60日以内に保存した見積りだけ読む（前は全部。見積りが増えるほど読み込みが増えていた）
-  WOC.unsubs.push(fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'estimates'),fs.where('savedAt','>=',new Date(Date.now()-60*864e5).toISOString())),snap=>{ const L=[]; const X=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); if(v.xfer&&v.wb&&typeof v.wb==='object') X.push({..._woXferClean(v.wb),id:d.id,savedAt:v.savedAt||'',by:v.by||'',via:v.via||''}); }); WEST.list=L; WEST.inbox=X.sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))); _woXferBadge(); if(document.getElementById('wo-xf-ov')) woXferRender(); },err=>{ console.warn('estimates',err); }));
+  WOC.unsubs.push(fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'estimates'),fs.where('savedAt','>=',new Date(Date.now()-60*864e5).toISOString())),snap=>{ const L=[]; const X=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,car:v.car||'',chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); if(v.xfer&&v.wb&&typeof v.wb==='object') X.push({..._woXferClean(v.wb),id:d.id,savedAt:v.savedAt||'',by:v.by||'',via:v.via||''}); }); WEST.list=L; WEST.inbox=X.sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))); _woXferBadge(); if(document.getElementById('wo-xf-ov')) woXferRender(); },err=>{ console.warn('estimates',err); }));
   // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'daily'),snap=>{
     const t=_woToday(); WSD.docs=[];
@@ -2952,29 +2952,100 @@ function woPhSt(v){ const j=_woCurJob(); if(!j) return;
 //  ・覚えている先：見積りツールと同じ共有の colors（{code, type}）。見積りツールで覚えた番号も使える
 //  ・ほかに、見積りツールの見積り（WEST）と、作業ボードのほかの車の同じカラー番号からも探す
 //  ・塗装タイプが空のときだけ入れる（自動で入れたものは、番号を打ち直すと入れ直す）。塗装タイプを選ぶと、その番号に覚える
+// ─── カラー番号の共通部品（見積りツール・作業ボードで同じもの）11/11 ───────────────
+//  ・車種名からメーカー（色番号の付け方）を判定：OEM車は作ったメーカーの番号の付け方に合わせる（例：ルーミー→ダイハツ、フレア→スズキ）
+//  ・カラー番号→塗装タイプは「メーカー|番号」で覚える（メーカーが分からないときは番号だけ。前の記録＝番号だけ も読む）
+//  ・CK_DB は主な番号の出発点。チームで覚えた番号は自動で照合の対象に加わる
+const CK_MAKERS={TOYOTA:'トヨタ・レクサス',DAIHATSU:'ダイハツ',HONDA:'ホンダ',NISSAN:'日産',MAZDA:'マツダ',SUBARU:'スバル',MITSUBISHI:'三菱',SUZUKI:'スズキ',PSA:'シトロエン・プジョー・DS'};
+const CK_CARS=[
+  ['DAIHATSU','ピクシス,ライズ,ルーミー,タンク,パッソ,ブーン,トール,タント,ムーヴ,ムーブ,ミラ,ウェイク,キャスト,ロッキー,タフト,コペン,ハイゼット,アトレー,ソニカ,エッセ,ネイキッド,テリオス,ビーゴ,グランマックス,ステラ,プレオ,シフォン,ディアス,サンバー'],
+  ['SUZUKI','フレア,キャロル,スクラム,モコ,NV100,ワゴンR,スペーシア,ハスラー,アルト,ラパン,ジムニー,スイフト,ソリオ,クロスビー,エブリ,キャリ,MRワゴン,パレット,セルボ,SX4,エスクード,バレーノ,イグニス,キザシ,ランディ,ツイン,KEI,ケイ,フロンクス,ミニキャブ'],
+  ['MITSUBISHI','デイズ,ルークス,オッティ,デリカ,アウトランダー,エクリプス,EKワゴン,EKクロス,EKスペース,ミラージュ,パジェロ,RVR,ランサー,コルト,I-MIEV,タウンボックス,トッポ,ギャラン'],
+  ['TOYOTA','レクサス,LEXUS,プリウス,アクア,ヤリス,カローラ,クラウン,カムリ,ハリアー,RAV4,ランドクルーザー,ランクル,プラド,アルファード,ヴェルファイア,ヴォクシー,ノア,エスクァイア,シエンタ,ヴィッツ,ハイエース,レジアス,プロボックス,サクシード,タウンエース,ライトエース,C-HR,CHR,ハイラックス,86,スープラ,マークX,エスティマ,アイシス,ウィッシュ,オーリス,ポルテ,スペイド,ラクティス,ラッシュ,BB,BZ4X,ミライ,MIRAI,センチュリー,ダイナ,トヨエース,コースター,クラウン'],
+  ['HONDA','フィット,フリード,N-BOX,NBOX,N-WGN,NWGN,N-ONE,NONE,N-VAN,NVAN,ヴェゼル,ステップワゴン,ステップ,オデッセイ,シビック,アコード,インサイト,シャトル,グレイス,ジェイド,CR-V,CRV,ZR-V,ZRV,WR-V,WRV,S660,ライフ,ゼスト,バモス,アクティ,ストリーム,エリシオン,モビリオ,レジェンド,クロスロード,エアウェイブ,ザッツ,ビート'],
+  ['NISSAN','ノート,セレナ,エクストレイル,エルグランド,キックス,リーフ,スカイライン,フェアレディ,GT-R,ティーダ,マーチ,キューブ,ジューク,ラフェスタ,ウイングロード,NV200,NV350,キャラバン,クリッパー,サクラ,アリア,フーガ,シルフィ,ブルーバード,ティアナ,デュアリス,ムラーノ,バネット,ADバン,AD-VAN'],
+  ['MAZDA','デミオ,MAZDA2,マツダ2,アクセラ,MAZDA3,マツダ3,CX-3,CX-30,CX-5,CX-60,CX-8,CX-80,CX3,CX30,CX5,CX60,CX8,ロードスター,アテンザ,MAZDA6,プレマシー,ビアンテ,MPV,ボンゴ,ベリーサ,RX-8,タイタン'],
+  ['SUBARU','インプレッサ,レガシィ,フォレスター,レヴォーグ,XV,クロストレック,BRZ,WRX,エクシーガ,アウトバック,ルクラ,ジャスティ,トレジア,ソルテラ,レイバック'],
+  ['PSA','シトロエン,CITROEN,プジョー,PEUGEOT,DS'],
+];
+function ckNorm(s){ return String(s||'').normalize('NFKC').toUpperCase().replace(/\s/g,''); }
+function ckMaker(car,hint){
+  const z=ckNorm(car);
+  if(z) for(const [mk,list] of CK_CARS){ for(const w of list.split(',')){ if(w&&z.includes(ckNorm(w))) return mk; } }
+  return hint&&CK_MAKERS[hint]?hint:'';
+}
+function ckKey(maker,code){ const c=ckNorm(code); return maker&&c?maker+'|'+c:c; }
+// 主な色番号（メーカーごと。番号の付け方の形もここで確かめる）
+const CK_DB={
+  TOYOTA:{re:/^[0-9][0-9A-Z][0-9]$/,codes:'040,041,045,056,057,058,062,070,077,083,085,086,089,090,1C0,1D4,1D6,1E7,1F7,1F9,1G3,1G6,1H5,1H9,1J2,1J4,1J6,1J9,1K0,1K3,1K6,1L0,1L1,1L5,202,205,209,212,214,217,218,219,220,221,223,3P0,3Q3,3R3,3R9,3T3,3T7,3U5,4R8,4T3,4U7,4V8,4W9,4X1,4Y1,6W2,6X3,6X4,776,8P4,8R3,8S6,8T5,8V5,8W2,8W7,8X2,8X8,8Y5'},
+  DAIHATSU:{re:/^[A-Z][0-9]{2}$/,codes:'W09,W24,W25,W19,X07,X13,X12,S28,S43,T23,T27,R67,R75,B82,G59,L24,N54,P13'},
+  HONDA:{re:/^(NH|YR|BG|PB|RP|GY|YG|R|B|G|Y)[0-9]{2,3}[A-Z]?$/,codes:'NH578,NH624P,NH700M,NH731P,NH788P,NH797M,NH821M,NH830M,NH875P,NH883P,NH904M,NH0,R81,R513H,R565M,R569M,B588P,B593M,B607M,YR615M,Y70P,G543P'},
+  NISSAN:{re:/^[A-Z][A-Z0-9]{2}$/,codes:'QAB,QAC,QAA,QM1,QX1,KAD,KH3,K23,KAB,KAY,KY0,G41,GAG,GAT,B51,BW9,RAQ,NAH,NAJ,NBF,NAR,Z11,AX6,CAS,HAJ'},
+  MAZDA:{re:/^([0-9]{2}[A-Z]|[A-Z][0-9][A-Z])$/,codes:'41W,41V,46V,46G,25D,34K,38P,42M,42S,45B,47A,47C,51K,51C,41G,42A,45P,48C,A4D'},
+  SUBARU:{re:/^[A-Z0-9]{3}$/,codes:'K1X,37J,D4S,G1U,61K,H6Q,E8H,K7X,C2P'},
+  MITSUBISHI:{re:/^[A-Z][0-9]{2}$/,codes:'W37,W13,W85,A31,A39,X42,U17,P26,P62'},
+  SUZUKI:{re:/^Z[A-Z0-9]{2}$/,codes:'Z2S,ZVR,ZNC,ZMV,ZJ3,ZWG,ZLB,ZPF,Z7T,ZUE'},
+};
+// 読み違いやすい文字（OCR）
+const CK_CONF={'0':'OQD','O':'0Q','Q':'0O','D':'0','1':'IL7','I':'1L','L':'1I','5':'S','S':'5','8':'B','B':'8','2':'Z','Z':'2','6':'G','G':'6','7':'T1','T':'7','4':'A','A':'4'};
+function _ckVariants(t){
+  let L=['']; for(const ch of t){ const alt=[ch,...(CK_CONF[ch]||'')]; const n=[]; for(const p of L) for(const a of alt){ n.push(p+a); if(n.length>400) break; } L=n; if(L.length>400) break; }
+  return L;
+}
+// OCRの文字からカラー番号の候補を出す（known：チームで覚えた番号 {key:type}、fix：直した読み違い {maker|raw: 正しい番号}）
+function ckCandidates(text,maker,first,known,fix){
+  const T=ckNorm(String(text||'').replace(/\n/g,' ')).replace(/[^A-Z0-9\-]/g,' ');
+  const toks=new Set(); String(text||'').toUpperCase().split(/[^A-Z0-9\-]+/).forEach(w=>{ w=w.replace(/^-+|-+$/g,''); if(w.length>=2&&w.length<=8) toks.add(w); w.split('-').forEach(x=>{ if(x.length>=2&&x.length<=7) toks.add(x); }); });
+  if(first) toks.add(ckNorm(first));
+  const mk=maker&&CK_DB[maker]?[maker]:Object.keys(CK_DB);
+  const kn=new Set(Object.keys(known||{}).map(k=>k.includes('|')?(k.startsWith((maker||'')+'|')?k.split('|')[1]:''):k).filter(Boolean));
+  const sc={};
+  const add=(c,s,why)=>{ if(!c) return; if(!sc[c]||sc[c].s<s) sc[c]={c,s,why}; };
+  for(const t of toks){
+    const fx=fix&&(fix[ckKey(maker,t)]||fix[t]); if(fx) add(fx,20,'fix');
+    if(t.length<2||t.length>7) continue;
+    for(const v of _ckVariants(t)){
+      const d=[...v].reduce((n,ch,i)=>n+(ch!==t[i]?1:0),0); if(d>2) continue;
+      let s=0, why='';
+      if(kn.has(v)){ s+=8; why='team'; }
+      for(const m of mk){ const db=CK_DB[m]; if(db.codes.split(',').includes(v)){ s+=(m===maker?7:3); why=why||'db'; } if(db.re.test(v)&&m===maker) s+=2; }
+      if(maker==='PSA'&&typeof PSA_COLORS!=='undefined'&&PSA_COLORS[v]){ s+=7; why=why||'db'; }
+      if(first&&v===ckNorm(first)) s+=3;
+      if(!s) continue;
+      s-=d*1.5; if(s>0) add(v,s,why);
+    }
+  }
+  return Object.values(sc).sort((a,b)=>b.s-a.s).filter((x,i)=>i===0||x.s>=4).slice(0,3);
+}
+
 const WCOL={map:{}};
 let WO_PTAUTO=null;
 function _woColKey(c){ return String(c||'').normalize('NFKC').toUpperCase().replace(/\s/g,''); }
-function _woPtFor(color){
+// 11/11：メーカーごとに覚える（「メーカー|番号」。メーカーが分からない車・前の記録は番号だけ）
+function _woPtFor(color,car){
   const k=_woColKey(color); if(!/^[A-Z0-9-]{2,8}$/.test(k)) return '';
   const ok=t=>PAINT_TYPES.includes(t)?t:'';
+  const mk=ckMaker(car), same=c=>{ const m=ckMaker(c); return !mk||!m||m===mk; };
+  if(mk&&ok(WCOL.map[ckKey(mk,k)])) return WCOL.map[ckKey(mk,k)];
   if(ok(WCOL.map[k])) return WCOL.map[k];
-  const e=(WEST.list||[]).filter(x=>_woColKey(x.color)===k&&ok(x.ptype)).sort((a,b)=>String(b.savedAt||'')<String(a.savedAt||'')?-1:1)[0]; if(e) return e.ptype;
-  const cur=_woCurJob(), o=JOBS.find(x=>x!==cur&&_woColKey(x.color)===k&&ok(x.paintType)); return o?o.paintType:'';
+  if(!mk){ const t=[...new Set(Object.keys(WCOL.map).filter(x=>x.endsWith('|'+k)).map(x=>WCOL.map[x]).filter(ok))]; if(t.length===1) return t[0]; }   // 車種からメーカーが分からないとき：どのメーカーでも同じ塗装タイプなら使う
+  const e=(WEST.list||[]).filter(x=>_woColKey(x.color)===k&&ok(x.ptype)&&same(x.car)).sort((a,b)=>String(b.savedAt||'')<String(a.savedAt||'')?-1:1)[0]; if(e) return e.ptype;
+  const cur=_woCurJob(), o=JOBS.find(x=>x!==cur&&_woColKey(x.color)===k&&ok(x.paintType)&&same(x.car)); return o?o.paintType:'';
 }
 function _woColorFill(j){
   if(!j) return; const auto=WO_PTAUTO&&WO_PTAUTO.jid===j.id&&j.paintType===WO_PTAUTO.pt;
   if(j.paintType&&!auto) return;
-  const pt=_woPtFor(j.color); if(!pt&&!auto) return;
+  const pt=_woPtFor(j.color,j.car); if(!pt&&!auto) return;
   j.paintType=pt||''; WO_PTAUTO=pt?{jid:j.id,pt}:null; woTouch(j,true);
   const el=document.getElementById('wo-pt'); if(el) el.value=j.paintType; const n=document.getElementById('wo-pt-note'); if(n) n.textContent=pt?'（カラー番号から自動）':'';
 }
 function _woColorLearn(j){
-  if(!j||!j.paintType||!PAINT_TYPES.includes(j.paintType)) return; const k=_woColKey(j.color); if(!/^[A-Z0-9-]{2,8}$/.test(k)) return;
+  if(!j||!j.paintType||!PAINT_TYPES.includes(j.paintType)) return; const c=_woColKey(j.color); if(!/^[A-Z0-9-]{2,8}$/.test(c)) return;
+  const mk=ckMaker(j.car), k=ckKey(mk,c);   // メーカーが分かれば「メーカー|番号」で覚える
   if(WCOL.map[k]===j.paintType) return;
-  if(WO_PTAUTO&&WO_PTAUTO.jid===j.id&&j.paintType===WO_PTAUTO.pt&&WCOL.map[k]) return;   // 自動で入れたものは、覚え直さない
+  if(WO_PTAUTO&&WO_PTAUTO.jid===j.id&&j.paintType===WO_PTAUTO.pt&&(WCOL.map[k]||WCOL.map[c])) return;   // 自動で入れたものは、覚え直さない
   WCOL.map[k]=j.paintType;
-  if(_woCloudOk()){ const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'colors',_cloudKey(k)),{type:j.paintType,code:k,by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},{merge:true}).catch(e=>console.warn('colors',e)); }
+  if(_woCloudOk()){ const {fs}=CLOUD.fb; fs.setDoc(fs.doc(CLOUD.db,'colors',_cloudKey(k)),{type:j.paintType,code:k,cc:c,maker:mk||'',by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},{merge:true}).catch(e=>console.warn('colors',e)); }
 }
 // ── 車台番号の型式（11/4）：車台番号の「-」の前（例：RP3）を車種ごとに覚えて、次から押して入れられるようにする ──
 //  ・一覧はチームで共有（yard/layout の chassis = { 車種の目印: {car:'ステップワゴン', p:['RP3','RK5'], x:[外した型式]} }）
