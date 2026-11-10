@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="ark-ver" content="fa6855cb6c">
+<meta name="ark-ver" content="269eedd0b9">
 <base target="_top">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
@@ -843,7 +843,7 @@ function start(){
       pushWarnPaint();
       // 通知の台帳（11/9）：作業ボード・見積りツールが残した大事な変化。閉じていた間の分も、開いたときに全部出す
       if(d.kind === 'ev'){
-        if(ch.type !== 'added' || d.to) return;               // 送り状況の書き換え・テスト通知は出さない
+        if(ch.type !== 'added' || d.to || d.pushOnly) return;   // 送り状況の書き換え・テスト通知・プッシュ通知だけの分（入庫予定は別に出る）は出さない
         if(S.events.some(x => x.lid === id)) return;
         out.push({src: d.src || 'wb', ic: d.ic || '🔔', c: d.c || '#0b57d0', ts: Date.parse(d.ts||'') || tsOf(d.at) || Date.now(), quiet: !!d.quiet, mine: isMyDev(d.dev),
           t: d.t || '', d: d.d || '', key: d.key || {}, by: who(d.by), ref: d.ref || ('comments/'+id), jid: d.jid || '', lid: id});
