@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="3cd901f587">
+<meta name="ark-ver" content="52da73d7ce">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -640,6 +640,19 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tag.inwait{background:transparent;color:var(--text);border:1px dashed var(--muted);}
 .wo-tag.sameday{background:#ff4d4d;color:#fff;}
 .wo-sp-box{max-width:560px;max-height:86vh;display:flex;flex-direction:column;}
+/* 見積りツールからの転送 */
+.wo-xf-btn .n{display:inline-block;margin-left:6px;min-width:22px;padding:1px 7px;border-radius:11px;background:var(--accent);color:#111;font-weight:800;font-size:12px;}
+.wo-xf-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;}
+.wo-xf-card.done{opacity:.55;}
+.wo-xf-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;}
+.wo-xf-head b{font-size:15px;}
+.wo-xf-meta{font-size:12px;color:var(--muted);}
+.wo-xf-tasks{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+.wo-xf-tasks span{font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid #111;color:#111;font-weight:700;}
+.wo-xf-ph{display:flex;gap:4px;overflow-x:auto;margin:4px 0;}
+.wo-xf-ph img{height:64px;border-radius:6px;flex:none;}
+.wo-xf-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.wo-xf-btns .btn{min-height:40px;font-size:13px;}
 .wo-sp-list{overflow:auto;flex:1;min-height:120px;}
 .wo-sp-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;margin-bottom:6px;color:var(--text);font:inherit;cursor:pointer;}
 .wo-sp-row:hover{border-color:var(--accent);}
@@ -1008,6 +1021,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
         <div id="wo-listbody">
         <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示（手打ち）</button>
         <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woSheetPick()">📋 入庫管理表から取り込む</button>
+        <button type="button" class="btn wo-xf-btn" id="wo-xf-btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woXferPick()">📥 見積りツールから<span id="wo-xf-n"></span></button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px"><button type="button" class="btn" style="justify-content:center;min-height:46px" onclick="openLoanerCal()">📅 代車カレンダー</button><button type="button" class="btn" style="justify-content:center;min-height:46px" onclick="openDueCal()">🗓 納期カレンダー</button></div>
         <div id="wo-list"></div>
         <div id="wo-empty" class="empty">作業指示はまだありません。<br>「＋ 新しい作業指示」から作れます。</div>
@@ -1723,7 +1737,7 @@ async function ydRestoreBak(auto){ const b=_ydBakGet(); if(!b){ toast('この端
   const names=b.spaces.map(x=>x.name).slice(0,8).join('・')+(b.spaces.length>8?' ほか':'');
   if(!await askConfirm(`${auto?'配置図のレイアウトが、トラブルで標準のレイアウトに戻されています。\n':''}この端末に残っている前のレイアウト（${new Date(b.at).toLocaleString('ja-JP')}・置き場所${b.spaces.length}か所：${names}）に戻しますか？\n（全員の配置図が変わります。車の置き場所の記録はそのままなので、元の場所に戻ります）`,'戻す')) return;
   YARD.spaces=b.spaces; _ydChanged(); ydRender(); toast('レイアウトを戻しました'); }
-function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},ins:Array.isArray(y.ins)?y.ins:[],chassis:y.chassis&&typeof y.chassis==='object'?y.chassis:{},updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
+function _ydLoadLocal(){ try{ const y=JSON.parse(_lsGet('wo-yard')||'null'); if(y) _ydRenameKeys(y); if(y&&Array.isArray(y.spaces)){ YARD={spaces:_ydMigrate(y.spaces,y.v),lpos:y.lpos||{},pmemo:y.pmemo||{},lret:y.lret||{},staff:y.staff||[],shide:y.shide||{},xfDone:y.xfDone&&typeof y.xfDone==='object'?y.xfDone:{},ins:Array.isArray(y.ins)?y.ins:[],chassis:y.chassis&&typeof y.chassis==='object'?y.chassis:{},updated:y.updated||'',v:YD_VER}; if(y.v!==YD_VER) _ydSaveLocal(); } }catch(e){} }
 // 変更を保存（入力中はまとめて0.6秒後）
 function woTouch(j,now){
   j.updatedAt=new Date().toISOString();
@@ -1826,7 +1840,7 @@ function _ydCloudPut(){
   if(!_woCloudOk()) return;
   const {fs}=CLOUD.fb; const d=_woClean(YARD), base=WOC.ybase; WOC.ybase=_woClean(d);
   // 駒の置き場所・メモなどは駒ごとに送る（2台で同時に動かしても、もう片方の変更を消さない）
-  _woSendDiff(fs.doc(CLOUD.db,'yard','layout'),base,d,['lpos','pmemo','lret','shide','chassis'],{by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},e=>{ WOC.ybase=null; _woSendErr(e,'yard'); });
+  _woSendDiff(fs.doc(CLOUD.db,'yard','layout'),base,d,['lpos','pmemo','lret','shide','chassis','xfDone'],{by:(CLOUD.user&&CLOUD.user.email)||'',at:fs.serverTimestamp()},e=>{ WOC.ybase=null; _woSendErr(e,'yard'); });
 }
 // 送れなかったとき：権限がないときだけ共有を止める。それ以外（通信が一瞬切れた・1件だけ送れなかった）は止めずに知らせるだけ
 function _woSendErr(e,name){ if(/permission/.test(String(e&&e.code||e))) return _woCloudErr(e,name); console.warn('送信',name,e); WOC.sendErr=Date.now(); if(!WOC._seT||Date.now()-WOC._seT>20000){ WOC._seT=Date.now(); toast('共有へ送れなかった変更があります（自動で送り直します）：'+_netMsg(e),5000); } }
@@ -1986,7 +2000,7 @@ function woCloudStart(){
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'colors'),snap=>{ const m={}; snap.forEach(d=>{ const v=d.data()||{}; if(v.type) m[_woColKey(v.code||d.id)]=v.type; }); WCOL.map=m; },err=>{ console.warn('colors',err); }));
   // 見積りツールの車両情報（読めなくても作業ボードは普段どおり動く）
   // 11/4：60日以内に保存した見積りだけ読む（前は全部。見積りが増えるほど読み込みが増えていた）
-  WOC.unsubs.push(fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'estimates'),fs.where('savedAt','>=',new Date(Date.now()-60*864e5).toISOString())),snap=>{ const L=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); }); WEST.list=L; },err=>{ console.warn('estimates',err); }));
+  WOC.unsubs.push(fs.onSnapshot(fs.query(fs.collection(CLOUD.db,'estimates'),fs.where('savedAt','>=',new Date(Date.now()-60*864e5).toISOString())),snap=>{ const L=[]; const X=[]; snap.forEach(d=>{ const v=d.data()||{}; if(v.plate) L.push({plate:v.plate,chassis:v.chassis||'',color:v.color||'',ptype:v.ptype||'',savedAt:v.savedAt||''}); if(v.xfer&&v.wb&&typeof v.wb==='object') X.push({..._woXferClean(v.wb),id:d.id,savedAt:v.savedAt||'',by:v.by||'',via:v.via||''}); }); WEST.list=L; WEST.inbox=X.sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))); _woXferBadge(); if(document.getElementById('wo-xf-ov')) woXferRender(); },err=>{ console.warn('estimates',err); }));
   // 当日の追加入庫（入庫管理表のD列に今日の日付が入った車）→ 作業指示を作る
   WOC.unsubs.push(fs.onSnapshot(fs.collection(CLOUD.db,'daily'),snap=>{
     const t=_woToday(); WSD.docs=[];
@@ -2003,8 +2017,9 @@ function woCloudStart(){
       if(first&&_ydIsDefault(v.spaces)){ const bk=!_ydIsDefault(YARD.spaces)&&YARD.spaces.length?{spaces:YARD.spaces,at:YARD.updated||new Date().toISOString()}:_ydBakGet();
         if(bk){ _lsSet('wo-yard-bak',JSON.stringify(bk)); if(!WOC._askBak){ WOC._askBak=true; setTimeout(()=>ydRestoreBak(true),1200); } } }
       else if(!_ydIsDefault(v.spaces)) setTimeout(_ydBakSave,0);
-      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},ins:Array.isArray(v.ins)?v.ins:[],chassis:v.chassis&&typeof v.chassis==='object'?v.chassis:{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
+      const old=(+v.v||0)<YD_VER; /* 自分より新しい版のレイアウトは書き直さない（版の違う端末どうしで書き合いが止まらなくなるのを防ぐ） */ YARD={spaces:_ydMigrate(v.spaces,v.v),lpos:v.lpos||{},pmemo:v.pmemo||{},lret:v.lret||{},staff:v.staff||[],shide:v.shide||{},xfDone:v.xfDone&&typeof v.xfDone==='object'?v.xfDone:{},ins:Array.isArray(v.ins)?v.ins:[],chassis:v.chassis&&typeof v.chassis==='object'?v.chassis:{},updated:v.updated||'',v:YD_VER}; _ydSaveLocal(); /* 版の違いだけでは共有へ書き返さない（版の違う端末どうしで書き合いが起きないように。直した内容は、次にレイアウトや駒を動かしたときに送られる） */ } }
     else if(first){ _ydCloudPut(); }
+    try{ _woXferBadge(); if(document.getElementById('wo-xf-ov')) woXferRender(); }catch(e){}
     WOC._forceR=true; _woRenderSoon();   // 押している最中は待ってから描く
   },err=>_woCloudErr(err,'yard')));
   woRenderBadges();
@@ -2070,7 +2085,7 @@ function woSeibiText_(j){
 }
 // ── 見積りツールと車両情報（車台番号・車体色・塗装タイプ）を共有 ──
 // 見積りツールが保存した見積りの要約（estimates）から、同じ登録番号のものを探す
-const WEST={list:[]};
+const WEST={list:[],inbox:[]};
 function _woEstFor(j){
   const no=_woPlateNo(j.plate); if(!no) return null;
   const e=WEST.list.filter(x=>_woPlateNo(x.plate)===no&&(x.chassis||x.color||x.ptype)).sort((a,b)=>String(b.savedAt||'')<String(a.savedAt||'')?-1:1)[0];
@@ -3181,6 +3196,86 @@ function woSheetPickRender(){
     :'<div class="empty">取り込める車はありません<br><small>（作業ボードにすでにある車・出庫済の車は出しません）</small></div>';
 }
 const WSP={rows:[],showHidden:false};
+// ── 見積りツールからの転送（11/11）──
+//  ・見積りツールで「💾 履歴に保存」「LINEで送る」をした見積り（60日以内）が届く。お客様名・備考は届かない（作業ボードには保存しない決まり）
+//  ・「＋ 作業指示を作る」：車種・登録番号・車台番号・カラー・作業箇所と作業区分・写真を入れた作業指示を作る
+//  ・「🔗 〇〇に付ける」：作業ボードにある同じ登録番号の車に、作業箇所と写真を足す
+//  ・済んだ見積りはチーム全員の一覧から消える（YARD.xfDone。「済んだものも見る」で戻せる）
+const WXF={showDone:false,ph:{}};
+const WO_XF_TYPES=['鈑金','鈑金塗装','塗装','ボカシ','取替','脱着','付属品脱着','調整','エイミング','その他'];
+function _woXferClean(w){ const s=x=>String(x==null?'':x).slice(0,80);
+  return {car:s(w.car),plate:s(w.plate),chassis:s(w.chassis),color:s(w.color),ptype:s(w.ptype),date:s(w.date),staff:s(w.staff),grand:+w.grand||0,phJid:s(w.phJid),phN:+w.phN||0,
+    pay:Array.isArray(w.pay)?w.pay.map(s):[],tasks:(Array.isArray(w.tasks)?w.tasks:[]).filter(t=>t&&typeof t==='object').slice(0,40).map(t=>({part:s(t.part),area:s(t.area),types:(Array.isArray(t.types)?t.types:[]).map(s).map(x=>WO_XF_TYPES.includes(x)?x:'その他').slice(0,3),note:s(t.note)}))}; }
+function _woXferWhen(t){ const d=new Date(t||''); return isNaN(d)?'':`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function _woXferDone(x){ return !!(YARD&&YARD.xfDone&&YARD.xfDone[x.id]); }
+function _woXferBadge(){ const n=(WEST.inbox||[]).filter(x=>!_woXferDone(x)).length; const el=document.getElementById('wo-xf-n'); if(el) el.innerHTML=n?`<span class="n">${n}</span>`:''; }
+function _woXferMatch(x){ const no=_woPlateNo(x.plate); if(!no) return null; return JOBS.filter(j=>!j.archived&&!j.deleted&&_woPlateNo(j.plate)===no).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0]||null; }
+function woXferPick(){
+  if(!_woCheckReady()) return;
+  if(!_woCloudOk()){ toast('チーム共有にログインすると、見積りツールから届いた見積りが見られます',5000); return; }
+  document.getElementById('wo-xf-ov')?.remove();
+  const ov=document.createElement('div'); ov.className='cf-ov'; ov.id='wo-xf-ov';
+  ov.innerHTML=`<div class="cf-box wo-sp-box"><div class="est-head"><b>📥 見積りツールから</b><button type="button" class="btn" onclick="this.closest('.cf-ov').remove()">閉じる</button></div>
+    <div class="sg-note" style="margin:8px 0 6px">見積りツールで「履歴に保存」「LINEで送る」をした見積り（60日以内）です。お客様名は届きません。作業指示を作るか、作業ボードにある同じ車に付けてください。</div>
+    <div id="wo-xf-list" class="wo-sp-list"></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn" id="wo-xf-done" onclick="WXF.showDone=!WXF.showDone;woXferRender()"></button></div></div>`;
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov); woXferRender();
+}
+function woXferRender(){
+  const el=document.getElementById('wo-xf-list'); if(!el) return;
+  const all=WEST.inbox||[], L=all.filter(x=>WXF.showDone||!_woXferDone(x)), nd=all.filter(_woXferDone).length;
+  const db=document.getElementById('wo-xf-done'); if(db){ db.style.display=nd?'':'none'; db.textContent=WXF.showDone?'済んだものを隠す':`済んだものも見る（${nd}）`; }
+  el.innerHTML=L.length?L.map(x=>{ const i=all.indexOf(x), m=_woXferMatch(x), done=_woXferDone(x), dj=done&&YARD.xfDone[x.id].j?_woJob(YARD.xfDone[x.id].j):null;
+    const who=String(x.by||'').replace(/@.*/,'');
+    return `<div class="wo-xf-card${done?' done':''}"><div class="wo-xf-head"><b>${esc(x.car||'（車種なし）')}</b><span>${esc(x.plate||'')}</span><span class="sp" style="flex:1"></span><b>¥${(x.grand||0).toLocaleString()}</b></div>
+      <div class="wo-xf-meta">${_woXferWhen(x.savedAt)} ／ ${esc(who||'-')}${x.staff?' ／ 担当 '+esc(x.staff):''} ／ ${x.via==='LINE'?'LINE送信':'履歴に保存'}${x.color?' ／ カラー '+esc(x.color):''}${x.chassis?' ／ '+esc(x.chassis):''}</div>
+      <div class="wo-xf-tasks">${x.tasks.map(t=>`<span style="background:${WO_TYPE_COLOR[t.types[0]]||'#e5e7eb'}">${esc(t.part||'（部位なし）')}：${esc(t.types.join('・'))}</span>`).join('')||'<small class="wo-xf-meta">作業箇所なし</small>'}</div>
+      <div class="wo-xf-ph" id="wo-xf-ph-${i}">${WXF.ph[x.id]?WXF.ph[x.id].map(v=>`<img src="${v.d}" alt="">`).join(''):''}</div>
+      <div class="wo-xf-btns">${done?`<span class="wo-xf-meta">済み${dj?'：'+esc([dj.car,dj.plate].filter(Boolean).join(' ')):''}</span><button type="button" class="btn" onclick="woXferUndo(${i})">↩ 未処理に戻す</button>`
+        :`<button type="button" class="btn btn-primary" onclick="woXferNew(${i})">＋ 作業指示を作る</button>${m?`<button type="button" class="btn" onclick="woXferAttach(${i},'${esc(m.id)}')">🔗 ${esc([m.car,m.plate].filter(Boolean).join(' ')||'同じ車')} に付ける</button>`:''}${x.phN&&!WXF.ph[x.id]?`<button type="button" class="btn" onclick="woXferPhotos(${i})">📷 写真${x.phN}枚を見る</button>`:''}<button type="button" class="btn" onclick="woXferHide(${i})" title="作業指示にせず一覧から消す">🗑</button>`}</div></div>`; }).join('')
+    :'<div class="empty">見積りツールから届いた見積りはありません<br><small>（見積りツールで「💾 履歴に保存」をすると、ここに届きます）</small></div>';
+}
+async function _woXferPhGet(x){
+  if(WXF.ph[x.id]) return WXF.ph[x.id]; if(!x.phJid||!_woCloudOk()) return [];
+  const {fs}=CLOUD.fb; const L=[];
+  const sn=await fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',x.phJid))); sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)) L.push({d:v.d,tag:v.tag||''}); });
+  WXF.ph[x.id]=L; return L;
+}
+async function woXferPhotos(i){ const x=(WEST.inbox||[])[i]; if(!x) return; try{ const L=await _woXferPhGet(x); if(!L.length) toast('写真が見つかりません（30日で自動で消えます）',5000); woXferRender(); }catch(e){ toast('写真を読めませんでした：'+_netMsg(e),6000); } }
+// 見積りの写真を作業指示の写真に入れる（作業指示の写真の上限まで）
+function _woXferAddPhotos(j,L){ const r=_WO_PHQ.then(async()=>{ const arr=_woPhDrop(j.id,await woPhotosGet(j.id)); const room=WO_PHOTO_MAX-arr.length, added=[];
+    const have=new Set(arr.map(p=>p.d)); for(const v of L.filter(v=>!have.has(v.d)).slice(0,Math.max(0,room))){ const p={pid:_woPid(),d:v.d,tag:('見積り：'+(v.tag||'写真')).slice(0,30)}; arr.push(p); added.push(p); }
+    if(!added.length) return 0; await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); } added.forEach(p=>_woPhUp(j.id,p)); return added.length; }).catch(e=>{ console.warn(e); return 0; });
+  _WO_PHQ=r; return r; }
+function _woXferTasks(j,x){ let n=0; j.tasks=j.tasks||[];
+  for(const t of x.tasks){ if(j.tasks.some(o=>(t.area&&o.area===t.area)||(t.part&&o.part===t.part))) continue; const nt={part:t.part,area:t.area,types:t.types.length?t.types:['その他'],note:t.note||''}; j.tasks.push(nt); try{ _woAutoPart(j,nt); }catch(e){} n++; }
+  return n; }
+function _woXferMark(x,jid){ YARD.xfDone=YARD.xfDone||{}; YARD.xfDone[x.id]={d:_woToday(),j:jid||''};
+  const lim=_ymd(new Date(Date.now()-70*864e5)); for(const k of Object.keys(YARD.xfDone)) if(String(YARD.xfDone[k].d||'')<lim) delete YARD.xfDone[k];   // 見積りは60日で届かなくなるので、70日で整理
+  _ydChanged(); _woXferBadge(); }
+async function _woXferFinish(x,j,msg){
+  _woXferMark(x,j.id); document.getElementById('wo-xf-ov')?.remove();
+  WO_FILTER=j.archived?'all':WO_FILTER; woOpen(j.id);
+  let n=0; if(x.phN){ _busy('見積りの写真を入れています…'); try{ n=await _woXferAddPhotos(j,await _woXferPhGet(x)); }catch(e){ toast('写真を入れられませんでした：'+_netMsg(e),6000); } _busy(null); }
+  toast(msg+(n?`（写真${n}枚）`:''),5000);
+}
+function woXferNew(i){
+  const x=(WEST.inbox||[])[i]; if(!x||!_woCheckReady()) return;
+  const j=_woNew(); j.id='wo-es-'+_cloudKey(x.id).slice(0,40)+'-'+Date.now().toString(36);
+  Object.assign(j,{car:x.car,plate:x.plate,chassis:x.chassis,color:x.color,paintType:x.ptype,staff:x.staff||''});
+  const pay=(x.pay||[]).find(p=>WO_PAY.includes(p)); if(pay) j.pay=pay;
+  _woXferTasks(j,x); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre';
+  _woXferFinish(x,j,`見積りから作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`);
+}
+function woXferAttach(i,jid){
+  const x=(WEST.inbox||[])[i], j=_woJob(jid); if(!x||!j||!_woCheckReady()) return;
+  for(const k of ['chassis','color']) if(!j[k]&&x[k]) j[k]=x[k]; if(!j.paintType&&x.ptype) j.paintType=x.ptype;
+  const n=_woXferTasks(j,x); woTouch(j,true);
+  _woXferFinish(x,j,`見積りを付けました：${[j.car,j.plate].filter(Boolean).join(' ')}（作業箇所${n}件を追加）`);
+}
+function woXferHide(i){ const x=(WEST.inbox||[])[i]; if(!x) return; _woXferMark(x,''); woXferRender(); toast('一覧から消しました（「済んだものも見る」から戻せます）',4000); }
+function woXferUndo(i){ const x=(WEST.inbox||[])[i]; if(!x||!YARD.xfDone) return; delete YARD.xfDone[x.id]; _ydChanged(); _woXferBadge(); woXferRender(); }
 // 取り込みの一覧から消す（入出庫管理表の行はそのまま。チーム全員の一覧から消える。もう一度押すと戻す）
 function _woSpKey(x){ return x.sid?'id:'+x.sid:'row:'+_woSheetKey(x)+'|'+_woPlateNo(x.plate)+'|'+_woCarNorm(x.model); }
 function _woSpHidden(x){ return !!(YARD&&YARD.shide&&YARD.shide[_woSpKey(x)]); }
