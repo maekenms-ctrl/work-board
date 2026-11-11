@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="e5fb0365ef">
+<meta name="ark-ver" content="3f830d27f5">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -3444,7 +3444,7 @@ async function woBackToBefore(){
   woTouch(j,true); WO_FILTER='before'; woRenderAll(); try{ ydRender(); }catch(e){} toast('入庫前に戻しました');
 }
 // 入庫前：入出庫管理表の入庫日（D列）が明日以降で、まだ「入庫済」を押していない車（先の予定）。入庫日になると作業前へ移る
-function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; if(j.backBefore) return true; return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
+function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; if(j.backBefore&&j.inDate!==_woToday()) return true;   /* 「入庫前に戻す」を押した車も、入庫日（表のD列）が今日になったら本日入庫に出す（11/12 シビックの件） */ return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
 function woIsTodayIn(j){ return !!j&&!j.archived&&!j.partsOnly&&j.inChecked===false&&j.inDate===_woToday()&&woIsPre(j); }
 function woIsPre(j){ if(j.archived||woIsBefore(j)) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&(st.done||st.date); }); }
 // 作業前＝工程が1つも完了していない車（入庫待ちを含む）。作業中には入れない
