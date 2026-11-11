@@ -15,6 +15,9 @@
   function dev(){ var d = ls('ark-dev'); if(!d){ d = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); ls('ark-dev', d); } return d; }
   function ios(){ return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
   function standalone(){ return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  function android(){ return /Android/.test(navigator.userAgent); }
+  // LINE などのアプリの中で開いた画面（アプリ内ブラウザ）は、プッシュ通知を使えない
+  function inApp(){ var u = navigator.userAgent; return /Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/.test(u); }
   function supported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
   function hash(s){ var h = 5381; for(var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36) + s.length.toString(36); }
   function name(){ var u = navigator.userAgent; return (/iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Mac/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'PC') + (standalone() ? '（アプリ）' : '（ブラウザ）'); }
@@ -42,7 +45,7 @@
   async function token(f){
     var reg = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
-    if(!(await f.M.isSupported())) throw new Error('この端末・ブラウザはプッシュ通知に対応していません');
+    if(!(await f.M.isSupported())) throw new Error(inApp() ? 'LINE などのアプリの中で開いた画面では使えません。Chrome で開き直してください' : 'この端末・ブラウザはプッシュ通知に対応していません' + (android() ? '。Android は Chrome で開いてください' : ''));
     return f.M.getToken(f.M.getMessaging(f.app), {vapidKey: VAPID, serviceWorkerRegistration: reg});
   }
   async function save(f, t, u){
@@ -55,9 +58,12 @@
   async function enable(){
     var st = state();
     if(st === 'need-home') throw new Error('iPhone は、Safari の共有ボタン →「ホーム画面に追加」で追加したアプリから開いて押してください');
-    if(st === 'unsupported') throw new Error('この端末・ブラウザはプッシュ通知に対応していません（iPhone は iOS 16.4 以上が必要です）');
+    if(st === 'unsupported') throw new Error(inApp() ? 'LINE などのアプリの中で開いた画面では使えません。右上のメニューから「ブラウザで開く」（Chrome）を選んで、開き直してから押してください'
+      : android() ? 'このブラウザはプッシュ通知に対応していません。Android は「Chrome」で開いてください（Chrome の︙ →「ホーム画面に追加」→「インストール」でアプリにすると便利です）'
+      : 'この端末・ブラウザはプッシュ通知に対応していません（iPhone は iOS 16.4 以上が必要です）');
     var p = await Notification.requestPermission();
-    if(p !== 'granted') throw new Error('通知が許可されませんでした。iPhone は「設定」→「通知」→ このアプリ で「通知を許可」をオンにしてください');
+    if(p !== 'granted') throw new Error(android() ? '通知が許可されませんでした。Chrome の︙ →「設定」→「サイトの設定」→「通知」で、maekenms-ctrl.github.io を「許可」にしてください。Android 本体の「設定」→「アプリ」→「Chrome」→「通知」もオンにしてください'
+      : '通知が許可されませんでした。iPhone は「設定」→「通知」→ このアプリ で「通知を許可」をオンにしてください');
     var f = await fb(), u = await f.user;
     if(!u) throw new Error('先に作業ボードの ⚙ 設定 でチーム共有にログインしてください');
     var t = await token(f); if(!t) throw new Error('通知の登録ができませんでした。もう一度押してください');
