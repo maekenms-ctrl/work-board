@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="8bcfb4c815">
+<meta name="ark-ver" content="2c599ac9b5">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -954,6 +954,19 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1111">
+/* 11/11：連続撮影の画面を見積りツールと同じ形に（黄色のシャッター、「1枚消す」「完了」のボタン） */
+.wo-cam-n{color:var(--accent);}
+.wo-cam-bar{display:grid;grid-template-columns:1fr 84px 1fr;gap:10px;padding:10px 16px calc(14px + env(safe-area-inset-bottom));}
+.wo-cam-bar button{min-width:0;}
+.wo-cam-bar .wo-cam-sh{width:78px;height:78px;min-width:78px;border-radius:50%;border:5px solid #fff;background:var(--accent);box-shadow:none;padding:0;margin:0 auto;display:block;touch-action:manipulation;}
+.wo-cam-bar .wo-cam-ok{background:var(--accent);color:#111;border-radius:10px;min-height:52px;font-size:16px;}
+.wo-cam-bar .wo-cam-undo{background:#2a2e36;border:1px solid #3a3f46;border-radius:10px;color:#fff;min-height:52px;font-size:15px;}
+.wo-cam-bar .wo-cam-undo:disabled{opacity:.4;}
+@media (orientation:landscape) and (max-height:600px){
+  .wo-cam-bar{display:flex;flex-direction:column-reverse;justify-content:space-between;align-items:stretch;width:130px;flex:none;overflow:visible;padding:calc(12px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 14px 10px;}
+  .wo-cam-bar .wo-cam-sh{width:84px;height:84px;min-width:84px;align-self:center;}
+  .wo-cam-bar .wo-cam-ok,.wo-cam-bar .wo-cam-undo{min-height:46px;font-size:13px;padding:6px;}
+}
 /* カレンダーのマーク（日付の欄の右）を黄色に（11/11） */
 input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator,input[type=datetime-local]::-webkit-calendar-picker-indicator{
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e4ff1a' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E") center/18px 18px no-repeat;
@@ -2609,7 +2622,7 @@ async function _woPhotoAddNow(j,files,quiet){
   if(room<=0){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
   if(!quiet) _busy('写真を取り込んでいます…');
   const added=[];
-  for(const f of files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name||'')).slice(0,room)){ try{ const p={pid:_woPid(),d:await _woPhotoData(f),tag:''}; arr.push(p); added.push(p); }catch(e){ toast('写真を開けませんでした',5000); } }
+  for(const f of files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name||'')).slice(0,room)){ try{ const p={pid:f._pid||_woPid(),d:await _woPhotoData(f),tag:''}; arr.push(p); added.push(p); }catch(e){ toast('写真を開けませんでした',5000); } }
   if(!quiet) _busy(null); await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); }
   added.forEach(p=>_woPhUp(j.id,p));
   if(added.length&&_woCloudOk()&&!quiet) toast(`写真${added.length}枚をチームで共有しました`);
@@ -2617,6 +2630,8 @@ async function _woPhotoAddNow(j,files,quiet){
 }
 // ── 連続撮影：アプリの中でカメラを開き、シャッターを押すたびに1枚ずつ足す（「完了」で閉じる）──
 const WOCAM={stream:null,n:0,jid:null};
+// ARK（作業ボード＋通知）の中で開いているとき、上の段（作業ボード・ARK通知・🔔）を隠して画面いっぱいにする
+function _woFull(on){ try{ if(window.parent!==window) window.parent.postMessage({ark:'full',on:!!on},location.origin); }catch(e){} }
 async function woCamOpen(){
   const j=_woCurJob(); if(!j) return;
   const have=(await woPhotosGet(j.id)).length; if(have>=WO_PHOTO_MAX){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
@@ -2628,10 +2643,12 @@ async function woCamOpen(){
   ov.innerHTML=`<video playsinline autoplay muted></video><div class="wo-cam-fl"></div>
     <div class="wo-cam-top"><span class="wo-cam-n"></span><span class="wo-cam-car">${esc(_woTitle(j))}</span></div>
     <div class="wo-cam-th"></div>
-    <div class="wo-cam-bar"><button type="button" class="wo-cam-x">✕ 閉じる</button><button type="button" class="wo-cam-sh" aria-label="シャッター"></button><button type="button" class="wo-cam-ok">完了</button></div>`;
+    <div class="wo-cam-bar"><button type="button" class="wo-cam-undo" disabled>↩ 1枚消す</button><button type="button" class="wo-cam-sh" aria-label="シャッター"></button><button type="button" class="wo-cam-ok">完了</button></div>`;
   document.body.appendChild(ov);
+  _woFull(true);   // ARK（作業ボード＋通知）の上の段を隠して、カメラを画面いっぱいに
   const v=ov.querySelector('video'); v.srcObject=st; v.play().catch(()=>{});
-  const cnt=()=>{ ov.querySelector('.wo-cam-n').textContent=`${WOCAM.n}／${WO_PHOTO_MAX}枚`; };
+  const shots=[];   // この撮影で撮った写真（「1枚消す」で新しい順に消す）
+  const cnt=()=>{ ov.querySelector('.wo-cam-n').textContent=`${WOCAM.n}／${WO_PHOTO_MAX}枚`; ov.querySelector('.wo-cam-undo').disabled=!shots.length; };
   cnt();
   ov.querySelector('.wo-cam-sh').onclick=()=>{
     if(WOCAM.n>=WO_PHOTO_MAX){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
@@ -2640,11 +2657,16 @@ async function woCamOpen(){
     const fl=ov.querySelector('.wo-cam-fl'); fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
     WOCAM.n++; cnt();
     const th=document.createElement('img'); th.src=c.toDataURL('image/jpeg',0.4); ov.querySelector('.wo-cam-th').appendChild(th);
-    c.toBlob(b=>{ if(!b) return; const jj=_woJob(WOCAM.jid)||j; _woPhotoAddFiles(jj,[new File([b],'cam-'+Date.now()+'.jpg',{type:'image/jpeg'})],true).then(()=>{ if(_woCloudOk()) {} }); },'image/jpeg',0.92);
+    const pid=_woPid();
+    const done=new Promise(res=>c.toBlob(b=>{ if(!b){ res(); return; } const jj=_woJob(WOCAM.jid)||j; const f=new File([b],'cam-'+Date.now()+'.jpg',{type:'image/jpeg'}); f._pid=pid; _woPhotoAddFiles(jj,[f],true).then(res,res); },'image/jpeg',0.92));
+    shots.push({pid,th,done}); cnt();
     if(WOCAM.n>=WO_PHOTO_MAX) toast(`${WO_PHOTO_MAX}枚になりました。「完了」を押してください`,5000);
   };
-  const close=()=>{ try{ st.getTracks().forEach(t=>t.stop()); }catch(e){} WOCAM.stream=null; ov.remove(); };
-  ov.querySelector('.wo-cam-x').onclick=ov.querySelector('.wo-cam-ok').onclick=()=>{ const n=WOCAM.n-have; close(); _WO_PHQ.then(()=>{ if(n>0) toast(`写真を${n}枚追加しました${_woCloudOk()?'（チームで共有）':''}`); }); };
+  // 1枚消す：いちばん新しい1枚を消す（取り込みが終わってから、写真の削除と同じ方法で消す）
+  ov.querySelector('.wo-cam-undo').onclick=()=>{ const x=shots.pop(); if(!x) return; x.th.remove(); WOCAM.n--; cnt();
+    x.done.then(()=>_WO_PHQ).then(()=>{ if(_woCurJob()&&_woCurJob().id===WOCAM.jid) woPhotoDel(null,x.pid); }); };
+  const close=()=>{ try{ st.getTracks().forEach(t=>t.stop()); }catch(e){} WOCAM.stream=null; ov.remove(); _woFull(false); };
+  ov.querySelector('.wo-cam-ok').onclick=()=>{ const n=WOCAM.n-have; close(); _WO_PHQ.then(()=>{ if(n>0) toast(`写真を${n}枚追加しました${_woCloudOk()?'（チームで共有）':''}`); }); };
 }
 // 写真の削除：写真の目印（pid）で消す。取り込み中・共有の送信中でも、消した写真が戻ってこないように「消した印」を7日間覚える
 const WOPH_DEL=(()=>{ try{ const o=JSON.parse(localStorage.getItem('wo-ph-del')||'{}'), lim=Date.now()-7*864e5; for(const k in o) if(o[k]<lim) delete o[k]; return o; }catch(e){ return {}; } })();
