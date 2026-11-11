@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-04d';
+const SR_VER='2026-11-11';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10751,5 +10751,5 @@ async function faxFile(f,own,known){
   }catch(e){ throw new Error(_errMsg(e)); }
   finally{ _busy(null); [wj,we].forEach(w=>{ if(w) try{w.terminate();}catch(e){} }); }
 }
-window.SHAKEN={ver:SR_VER, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName, faxFix};
+window.SHAKEN={ver:SR_VER, scan:_qrScan, parseRaw:parseShakenQR, jsQR, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName, faxFix};
 })();
