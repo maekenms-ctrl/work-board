@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="3f830d27f5">
+<meta name="ark-ver" content="7d0734935e">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -954,6 +954,13 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1111">
+/* 11/12：作業箇所・部品の並べ替え（⠿） */
+.row-mv{background:none;border:0;color:var(--muted);font-size:20px;line-height:1;padding:6px 6px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;}
+.row-mv:active{cursor:grabbing;color:var(--accent);}
+td.tdel{white-space:nowrap;}
+tr.mv-on{opacity:.55;outline:2px dashed var(--accent);}
+tr.mv-above td{box-shadow:inset 0 3px 0 var(--accent);}
+tr.mv-below td{box-shadow:inset 0 -3px 0 var(--accent);}
 /* 11/11：連続撮影の画面を見積りツールと同じ形に（黄色のシャッター、「1枚消す」「完了」のボタン） */
 .wo-cam-n{color:var(--accent);}
 .wo-cam-bar{display:grid;grid-template-columns:1fr 84px 1fr;gap:10px;padding:10px 16px calc(14px + env(safe-area-inset-bottom));}
@@ -2497,6 +2504,27 @@ function woTaskTap(area){
   woTouch(j,true); woRenderDetail(); woRenderList();
 }
 function woTaskAdd(){ const j=_woCurJob(); if(!j) return; j.tasks.push({part:'',area:'',types:['鈑金塗装'],note:''}); woTouch(j,true); woRenderDetail(); }
+// ── 作業箇所・部品の並べ替え（11/12）：行の右の ⠿ をつかんで、上下に動かして放す ──
+(function(){
+  let D=null;
+  const rowsOf=t=>[...t.closest('table').querySelectorAll('tr.wo-tr')];
+  document.addEventListener('pointerdown',e=>{
+    const h=e.target.closest&&e.target.closest('.row-mv'); if(!h) return;
+    e.preventDefault(); const tr=h.closest('tr'); D={h,kind:h.dataset.mv,from:+h.dataset.i,to:+h.dataset.i,rows:rowsOf(h),tr};
+    tr.classList.add('mv-on'); try{ h.setPointerCapture(e.pointerId); }catch(_){}
+  },{passive:false});
+  document.addEventListener('pointermove',e=>{
+    if(!D) return; e.preventDefault();
+    const ins=D.rows.filter(r=>{ const b=r.getBoundingClientRect(); return b.top+b.height/2<e.clientY; }).length;   // 指より上にある行の数＝差し込む位置
+    let to=ins>D.from?ins-1:ins;   // 自分より下へ動かすときは、自分を抜いた位置で数える
+    D.to=Math.max(0,Math.min(D.rows.length-1,to));
+    D.rows.forEach((r,k)=>{ r.classList.toggle('mv-above',k===D.to&&D.to<D.from); r.classList.toggle('mv-below',k===D.to&&D.to>D.from); });
+  },{passive:false});
+  const end=()=>{ if(!D) return; const d=D; D=null; d.rows.forEach(r=>r.classList.remove('mv-on','mv-above','mv-below'));
+    if(d.to===d.from) return; const j=_woCurJob(); if(!j) return; const a=j[d.kind]; if(!Array.isArray(a)||!a[d.from]) return;
+    const [x]=a.splice(d.from,1); a.splice(d.to,0,x); woTouch(j,true); woRenderDetail(); woRenderList(); };
+  document.addEventListener('pointerup',end); document.addEventListener('pointercancel',end);
+})();
 function woTaskDel(i){ const j=_woCurJob(); if(!j) return; const gone=j.tasks.splice(i,1)[0]; _woDropAutoPart(j,gone&&gone.part); woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woPart(id,f,v){ const j=_woCurJob(); if(!j) return; const p=j.parts.find(x=>x.id===id); if(!p) return; p[f]=f==='qty'?(+v||1):v; woTouch(j,f==='status'); if(f==='status'){ woRenderList(); ydRender(); woRenderDetail(); } }
 function woPartAdd(){ const j=_woCurJob(); if(!j) return; j.parts.push({id:_woId(),name:'',qty:1,status:'未発注',eta:''}); woTouch(j,true); woRenderDetail(); }
@@ -3649,6 +3677,9 @@ function _woLoanerLine(j){
 let WO_LOANF=false;
 function woLoanFilter(){ WO_LOANF=!WO_LOANF; woRenderList(); }
 function woRenderList(){ const l=document.getElementById('wo-list'); if(!l) return; _woKeepHeight(l,_woRenderList); }
+// 納車済の分け方：区分に鈑金があれば鈑金、なければ整備、車検（両方なら整備）。どれもなければその他
+const WO_ARCH_G=['鈑金','整備','車検','その他'];
+function _woArchCat(j){ const c=ydCats(j); return c.includes('鈑金')?'鈑金':c.includes('整備')?'整備':c.includes('車検')?'車検':'その他'; }
 function _woRenderList(){
   const list=document.getElementById('wo-list'); if(!list) return;
   document.querySelectorAll('#wo-filter .selbtn').forEach(b=>b.classList.toggle('on',b.dataset.f===WO_FILTER));
@@ -3661,6 +3692,7 @@ function _woRenderList(){
   const rows=JOBS.filter(j=>(!WO_LOANF||(woLoanerInfo(j)||{}).now)&&_woInFilter(j)&&(!q||[j.plate,j.car,j.color,j.chassis].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)));
   if(WO_FILTER==='before'&&WO_SORT!=='sheet') rows.sort((a,b)=>(a.inDate||'9999')<(b.inDate||'9999')?-1:(a.inDate||'9999')>(b.inDate||'9999')?1:0);   // 入庫日が近い順
   else if(WO_FILTER!=='archived') _woSortRows(rows);
+  else rows.sort((a,b)=>{ const ga=WO_ARCH_G.indexOf(_woArchCat(a)), gb=WO_ARCH_G.indexOf(_woArchCat(b)); if(ga!==gb) return ga-gb; const da=a.deliveredAt||a.updatedAt||'', db=b.deliveredAt||b.updatedAt||''; return da<db?1:da>db?-1:0; });   // 納車済：鈑金・整備・車検に分けて、新しく納車した順（11/12）
   // 作業前：いちばん上に「本日入庫」（入庫日が今日で、まだ入庫済を押していない車）。入庫済を押すと下の作業前へ移る
   const _today=WO_FILTER==='pre'?new Set(rows.filter(woIsTodayIn)):null;
   if(_today&&_today.size){ const a=rows.filter(j=>_today.has(j)), b=rows.filter(j=>!_today.has(j)); rows.length=0; rows.push(...a,...b); }
@@ -3676,7 +3708,8 @@ function _woRenderList(){
   function _woCardHtml(j){
     const due=woDueTag(j), n=woNext(j);
     let head='';
-    if(_today&&_today.has(j)){ if(lastGrp!=='\u0001today'){ lastGrp='\u0001today'; head=`<div class="wo-grp wo-grp-today">🚗 本日入庫 ${_today.size}台</div>`; } }
+    if(WO_FILTER==='archived'&&!q){ const g=_woArchCat(j); if(g!==lastGrp){ lastGrp=g; const nn=rows.filter(x=>_woArchCat(x)===g).length; head=`<div class="wo-grp">${esc(g)}<span style="margin-left:6px;opacity:.7">${nn}台</span></div>`; } }
+    else if(_today&&_today.has(j)){ if(lastGrp!=='\u0001today'){ lastGrp='\u0001today'; head=`<div class="wo-grp wo-grp-today">🚗 本日入庫 ${_today.size}台</div>`; } }
     else if(_today&&lastGrp==='\u0001today'&&WO_SORT!=='std'&&WO_SORT!=='sheet'&&WO_SORT!=='step'){ lastGrp='pre'; head='<div class="wo-grp">作業前</div>'; }
     else if(WO_SORT==='step'){ const g=_woPos(j).g; if(g!==lastGrp){ lastGrp=g; const nn=rows.filter(x=>_woPos(x).g===g).length; head=`<div class="wo-grp wo-grp-step" style="--sc:${j.archived?'var(--border)':woColor(j)}">${esc(g)}<b>${nn}台</b></div>`; } }
     else if(WO_SORT==='std'&&WO_FILTER!=='archived'){ const g=_woGrpName(j); if(g!==lastGrp){ lastGrp=g; head=`<div class="wo-grp">${esc(g)}</div>`; } }
@@ -3832,7 +3865,7 @@ function _woRenderDetail(box){
     ${(j.tasks||[]).map((t,i)=>`<tr class="wo-tr${String(t.note||'').trim()?' has-note':''}"><td class="tp">${t.area?`<span class="tp-n">${esc(t.part)}</span>`:`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}<span class="wo-notetag">📝 メモあり</span></td>
       <td class="tt"><div class="wo-types">${WO_TASK_TYPES.map(k=>`<button type="button" class="wo-ty${_woTypes(t).includes(k)?' on':''}" style="--tc:${WO_TYPE_COLOR[k]}" onclick="woTaskType(${i},'${k}')">${k}</button>`).join('')}</div></td>
       <td class="tn"><label class="tn-lab">📝 作業メモ</label><input class="wo-note" value="${esc(t.note||'')}" placeholder="作業メモ（例：ぼかし左Rドアまで）" oninput="woTask(${i},'note',this.value);this.closest('tr').classList.toggle('has-note',!!this.value.trim())"></td>
-      <td class="tdel"><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
+      <td class="tdel"><button type="button" class="row-mv" data-mv="tasks" data-i="${i}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
   </table></div>
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
   <div class="wo-sec" data-sec="steps"><span class="bar"></span>工程・担当</div>
@@ -3848,11 +3881,11 @@ function _woRenderDetail(box){
   <div class="wo-sec" data-sec="parts"><span class="bar"></span>部品</div>
   <div class="wo-scroll"><table class="wo-tbl">
     <tr><th style="min-width:140px">部品名</th><th style="width:60px">数</th><th style="min-width:96px">状況</th><th style="min-width:130px">入荷予定</th><th></th></tr>
-    ${(j.parts||[]).map(p=>`<tr><td><input value="${esc(p.name)}" oninput="woPart('${p.id}','name',this.value)"></td>
+    ${(j.parts||[]).map((p,pi)=>`<tr class="wo-tr"><td><input value="${esc(p.name)}" oninput="woPart('${p.id}','name',this.value)"></td>
       <td><input inputmode="numeric" value="${esc(p.qty)}" oninput="woPart('${p.id}','qty',this.value)"></td>
       <td><select onchange="woPart('${p.id}','status',this.value)" style="${p.status==='入荷済'?'color:var(--positive);font-weight:700':p.status==='不要'?'color:var(--muted)':'color:#ffb020;font-weight:700'}">${WO_PART_ST.map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
       <td><input type="date" value="${esc(p.eta||'')}" onchange="woPart('${p.id}','eta',this.value)"></td>
-      <td><button type="button" class="row-del" onclick="woPartDel('${p.id}')" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty" style="padding:10px">部品はありません</td></tr>'}
+      <td class="tdel"><button type="button" class="row-mv" data-mv="parts" data-i="${pi}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woPartDel('${p.id}')" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty" style="padding:10px">部品はありません</td></tr>'}
   </table></div>
   <div class="wo-row"><button type="button" class="btn btn-add" onclick="woPartAdd()">＋ 部品を追加</button>
   <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
@@ -3926,9 +3959,41 @@ function woPhotoView(i){
   },{passive:false});
   document.addEventListener('keydown',key); document.body.appendChild(ov); show();
 }
+// ── 写真をドラッグして、パソコンのフォルダーやデスクトップに出す（11/12。Chrome・Edge のパソコンだけ）──
+//  1枚：そのまま JPEG。選んだ写真が2枚以上で、その中の1枚をドラッグ：まとめて ZIP（1つのファイルにして出す）
+const WO_PH_DRAG=!!(window.matchMedia&&matchMedia('(pointer:fine)').matches)&&/Chrome|Edg/.test(navigator.userAgent);
+function _woDataBytes(d){ const b=atob(String(d).split(',')[1]||''); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+function _woFileBase(j){ return String([j.car,j.plate].filter(Boolean).join('_')||'写真').normalize('NFKC').replace(/[\\/:*?"<>|\s]+/g,'_').slice(0,40); }
+const _WO_CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function _woCrc(u){ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=_WO_CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+// 圧縮しない ZIP（写真はもともと JPEG で縮んでいるので、これで十分）。ファイル名は UTF-8
+function _woZip(files){
+  const enc=new TextEncoder(), parts=[], cen=[]; let off=0; const n=new Date(), dt=((n.getHours()<<11)|(n.getMinutes()<<5)|(n.getSeconds()>>1)), dd=(((n.getFullYear()-1980)<<9)|((n.getMonth()+1)<<5)|n.getDate());
+  for(const f of files){ const nm=enc.encode(f.name), crc=_woCrc(f.data), sz=f.data.length;
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true); h.setUint32(14,crc,true); h.setUint32(18,sz,true); h.setUint32(22,sz,true); h.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(h.buffer),nm,f.data);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true); c.setUint32(16,crc,true); c.setUint32(20,sz,true); c.setUint32(24,sz,true); c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+sz; }
+  const csz=cen.reduce((a,b)=>a+b.length,0), e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,csz,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/zip'});
+}
+function _woPhDrag(ev,i){
+  try{
+    const j=_woCurJob(), p=WO_PHOTOS[i]; if(!j||!p||!ev.dataTransfer) return;
+    const base=_woFileBase(j), nm=k=>`${base}_${String(k+1).padStart(2,'0')}.jpg`;
+    const sel=WOPS.jid===j.id?WO_PHOTOS.map((x,k)=>({x,k})).filter(o=>WOPS.sel.has(o.x.pid)):[];
+    let blob,name,mime;
+    if(sel.length>1&&sel.some(o=>o.x===p)){ blob=_woZip(sel.map(o=>({name:nm(o.k),data:_woDataBytes(o.x.d)}))); name=`${base}_写真${sel.length}枚.zip`; mime='application/zip'; }
+    else { blob=new Blob([_woDataBytes(p.d)],{type:'image/jpeg'}); name=nm(i); mime='image/jpeg'; }
+    const url=URL.createObjectURL(blob); setTimeout(()=>URL.revokeObjectURL(url),120000);
+    ev.dataTransfer.effectAllowed='copy';
+    ev.dataTransfer.setData('DownloadURL',`${mime}:${name}:${url}`);
+    ev.dataTransfer.setData('text/uri-list',url);
+  }catch(e){ console.warn('写真のドラッグ',e); }
+}
 function woRenderPhotos(){
   const g=document.getElementById('wo-ph'); if(!g) return;
-  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it${WOPS.jid===_woCurJob()?.id&&WOPS.sel.has(p.pid)?' pc-on':''}"><img src="${p.d}" alt="" style="cursor:zoom-in" draggable="false" onclick="if(!_woPhSelClick(event,${i}))woPhotoView(${i})"><button type="button" class="x" onclick="event.stopPropagation();woPhotoDel(${i},'${esc(p.pid||'')}')" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
+  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it${WOPS.jid===_woCurJob()?.id&&WOPS.sel.has(p.pid)?' pc-on':''}"><img src="${p.d}" alt="" style="cursor:zoom-in" draggable="${WO_PH_DRAG?'true':'false'}" ondragstart="_woPhDrag(event,${i})" onclick="if(!_woPhSelClick(event,${i}))woPhotoView(${i})"><button type="button" class="x" onclick="event.stopPropagation();woPhotoDel(${i},'${esc(p.pid||'')}')" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
   const ns=WOPS.jid===(_woCurJob()||{}).id?WO_PHOTOS.filter(p=>WOPS.sel.has(p.pid)).length:0;
   const c=document.getElementById('wo-ph-n'); if(c) c.textContent=`${WO_PHOTOS.length}／${WO_PHOTO_MAX}枚${ns?`・${ns}枚選択中`:''}`;
   const pb=document.querySelector('.ph-pc'); if(pb) pb.textContent=ns?`💾 選んだ${ns}枚をPCに保存`:'💾 PCに保存（まとめて）';
