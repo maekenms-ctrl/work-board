@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="ark-ver" content="269eedd0b9">
+<meta name="ark-ver" content="b24f0026b6">
 <base target="_top">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
@@ -555,6 +555,61 @@ function sheetHtml(){
     + sec('🚗 今日出庫（C列）', r.out, '出庫', '#188038')
     + sec('🔧 今日入庫（D列）', r.inn, '入庫', '#0b57d0');
 }
+// ───────── 未対応の見積り（11/11）─────────
+//  見積りを保存・LINE送信してから3日たっても、作業ボードに同じ車（登録番号）がない見積りを出す（30日前まで）
+//  「入庫予定にした」「連絡済」「見送り」を押すと、その車の見積りに印（follow）を付けて一覧から消す。お客様名は出さない
+const FOLLOW_DAYS = 3, FOLLOW_MAX = 30;
+S.follow = {list:null, at:0, busy:false, err:''};
+const _estPlate = e => e.plate || (e.customer && e.customer.plate) || '';
+const _estCar = e => e.car || (e.customer && e.customer.car) || '';
+async function loadFollow(force){
+  if(!fb || !db || S.follow.busy) return;
+  if(!force && S.follow.at && Date.now() - S.follow.at < 10*60000) return;   // 10分に1回だけ読む（読めなかったときも続けて読まない）
+  S.follow.busy = true;
+  try{
+    const {F} = fb, ago = d => new Date(Date.now() - d*864e5).toISOString();
+    const [es, js] = await Promise.all([
+      F.getDocs(F.query(F.collection(db,'estimates'), F.where('savedAt','>=',ago(FOLLOW_MAX)))),
+      F.getDocs(F.query(F.collection(db,'jobs'), F.where('createdAt','>=',ago(FOLLOW_MAX+5))))]);
+    const jobs = Object.values(S.jobs); js.forEach(d => { const v = d.data(); if(v && !v._sheet && !v.deleted) jobs.push(v); });
+    const lim = ago(FOLLOW_DAYS), g = {};
+    es.forEach(d => {
+      const e = d.data() || {}; if(!e.savedAt || e.savedAt > lim || e.follow || e.deleted) return;
+      const no = plateNum(_estPlate(e)), from = new Date(Date.parse(e.savedAt) - 864e5).toISOString();
+      if(no && jobs.some(j => plateNum(j.plate) === no && (!j.archived || (j.createdAt||'') >= from || (j.deliveredAt||'') >= e.savedAt))) return;   // 作業ボードに入った車
+      const k = no || ('id:' + d.id);
+      const x = g[k] || (g[k] = {k, no, ids:[], savedAt:'', car:'', plate:'', staff:'', grand:0});
+      x.ids.push(d.id);
+      if(e.savedAt > x.savedAt){ x.savedAt = e.savedAt; x.car = _estCar(e); x.plate = _estPlate(e); x.staff = e.staff || (e.customer && e.customer.staff) || ''; x.grand = +(e.grand || (e.totals && e.totals.grand) || 0); }
+    });
+    S.follow.list = Object.values(g).sort((a,b) => a.savedAt < b.savedAt ? -1 : 1); S.follow.at = Date.now(); S.follow.err = '';
+  }catch(e){ S.follow.err = '未対応の見積りを読めませんでした'; S.follow.at = Date.now(); console.warn('未対応の見積り', e); }
+  finally{ S.follow.busy = false; if(S.tab === 'today') renderToday(); }
+}
+async function markFollow(k, kind){
+  const x = (S.follow.list||[]).find(y => y.k === k); if(!x) return;
+  const {F} = fb, iso = new Date().toISOString(), by = (S.user && S.user.email) || '';
+  try{
+    await Promise.all(x.ids.map(id => F.setDoc(F.doc(db,'estimates',id), {follow:kind, followAt:iso, followBy:by}, {merge:true})));
+    S.follow.list = S.follow.list.filter(y => y !== x); renderToday();
+    toast({in:'入庫予定にしました', call:'連絡済にしました', skip:'見送りにしました'}[kind] + '（一覧から外しました）');
+  }catch(e){ toast('保存できませんでした：' + (e && e.message || e), 5000); }
+}
+function followHtml(){
+  const L = S.follow.list;
+  if(!L) return S.follow.err ? `<div class="note">${esc(S.follow.err)}</div>` : '';
+  let h = `<div class="sec">📝 未対応の見積り（${FOLLOW_DAYS}日以上、作業ボードに入っていない）<span class="n">${L.length}件</span></div>`;
+  if(!L.length) return h + `<div class="d" style="padding:4px 10px;color:var(--sub)">なし</div>`;
+  L.forEach(x => {
+    const days = Math.floor((Date.now() - Date.parse(x.savedAt)) / 864e5);
+    h += `<div class="row fl" style="flex-wrap:wrap;cursor:default"><span class="pill" style="background:${days>=7?'#d93025':'#f29900'}">${esc(md(x.savedAt))}</span>`
+      + `<span class="x">${esc([carName(x.car), x.plate].filter(Boolean).join(' ') || '（車種・番号なし）')}${x.grand?` <span class="d">${Math.round(x.grand).toLocaleString()}円</span>`:''}${x.staff?` <span class="d">担当 ${esc(x.staff)}</span>`:''} <span class="d">${days}日前</span></span>`
+      + `<span style="display:flex;gap:6px;width:100%;margin-top:6px">`
+      + [['in','入庫予定にした'],['call','連絡済'],['skip','見送り']].map(([v,n]) => `<button type="button" data-fl="${esc(x.k)}" data-kind="${v}" style="flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--line,#444);background:transparent;color:inherit;font:inherit;font-size:12px;cursor:pointer">${n}</button>`).join('')
+      + `</span></div>`;
+  });
+  return h;
+}
 function renderToday(){
   const t = today(), jobs = Object.values(S.jobs).filter(j=>!j.archived);
   const late = jobs.filter(j=>j.dueDate && j.dueDate<t && stepNext(j)).sort((a,b)=>a.dueDate<b.dueDate?-1:1);
@@ -573,7 +628,8 @@ function renderToday(){
   if(parts.length){ h += sec('📦 部品待ち', parts.length); parts.forEach(j=>{ const w=(j.parts||[]).filter(p=>p.status==='未発注'||p.status==='発注済'); h += row(j, w[0].status, w[0].status==='未発注'?'#d93025':'#f29900', `<span class="d">${esc(w.map(p=>p.name).join('・'))}</span>`); }); }
   h += `<div class="sec">🔧 工程ごとの台数<span class="n">作業中 ${jobs.length-ready.length}台</span></div>`;
   byStep.forEach(({s,js})=>{ h += `<div class="row" style="cursor:default"><span class="pill" style="background:${s.c}">${esc(s.n)}</span><span class="x">${js.map(carLabel).map(esc).join('、')}</span><b>${js.length}</b></div>`; });
-  $('todayView').innerHTML = sheetHtml() + `<div class="sec" style="margin-top:18px;color:var(--sub)">── 作業ボード ──</div>` + (jobs.length ? h : `<div class="note">作業ボードの作業指示が届いていません（${S.stat.jobs?S.stat.jobs.n:0}件）。作業ボードの「設定」タブでチーム共有にログインすると表示されます。</div>`);
+  loadFollow();
+  $('todayView').innerHTML = sheetHtml() + followHtml() + `<div class="sec" style="margin-top:18px;color:var(--sub)">── 作業ボード ──</div>` + (jobs.length ? h : `<div class="note">作業ボードの作業指示が届いていません（${S.stat.jobs?S.stat.jobs.n:0}件）。作業ボードの「設定」タブでチーム共有にログインすると表示されます。</div>`);
 }
 function setStatus(txt, state){ $('status').textContent = txt; $('dot').className = 'dot ' + (state||''); }
 
@@ -946,6 +1002,7 @@ $('pastView').addEventListener('click', e => {
 });
 $('todayView').addEventListener('click', e => {
   if(e.target.id==='sheetReload'){ S.sheet=null; renderToday(); loadSheetToday(); return; }
+  const fl = e.target.closest('[data-fl]'); if(fl){ fl.disabled = true; markFollow(fl.dataset.fl, fl.dataset.kind); return; }
   const sr = e.target.closest('.row[data-row]');
   if(sr && window.google && google.script){ google.script.run.withSuccessHandler(x=>toast(`${x.row} 行目を選択しました`)).selectRow(+sr.dataset.row); return; }
   const r = e.target.closest('.row[data-num]'); if(r) jump(r.dataset.num, r.dataset.car); });
