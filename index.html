@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="2c599ac9b5">
+<meta name="ark-ver" content="e5fb0365ef">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -2174,7 +2174,7 @@ let _woSRp=null;
 function _woSR(){
   if(window.SHAKEN) return Promise.resolve(window.SHAKEN);
   if(_woSRp) return _woSRp;
-  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-11'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
+  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-12'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
   return _woSRp;
 }
 async function woReadQR(){
@@ -3302,7 +3302,7 @@ async function _woXferFinish(x,j,msg){
 function woXferNew(i){
   const x=(WEST.inbox||[])[i]; if(!x||!_woCheckReady()) return;
   const j=_woNew(); j.id='wo-es-'+_cloudKey(x.id).slice(0,40)+'-'+Date.now().toString(36);
-  Object.assign(j,{car:x.car,plate:x.plate,chassis:x.chassis,color:x.color,paintType:x.ptype,staff:x.staff||''});
+  Object.assign(j,{inDate:'',car:x.car,plate:x.plate,chassis:x.chassis,color:x.color,paintType:x.ptype,staff:x.staff||''});
   const pay=(x.pay||[]).find(p=>WO_PAY.includes(p)); if(pay) j.pay=pay;
   _woXferTasks(j,x); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre';
   _woXferFinish(x,j,`見積りから作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`);
