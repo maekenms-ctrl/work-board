@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="7d0734935e">
+<meta name="ark-ver" content="6a69c80fb3">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -2907,6 +2907,25 @@ async function woMergeDup(oid){
   if(!await askConfirm(`2つの作業指示を1つにまとめますか？\n残す：${_woTitle(j)}\n消す：${_woTitle(o)}\n（消す方の内容は、こちらで空いている項目に入れます）`,'まとめる')) return;
   _woMergeCore(j,o); woRenderAll(); toast('1つにまとめました');
 }
+// 写真を別の作業指示へ移す（まとめるとき）。この端末の写真と、共有の写真（ほかの端末で撮ったもの・見積りから入れたもの）の両方
+function _woPhMove(fromId,j){
+  const r=_WO_PHQ.then(async()=>{
+    const L=_woPhDrop(fromId,await woPhotosGet(fromId)).map(p=>({pid:p.pid,d:p.d,tag:p.tag||''}));
+    if(_woCloudOk()){ try{ const {fs}=CLOUD.fb; const sn=await fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',String(fromId))));
+      sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)&&!L.some(x=>x.d===v.d)) L.push({pid:v.pid,d:v.d,tag:v.tag||''}); }); }catch(e){ console.warn('写真を移す（共有）',e); } }
+    let moved=0, left=0;
+    if(L.length){
+      const arr=_woPhDrop(j.id,await woPhotosGet(j.id)), have=new Set(arr.map(p=>p.d)), add=[];
+      for(const v of L){ if(have.has(v.d)) continue; if(arr.length>=WO_PHOTO_MAX){ left++; continue; } const p={pid:_woPid(),d:v.d,tag:v.tag}; arr.push(p); add.push(p); have.add(v.d); }
+      if(add.length){ await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); } add.forEach(p=>_woPhUp(j.id,p)); moved=add.length; }
+      if(!left&&_woCloudOk()) L.forEach(v=>{ if(v.pid) _woPhDelCloud(fromId,v.pid); });   // 全部移せたら、元の共有の写真は消す（移せなかった分があれば残す）
+    }
+    await woPhotosPut(fromId,[]);
+    if(moved) toast(`写真${moved}枚を引き継ぎました${left?`（上限${WO_PHOTO_MAX}枚のため${left}枚は入りませんでした）`:''}`,5000);
+    return moved;
+  }).catch(e=>{ console.warn('写真を移す',e); return 0; });
+  _WO_PHQ=r; return r;
+}
 // j（残す）に o（消す）の内容を入れてから、o を削除する
 function _woMergeCore(j,o){
   const empty=v=>v==null||v===''||(Array.isArray(v)&&!v.length);
@@ -2918,7 +2937,7 @@ function _woMergeCore(j,o){
   if(o.fromSheet) j.fromSheet=true;
   const keepBook=o.loanerBook&&j.loanerBook===o.loanerBook;
   JOBS=JOBS.filter(x=>x.id!==o.id); clearTimeout(WOC.timer[o.id]); delete WOC.timer[o.id];
-  _woCloudDel(o.id); _woDelSheetDoc(o); if(!keepBook) lbRemove(o); woPhotosPut(o.id,[]); woFilesDelAll(o.id);
+  _woCloudDel(o.id); _woDelSheetDoc(o); if(!keepBook) lbRemove(o); _woPhMove(o.id,j); woFilesDelAll(o.id);   // 写真は残す方へ移す（11/12：見積りから作った作業指示の写真が、まとめたときに消えていた）
   woTouch(j,true); if(j.loanerBook) lbSync(j);
 }
 // 部品単品（車両を預からない部品だけの注文）：置き場所なし・配置図の未配置にも出さない
