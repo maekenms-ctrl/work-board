@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-12';
+const SR_VER='2026-11-13';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10501,10 +10501,10 @@ async function labelFile(f){
     const base=_labelPrep(src); const vertical=base[0].height>base[0].width;
     let dens=[]; try{dens=_labelPrepDensity(src);}catch(e){}
     const cands=[...dens.slice(0,1),...base,...dens.slice(1)];
-    let best={}, psa=false, psaDone=false;
+    let best={}, psa=false, psaDone=false; const texts=[];   // 読んだ文字は全部返す（見積りツールと同じ「候補」選びに使う。11/13）
     for(let i=0;i<cands.length;i++){
       _busy(`コーションプレートを読み取っています…（${i+1}/${cands.length}）`);
-      const {data}=await worker.recognize(cands[i]);
+      const {data}=await worker.recognize(cands[i]); texts.push(data.text);
       const p=parseLabelText(data.text);
       if(p.psa||p.maker==='PSA') psa=true;
       const score=(p.color?2:0)+(p.kata?1:0)+(p.chassis?1:0)+(/COLOR|FRAME|MODEL/.test(data.text)?1:0);
@@ -10516,13 +10516,13 @@ async function labelFile(f){
       let ad=[]; try{ad=_labelPrepAdaptive(src);}catch(e){}
       for(let j=0;j<ad.length&&!best.color;j++){
         _busy(`もう一度読み取っています…（${j+1}/${ad.length}）`);
-        const {data}=await worker.recognize(ad[j]);
+        const {data}=await worker.recognize(ad[j]); texts.push(data.text);
         const p=parseLabelText(data.text);
         if(p.color) best={...best,color:p.color};
       }
     }
     if(!best.color && !psaDone){ const r=await _psaPass(worker,vertical); if(r) best=r; }
-    return best.color?{color:best.color}:{};
+    return {color:best.color||'',_text:texts.join('\n'),_maker:best.maker||''};
   }catch(e){ throw new Error(_errMsg(e)); }
   finally{ _busy(null); if(worker) try{worker.terminate();}catch(e){} }
 }
