@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="5c77fd6094">
+<meta name="ark-ver" content="29317a646d">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -3990,12 +3990,12 @@ function _woRenderDetail(box){
     </div>
     <div class="field span2"><label>ガラス業者</label>
       <div class="check-group">${WO_GLASS_VENDORS.map(g=>`<button type="button" class="selbtn${j.glassVendor===g?' on':''}" onclick="woGlass('${g}')">${g}</button>`).join('')}</div>
-      ${j.glassVendor==='その他'?`<input style="margin-top:8px" value="${v('glassOther')}" placeholder="ガラス業者名" oninput="woSet('glassOther',this.value)">`:''}
+      ${j.glassVendor==='その他'?`<input style="margin-top:8px;width:100%;max-width:100%;box-sizing:border-box" value="${v('glassOther')}" placeholder="ガラス業者名" oninput="woSet('glassOther',this.value)">`:''}
     </div>
     <div class="field span2"><label>コーティング</label>
       <div class="check-group"><button type="button" class="selbtn${!j.coating?' on':''}" onclick="woCoat(false)">なし</button><button type="button" class="selbtn${j.coating?' on':''}" onclick="woCoat(true)">あり</button></div>
       ${j.coating?`${_woCoatDir().length?`<div class="check-group wo-coat-g" style="margin-top:8px">${_woCoatDir().map((c,i)=>`<button type="button" class="selbtn${j.coatType===c?' on':''}" onclick="woCoatPick(${i})">${esc(c)}</button>`).join('')}</div>`:''}
-      <input style="margin-top:8px" value="${v('coatType')}" placeholder="${_woCoatDir().length?'一覧にない種類は入力（次から一覧に出ます）':'コーティングの種類（例：ガラス系 3年）。入れると次から選べます'}" oninput="woSet('coatType',this.value)" onchange="woCoatLearn(this.value)">`:''}
+      <textarea class="wo-coat-in" rows="${Math.min(4,Math.max(1,Math.ceil(String(j.coatType||'').length/14)))}" style="margin-top:8px;width:100%;max-width:100%;box-sizing:border-box;resize:none;overflow:hidden;line-height:1.4;field-sizing:content;min-height:44px" placeholder="${_woCoatDir().length?'一覧にない種類は入力（次から一覧に出ます）':'コーティングの種類（例：ガラス系 3年）。入れると次から選べます'}" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';woSet('coatType',this.value)" onchange="woCoatLearn(this.value)" onfocus="this.style.height='auto';this.style.height=this.scrollHeight+'px'">${v('coatType')}</textarea>`:''}
     </div>
   </div>
   <div class="wo-sub">部品発注のPDF <span>（チームで共有・1件8MBまで・複数選べます・画面にドラッグでも追加できます）</span></div>
