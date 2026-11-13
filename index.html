@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="2474d9d1dc">
+<meta name="ark-ver" content="9486c8a7b5">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -954,6 +954,21 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .wo-card .wo-due{font-size:14.5px;} .wo-card .wo-plate,#wo-detail .wo-head .wo-plate-d{font-size:16px;} .wo-card .wo-chip{font-size:12.5px;padding:3px 9px;}
 }
 </style>
+<style id="wo-1114">
+/* 11/14：発注元の目印＋リンク（左＝目印、右の🔗＝サイトを開く） */
+.sup-pair{display:inline-flex;align-items:stretch;}
+.sup-pair>.selbtn{border-top-right-radius:0;border-bottom-right-radius:0;border-right-width:1px;}
+.sup-pair>.sup-ln{display:inline-flex;align-items:center;justify-content:center;min-width:36px;padding:0 8px;border:2px solid var(--border);border-left-width:1px;border-radius:0 8px 8px 0;background:var(--surface2);text-decoration:none;font-size:14px;cursor:pointer;}
+.sup-pair.on>.sup-ln{border-color:var(--accent);background:var(--accent-soft);}
+.sup-pair>.sup-ln:active{filter:brightness(1.3);}
+/* 11/14：部品の状況を色で分ける */
+select.pst{font-weight:800;border-width:2px;}
+select.pst[data-st="未発注"]{color:#ff6b6b;border-color:#ff5c5c;background-color:rgba(255,92,92,.14);}
+select.pst[data-st="発注済"]{color:#60a5fa;border-color:#3b82f6;background-color:rgba(59,130,246,.16);}
+select.pst[data-st="入荷済"]{color:var(--positive);border-color:var(--positive);background-color:rgba(52,211,153,.14);}
+select.pst[data-st="不要"]{color:var(--muted);font-weight:500;}
+select.pst option{color:var(--text);background:var(--surface2);}
+</style>
 <style id="wo-1111">
 /* 11/13：角の小さなライトの枠は文字を小さく（縦に1文字ずつ並ばないように） */
 .panel-btn.pil{font-size:11px!important;letter-spacing:0!important;padding:2px 0;line-height:1.1;}
@@ -1522,6 +1537,7 @@ const WO_OUTSRC=[{n:'ホンダカーズ中央',g:'honda'},{n:'ホンダカーズ
 function _woOutColor(n){ const o=WO_OUTSRC.find(x=>x.n===n); return WO_OUT_GROUPS[o?o.g:'other'].c; }
 const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
+const WO_SUP_URL={'HONDAパーツ':'https://biz.honda.co.jp/ipo10/','ヤナセ':'https://www.yanase-autosystems.co.jp/'};   // 11/14：発注元の目印ボタンに付けるリンク（🔗で別タブ）
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','ボカシ':'#93c5fd','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
 const WO_PHOTO_MAX=15;
 const YD_COLS=24, YD_ROWS=24, YD_VER=6;
@@ -4007,9 +4023,9 @@ function _woRenderDetail(box){
   <div class="wo-sec" data-sec="sup" style="margin-top:4px"><span class="bar"></span>部品発注元・ガラス・コーティング・PDF</div>
   <div class="wo-inl">
     <div class="field span2"><label>部品発注元（複数選べます）</label>
-      <div class="check-group">${WO_SUPPLIERS.map(g=>`<button type="button" class="selbtn${(j.suppliers||[]).includes(g)?' on':''}" onclick="woSupplier('${g}')">${g}</button>`).join('')}</div>
+      <div class="check-group">${WO_SUPPLIERS.map(g=>{ const on=(j.suppliers||[]).includes(g), u=WO_SUP_URL[g], b=`<button type="button" class="selbtn${on?' on':''}" onclick="woSupplier('${g}')">${g}</button>`;
+        return u?`<span class="sup-pair${on?' on':''}">${b}<a class="sup-ln" href="${u}" target="_blank" rel="noopener noreferrer" title="${g}のページを別のタブで開く" aria-label="${g}のページを開く">🔗</a></span>`:b; }).join('')}</div>
       ${(j.suppliers||[]).includes('その他')?`<input style="margin-top:8px" value="${v('supplierOther')}" placeholder="発注元の名前" oninput="woSet('supplierOther',this.value)">`:''}
-      <div class="check-group" style="margin-top:8px"><a class="btn" style="text-decoration:none" href="https://biz.honda.co.jp/ipo10/" target="_blank" rel="noopener noreferrer" title="ホンダの部品発注のログイン画面を別のタブで開きます">🔗 ホンダパーツ</a><a class="btn" style="text-decoration:none" href="https://www.yanase-autosystems.co.jp/" target="_blank" rel="noopener noreferrer" title="ヤナセオートシステムズのページを別のタブで開きます">🔗 ヤナセオートシステムズ</a></div>
     </div>
     <div class="field span2"><label>ガラス業者</label>
       <div class="check-group">${WO_GLASS_VENDORS.map(g=>`<button type="button" class="selbtn${j.glassVendor===g?' on':''}" onclick="woGlass('${g}')">${g}</button>`).join('')}</div>
@@ -4051,7 +4067,7 @@ function _woRenderDetail(box){
     <tr><th style="min-width:140px">部品名</th><th style="width:60px">数</th><th style="min-width:96px">状況</th><th style="min-width:130px">入荷予定</th><th></th></tr>
     ${(j.parts||[]).map((p,pi)=>`<tr class="wo-tr"><td><input value="${esc(p.name)}" oninput="woPart('${p.id}','name',this.value)"></td>
       <td><input inputmode="numeric" value="${esc(p.qty)}" oninput="woPart('${p.id}','qty',this.value)"></td>
-      <td><select onchange="woPart('${p.id}','status',this.value)" style="${p.status==='入荷済'?'color:var(--positive);font-weight:700':p.status==='不要'?'color:var(--muted)':'color:#ffb020;font-weight:700'}">${WO_PART_ST.map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
+      <td><select class="pst" data-st="${esc(p.status||'未発注')}" onchange="this.dataset.st=this.value;woPart('${p.id}','status',this.value)">${WO_PART_ST.map(s=>`<option${p.status===s?' selected':''}>${s}</option>`).join('')}</select></td>
       <td><input type="date" value="${esc(p.eta||'')}" onchange="woPart('${p.id}','eta',this.value)"></td>
       <td class="tdel"><button type="button" class="row-mv" data-mv="parts" data-i="${pi}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woPartDel('${p.id}')" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty" style="padding:10px">部品はありません</td></tr>'}
   </table></div>
