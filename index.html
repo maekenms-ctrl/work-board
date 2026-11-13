@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="9486c8a7b5">
+<meta name="ark-ver" content="091e46bc73">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -955,6 +955,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1114">
+.wo-aimbtn{margin-top:6px;width:100%;padding:6px 8px;border-radius:8px;border:2px solid #34d399;background:rgba(52,211,153,.12);color:#34d399;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}
 /* 11/14：発注元の目印＋リンク（左＝目印、右の🔗＝サイトを開く） */
 .sup-pair{display:inline-flex;align-items:stretch;}
 .sup-pair>.selbtn{border-top-right-radius:0;border-bottom-right-radius:0;border-right-width:1px;}
@@ -1537,6 +1538,13 @@ const WO_OUTSRC=[{n:'ホンダカーズ中央',g:'honda'},{n:'ホンダカーズ
 function _woOutColor(n){ const o=WO_OUTSRC.find(x=>x.n===n); return WO_OUT_GROUPS[o?o.g:'other'].c; }
 const WO_GLASS_VENDORS=['WSG','小田硝子','その他'];
 const WO_PART_ST=['未発注','発注済','入荷済','不要'];
+// 11/14：エイミング工数表（aiming.js を押したときだけ読む。見積りツールと共通）
+let _woAimP=null;
+function woAimOpen(){
+  if(window.ARK_AIMING){ ARK_AIMING.open(); return; }
+  if(!_woAimP) _woAimP=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='aiming.js?v=2026-11-14'; s.onload=res; s.onerror=()=>{ _woAimP=null; rej(); }; document.head.appendChild(s); });
+  _woAimP.then(()=>ARK_AIMING.open()).catch(()=>toast('エイミング工数表を読み込めませんでした（電波を確かめてください）',5000));
+}
 const WO_SUP_URL={'HONDAパーツ':'https://biz.honda.co.jp/ipo10/','ヤナセ':'https://www.yanase-autosystems.co.jp/'};   // 11/14：発注元の目印ボタンに付けるリンク（🔗で別タブ）
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','ボカシ':'#93c5fd','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
 const WO_PHOTO_MAX=15;
@@ -4046,7 +4054,7 @@ function _woRenderDetail(box){
   <div class="wo-scroll" style="margin-top:10px"><table class="wo-tbl wo-tasks">
     <tr class="wo-th"><th style="min-width:130px">部位</th><th style="min-width:230px">作業（複数選べます）</th><th style="min-width:160px">作業メモ</th><th></th></tr>
     ${(j.tasks||[]).map((t,i)=>`<tr class="wo-tr${String(t.note||'').trim()?' has-note':''}"><td class="tp">${t.area?`<span class="tp-n">${esc(t.part)}</span>`:`<input value="${esc(t.part||'')}" placeholder="部位" oninput="woTask(${i},'part',this.value)">`}<span class="wo-notetag">📝 メモあり</span></td>
-      <td class="tt"><div class="wo-types">${WO_TASK_TYPES.map(k=>`<button type="button" class="wo-ty${_woTypes(t).includes(k)?' on':''}" style="--tc:${WO_TYPE_COLOR[k]}" onclick="woTaskType(${i},'${k}')">${k}</button>`).join('')}</div></td>
+      <td class="tt"><div class="wo-types">${WO_TASK_TYPES.map(k=>`<button type="button" class="wo-ty${_woTypes(t).includes(k)?' on':''}" style="--tc:${WO_TYPE_COLOR[k]}" onclick="woTaskType(${i},'${k}')">${k}</button>`).join('')}</div>${_woTypes(t).includes('エイミング')?`<button type="button" class="wo-aimbtn" onclick="woAimOpen()">🎯 エイミング工数表を見る（参考）</button>`:''}</td>
       <td class="tn"><label class="tn-lab">📝 作業メモ</label><input class="wo-note" value="${esc(t.note||'')}" placeholder="作業メモ（例：ぼかし左Rドアまで）" oninput="woTask(${i},'note',this.value);this.closest('tr').classList.toggle('has-note',!!this.value.trim())"></td>
       <td class="tdel"><button type="button" class="row-mv" data-mv="tasks" data-i="${i}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
   </table></div>
