@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="d2a1ae5b96">
+<meta name="ark-ver" content="2474d9d1dc">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -607,13 +607,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     "lpillar lpillar sseat sseat sseat rpillar rpillar"
     "lrtire lqinner sfloor sfloor sfloor rqinner rrtire"
     "lrwheel lqinner saxle saxle saxle rqinner rrwheel"
-    ". lqinner scross scross scross rqinner ."
+    "lrsusp lqinner scross scross scross rqinner rrsusp"
     ". sback sback sback sback sback .";}
-.wo-skel .panel-btn{font-size:13px;}
-.wo-skel .panel-btn.sill{font-size:12px;letter-spacing:0;}
+.wo-skel .panel-btn{font-size:15px;}
+.wo-skel .panel-btn.sill{letter-spacing:0;}
 .wo-skel .panel-btn.wt{background:var(--tc);border-color:var(--tb,#c9d1d9);color:#0b0d10;font-weight:800;}
-@media(min-width:701px){ .wo-skel .panel-btn{font-size:11px;} .wo-skel .panel-btn.sill{font-size:10px;} }
-@media(max-width:700px){ .wo-skel{gap:4px;} .wo-skel .panel-btn{font-size:11px;} .wo-skel .panel-btn.sill{font-size:10.5px;} }
+/* 11/13：外板と同じ文字の大きさ（PC 15px・スマホ 12px・画面が低いとき 12px） */
+@media(max-width:700px){ .wo-skel{gap:4px;} .wo-skel .panel-btn{font-size:12px;} }
+@media(max-height:760px){ .wo-skel .panel-btn{font-size:12px;} }
 /* 画面の高さに収まる大きさ（縦横の比率はそのまま）。幅・高さのどちらか小さい方に合わせる */
 #wo-detail .wo-mapcol .wo-map{max-width:none;width:min(100%,640px,calc((100vh - 150px) * 0.66));aspect-ratio:0.66;height:auto;margin:0 auto;grid-template-columns:5fr 6.5fr 16fr 4.5fr 18fr 4.5fr 16fr 6.5fr 5fr;grid-template-rows:46fr 58fr 30fr 80fr 80fr 80fr 38fr 30fr 58fr 46fr;gap:5px;}
 #wo-detail .wo-mapcol .wo-map .panel-btn{font-size:15px;}
@@ -1250,6 +1251,8 @@ const SKEL_PARTS = [
   {area:'rrtire',  name:'右リヤタイヤ',         label:'タイヤ', def:'取替'},
   {area:'lrwheel', name:'左リヤホイール',       label:'ホイール', def:'取替'},
   {area:'rrwheel', name:'右リヤホイール',       label:'ホイール', def:'取替'},
+  {area:'lrsusp',  name:'左リヤサスペンション', label:'サス', def:'取替'},
+  {area:'rrsusp',  name:'右リヤサスペンション', label:'サス', def:'取替'},
   {area:'saxle',   name:'リヤアクスル',         label:'リヤアクスル', def:'取替'},
   {area:'scross',  name:'クロスメンバー',       label:'クロスメンバー'},
   {area:'sback',   name:'バックパネル',         label:'バックパネル'},
@@ -4006,6 +4009,7 @@ function _woRenderDetail(box){
     <div class="field span2"><label>部品発注元（複数選べます）</label>
       <div class="check-group">${WO_SUPPLIERS.map(g=>`<button type="button" class="selbtn${(j.suppliers||[]).includes(g)?' on':''}" onclick="woSupplier('${g}')">${g}</button>`).join('')}</div>
       ${(j.suppliers||[]).includes('その他')?`<input style="margin-top:8px" value="${v('supplierOther')}" placeholder="発注元の名前" oninput="woSet('supplierOther',this.value)">`:''}
+      <div class="check-group" style="margin-top:8px"><a class="btn" style="text-decoration:none" href="https://biz.honda.co.jp/ipo10/" target="_blank" rel="noopener noreferrer" title="ホンダの部品発注のログイン画面を別のタブで開きます">🔗 ホンダパーツ</a><a class="btn" style="text-decoration:none" href="https://www.yanase-autosystems.co.jp/" target="_blank" rel="noopener noreferrer" title="ヤナセオートシステムズのページを別のタブで開きます">🔗 ヤナセオートシステムズ</a></div>
     </div>
     <div class="field span2"><label>ガラス業者</label>
       <div class="check-group">${WO_GLASS_VENDORS.map(g=>`<button type="button" class="selbtn${j.glassVendor===g?' on':''}" onclick="woGlass('${g}')">${g}</button>`).join('')}</div>
@@ -4052,9 +4056,7 @@ function _woRenderDetail(box){
       <td class="tdel"><button type="button" class="row-mv" data-mv="parts" data-i="${pi}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woPartDel('${p.id}')" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty" style="padding:10px">部品はありません</td></tr>'}
   </table></div>
   <div class="wo-row"><button type="button" class="btn btn-add" onclick="woPartAdd()">＋ 部品を追加</button>
-  <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button>
-  <a class="btn" style="text-decoration:none" href="https://biz.honda.co.jp/ipo10/" target="_blank" rel="noopener noreferrer" title="ホンダの部品発注のログイン画面を別のタブで開きます">🔗 ホンダパーツ</a>
-  <a class="btn" style="text-decoration:none" href="https://www.yanase-autosystems.co.jp/" target="_blank" rel="noopener noreferrer" title="ヤナセオートシステムズのページを別のタブで開きます">🔗 ヤナセオートシステムズ</a></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
+  <button type="button" class="btn wo-pinbtn" onclick="woPartsIn()">📦 部品入荷（ARK通知で全員に知らせる）</button></div>${j.partsInAt?`<span class="sg-note" style="margin-left:8px">最後に知らせた日時：${esc(_woMD(j.partsInAt.slice(0,10)))} ${esc(new Date(j.partsInAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}))}</span>`:''}
   <div class="wo-sec" data-sec="note"><span class="bar"></span>注意事項</div>
   <div class="field"><textarea rows="3" placeholder="例：左Fドアはプレスラインに注意／車内に私物あり／ドラレコ配線あり" oninput="woSet('caution',this.value)">${v('caution')}</textarea></div>
   ${_phTop?'':_phHtml}
@@ -4184,7 +4186,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:8px;}th,td{border:1px so
 .info th{width:80px;}.n{text-align:right;font-family:monospace;}.big{font-size:14px;font-weight:800;}
 h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;}
 .pm{display:grid;grid-template-columns:12px 16px 1fr 10px 1.15fr 10px 1fr 16px 12px;grid-template-rows:30px 38px 20px 52px 52px 52px 26px 20px 38px 30px;grid-template-areas:"lhead lhead fbumper fbumper fbumper fbumper fbumper rhead rhead" "hood hood hood hood hood hood hood hood hood" "fglass fglass fglass fglass fglass fglass fglass fglass fglass" "lgarn lsill lfender lfpillar roof rfpillar rfender rsill rgarn" "lgarn lsill lfdoor lroofside roof rroofside rfdoor rsill rgarn" "lgarn lsill lrdoor lroofside roof rroofside rrdoor rsill rgarn" "lgarn lsill lqglass lroofside roof rroofside rqglass rsill rgarn" "lqpanel lqpanel lqpanel lqpanel rglass rqpanel rqpanel rqpanel rqpanel" "lqpanel lqpanel lqpanel lqpanel trunk rqpanel rqpanel rqpanel rqpanel" "ltail ltail rbumper rbumper rbumper rbumper rbumper rtail rtail";gap:2px;}
-.sk{display:grid;grid-template-columns:22px 16px 16px 1fr 16px 16px 22px;grid-template-rows:16px 16px 16px 16px 20px 22px 16px 20px 18px 16px 16px 16px;grid-template-areas:". sreinf sreinf sreinf sreinf sreinf ." ". score score score score score ." "lftire lfinner lfmem scond rfmem rfinner rftire" "lfwheel lfinner lfmem srad rfmem rfinner rfwheel" "lfsusp lfinner lfmem seng rfmem rfinner rfsusp" ". lfinner lfmem seng rfmem rfinner ." ". lfinner sdash sdash sdash rfinner ." "lpillar lpillar sseat sseat sseat rpillar rpillar" "lrtire lqinner sfloor sfloor sfloor rqinner rrtire" "lrwheel lqinner saxle saxle saxle rqinner rrwheel" ". lqinner scross scross scross rqinner ." ". sback sback sback sback sback .";gap:2px;}
+.sk{display:grid;grid-template-columns:22px 16px 16px 1fr 16px 16px 22px;grid-template-rows:16px 16px 16px 16px 20px 22px 16px 20px 18px 16px 16px 16px;grid-template-areas:". sreinf sreinf sreinf sreinf sreinf ." ". score score score score score ." "lftire lfinner lfmem scond rfmem rfinner rftire" "lfwheel lfinner lfmem srad rfmem rfinner rfwheel" "lfsusp lfinner lfmem seng rfmem rfinner rfsusp" ". lfinner lfmem seng rfmem rfinner ." ". lfinner sdash sdash sdash rfinner ." "lpillar lpillar sseat sseat sseat rpillar rpillar" "lrtire lqinner sfloor sfloor sfloor rqinner rrtire" "lrwheel lqinner saxle saxle saxle rqinner rrwheel" "lrsusp lqinner scross scross scross rqinner rrsusp" ". sback sback sback sback sback .";gap:2px;}
 .sk>div{border:1px solid #aaa;border-radius:4px;font-size:6.5px;line-height:1.1;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#333;white-space:pre-line;}
 .pm>div{border:1px solid #aaa;border-radius:4px;font-size:7.5px;line-height:1.15;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;color:#333;white-space:pre-line;}
 .ty{display:inline-block;padding:1px 5px;border-radius:3px;border:1px solid #111;font-weight:700;margin:1px 0;}.lg{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:9px;}.lg span{padding:1px 5px;border-radius:3px;border:1px solid #111;}
