@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="29317a646d">
+<meta name="ark-ver" content="154b1fbb26">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -954,6 +954,15 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1111">
+/* 11/13：見積りの明細（見積りツールから） */
+.wo-est{margin-top:10px;}
+.wo-est-d{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:var(--surface2);}
+.wo-est-d summary{cursor:pointer;font-weight:700;font-size:14px;}
+.wo-est-d summary small{font-weight:400;color:var(--muted);}
+.wo-est-t td.w{white-space:normal;min-width:160px;}
+.wo-est-ty{font-size:11px;padding:1px 6px;border-radius:4px;color:#111;font-weight:700;white-space:nowrap;}
+.wo-est-sum{text-align:right;font-size:13px;margin-top:6px;}
+.wo-est-sum b{font-size:15px;}
 /* 11/13：覚えている項目 */
 .wo-mini{margin-left:8px;padding:3px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font:inherit;font-size:12px;font-weight:700;cursor:pointer;vertical-align:middle;}
 .wo-mini.del{color:#ff8a8a;}
@@ -3414,7 +3423,7 @@ const WSP={rows:[],showHidden:false};
 const WXF={showDone:false,ph:{}};
 const WO_XF_TYPES=['鈑金','鈑金塗装','塗装','ボカシ','取替','脱着','付属品脱着','調整','エイミング','その他'];
 function _woXferClean(w){ const s=x=>String(x==null?'':x).slice(0,80);
-  return {car:s(w.car),plate:s(w.plate),chassis:s(w.chassis),color:s(w.color),ptype:s(w.ptype),date:s(w.date),staff:s(w.staff),grand:+w.grand||0,phJid:s(w.phJid),phN:+w.phN||0,
+  return {lines:(Array.isArray(w.lines)?w.lines:[]).filter(t=>t&&typeof t==='object').slice(0,80).map(t=>({part:s(t.part),type:s(t.type),desc:s(t.desc),qty:+t.qty||1,amt:Math.round(+t.amt||0)})),sub:Math.round(+w.sub||0),tax:Math.round(+w.tax||0),parts:Math.round(+w.parts||0),car:s(w.car),plate:s(w.plate),chassis:s(w.chassis),color:s(w.color),ptype:s(w.ptype),date:s(w.date),staff:s(w.staff),grand:+w.grand||0,phJid:s(w.phJid),phN:+w.phN||0,
     pay:Array.isArray(w.pay)?w.pay.map(s):[],tasks:(Array.isArray(w.tasks)?w.tasks:[]).filter(t=>t&&typeof t==='object').slice(0,40).map(t=>({part:s(t.part),area:s(t.area),types:(Array.isArray(t.types)?t.types:[]).map(s).map(x=>WO_XF_TYPES.includes(x)?x:'その他').slice(0,3),note:s(t.note)}))}; }
 function _woXferWhen(t){ const d=new Date(t||''); return isNaN(d)?'':`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function _woXferDone(x){ return !!(YARD&&YARD.xfDone&&YARD.xfDone[x.id]); }
@@ -3441,6 +3450,7 @@ function woXferRender(){
     return `<div class="wo-xf-card${done?' done':''}"><div class="wo-xf-head"><b>${esc(x.car||'（車種なし）')}</b><span>${esc(x.plate||'')}</span><span class="sp" style="flex:1"></span><b>¥${(x.grand||0).toLocaleString()}</b></div>
       <div class="wo-xf-meta">${_woXferWhen(x.savedAt)} ／ ${esc(who||'-')}${x.staff?' ／ 担当 '+esc(x.staff):''} ／ ${x.via==='LINE'?'LINE送信':'履歴に保存'}${x.color?' ／ カラー '+esc(x.color):''}${x.chassis?' ／ '+esc(x.chassis):''}</div>
       <div class="wo-xf-tasks">${x.tasks.map(t=>`<span style="background:${WO_TYPE_COLOR[t.types[0]]||'#e5e7eb'}">${esc(t.part||'（部位なし）')}：${esc(t.types.join('・'))}</span>`).join('')||'<small class="wo-xf-meta">作業箇所なし</small>'}</div>
+      ${x.lines&&x.lines.length?`<details class="wo-est-d"><summary>💴 見積りの明細を見る（${x.lines.length}行）</summary>${_woEstTable({lines:x.lines,sub:x.sub,tax:x.tax,grand:x.grand,parts:x.parts})}</details>`:''}
       <div class="wo-xf-ph" id="wo-xf-ph-${i}">${WXF.ph[x.id]?WXF.ph[x.id].map(v=>`<img src="${v.d}" alt="">`).join(''):''}</div>
       <div class="wo-xf-btns">${done?`<span class="wo-xf-meta">済み${dj?'：'+esc([dj.car,dj.plate].filter(Boolean).join(' ')):''}</span><button type="button" class="btn" onclick="woXferUndo(${i})">↩ 未処理に戻す</button>`
         :`<button type="button" class="btn btn-primary" onclick="woXferNew(${i})">＋ 作業指示を作る</button>${m?`<button type="button" class="btn" onclick="woXferAttach(${i},'${esc(m.id)}')">🔗 ${esc([m.car,m.plate].filter(Boolean).join(' ')||'同じ車')} に付ける</button>`:''}${x.phN&&!WXF.ph[x.id]?`<button type="button" class="btn" onclick="woXferPhotos(${i})">📷 写真${x.phN}枚を見る</button>`:''}<button type="button" class="btn" onclick="woXferHide(${i})" title="作業指示にせず一覧から消す">🗑</button>`}</div></div>`; }).join('')
@@ -3470,18 +3480,27 @@ async function _woXferFinish(x,j,msg){
   let n=0; if(x.phN){ _busy('見積りの写真を入れています…'); try{ n=await _woXferAddPhotos(j,await _woXferPhGet(x)); }catch(e){ toast('写真を入れられませんでした：'+_netMsg(e),6000); } _busy(null); }
   toast(msg+(n?`（写真${n}枚）`:''),5000);
 }
+// 見積りの金額・明細を作業指示に残す（11/13）。同じ車に見積りを何回か付けたら、全部残す（追加の見積り）
+function _woXferEst(j,x){ if(!x) return; j.ests=Array.isArray(j.ests)?j.ests:[]; if(j.ests.some(e=>e.id===x.id)) return;
+  j.ests.push({id:x.id,at:x.savedAt||'',by:String(x.by||'').replace(/@.*/,''),staff:x.staff||'',grand:+x.grand||0,sub:+x.sub||0,tax:+x.tax||0,parts:+x.parts||0,lines:(x.lines||[]).slice(0,80)}); }
+function _woEstTable(e){ const yen=n=>'¥'+Math.round(+n||0).toLocaleString();
+  return `<div class="wo-scroll"><table class="wo-tbl wo-est-t"><tr><th>部位</th><th>作業</th><th>内容</th><th>数</th><th style="text-align:right">金額</th></tr>
+    ${(e.lines||[]).map(l=>`<tr><td>${esc(l.part||'-')}</td><td><span class="wo-est-ty" style="background:${WO_TYPE_COLOR[l.type]||'#e5e7eb'}">${esc(l.type||'')}</span></td><td class="w">${esc(l.desc||'')}</td><td>${l.qty||1}</td><td style="text-align:right;white-space:nowrap">${yen(l.amt)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">明細はありません（前の見積りツールで保存したもの）</td></tr>'}
+  </table></div><div class="wo-est-sum">${e.parts?`うち部品代 ${yen(e.parts)}　`:''}${e.sub?`作業小計 ${yen(e.sub)}　`:''}${e.tax?`消費税 ${yen(e.tax)}　`:''}<b>合計（税込） ${yen(e.grand)}</b></div>`; }
+function _woEstHtml(j){ const L=Array.isArray(j.ests)?j.ests:[]; if(!L.length) return '';
+  return `<div class="wo-est">${L.map((e,k)=>`<details class="wo-est-d"${L.length===1?' open':''}><summary>💴 見積り${L.length>1?(k+1):''}（見積りツールから）　<b>${'¥'+Math.round(+e.grand||0).toLocaleString()}</b>　<small>${esc(_woXferWhen(e.at))}${e.by?' ／ '+esc(e.by):''}${e.staff?' ／ 担当 '+esc(e.staff):''}</small></summary>${_woEstTable(e)}</details>`).join('')}</div>`; }
 function woXferNew(i){
   const x=(WEST.inbox||[])[i]; if(!x||!_woCheckReady()) return;
   const j=_woNew(); j.id='wo-es-'+_cloudKey(x.id).slice(0,40)+'-'+Date.now().toString(36);
   Object.assign(j,{inDate:'',car:x.car,plate:x.plate,chassis:x.chassis,color:x.color,paintType:x.ptype,staff:x.staff||''});
   const pay=(x.pay||[]).find(p=>WO_PAY.includes(p)); if(pay) j.pay=pay;
-  _woXferTasks(j,x); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre';
+  _woXferTasks(j,x); _woXferEst(j,x); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre';
   _woXferFinish(x,j,`見積りから作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`);
 }
 function woXferAttach(i,jid){
   const x=(WEST.inbox||[])[i], j=_woJob(jid); if(!x||!j||!_woCheckReady()) return;
   for(const k of ['chassis','color']) if(!j[k]&&x[k]) j[k]=x[k]; if(!j.paintType&&x.ptype) j.paintType=x.ptype;
-  const n=_woXferTasks(j,x); woTouch(j,true);
+  const n=_woXferTasks(j,x); _woXferEst(j,x); woTouch(j,true);
   _woXferFinish(x,j,`見積りを付けました：${[j.car,j.plate].filter(Boolean).join(' ')}（作業箇所${n}件を追加）`);
 }
 function woXferHide(i){ const x=(WEST.inbox||[])[i]; if(!x) return; _woXferMark(x,''); woXferRender(); toast('一覧から消しました（「済んだものも見る」から戻せます）',4000); }
@@ -3696,21 +3715,18 @@ function _woSheetLink(){
   _woSheetLinkWait=null;
   const key=(q.tab||'')+'-'+(q.row||''), no=_woPlateNo(q.num);
   // 番号が同じ車 → シートの行が同じで車種も同じ車（行を動かすと、行だけでは別の車のことがある）
-  let j=(no?JOBS.find(x=>!x.archived&&_woPlateNo(x.plate)===no):null)||JOBS.find(x=>!x.archived&&q.row&&x.sheetKey===key&&q.car&&x.car&&_woCarNorm(x.car)===_woCarNorm(q.car));
-  let made=false;
-  if(!j){
-    const raw=((typeof LB!=='undefined'&&LB.sheetRaw)||[]).find(r=>_woSheetKey(r)===key);
-    const x=raw||{tab:q.tab,row:+q.row||0,model:q.car,plate:q.num,inDate:q.in,kind:'',due:'',car:''};
-    j=_woNew(); j.id='wo-sh-'+_cloudKey(key).slice(0,60)+'-'+Date.now().toString(36); j.inDate='';
-    _woFromSheet(j,{...x,_in:_sheetDate(x.inDate)||q.in||'',_due:_sheetDate(x.due)||'',_out:_sheetDate(x.out)||''},true);
-    if(!j.inDate) j.inDate=q.in||_woToday();
-    JOBS.unshift(j); made=true;
-  }
-  const msg=[made?'入庫管理表から作業指示を作りました':''];
-  if(q.act==='in'&&j.inChecked!==true){ msg.push(..._woCheckInCore(j)); }
+  // 11/13：ここでは作業指示を作らない・書き換えない（「作業ボードで開く」は開くだけ。通知も記録も出さない）。作業指示は入出庫管理表の Apps Script が作る
+  const cn=_woCarNorm(q.car), act=JOBS.filter(x=>!x.archived&&!x.deleted);
+  let j=(no?act.find(x=>_woPlateNo(x.plate)===no):null)
+    ||act.find(x=>q.row&&x.sheetKey===key&&(!cn||!x.car||_woCarNorm(x.car)===cn))
+    ||(()=>{ const L=act.filter(x=>cn&&x.car&&_woCarNorm(x.car)===cn&&(!q.in||!x.inDate||x.inDate===q.in)); return L.length===1?L[0]:null; })();
+  if(!j){ WO_FILTER='all'; const qi=document.getElementById('wo-q'); if(qi&&(q.num||q.car)){ qi.value=no||q.car||''; } woRenderAll();
+    toast(`${[q.car,q.num].filter(Boolean).join(' ')||'この車'}の作業指示が見つかりませんでした（表に書いてから約5分で作業ボードにできます）`,6000); return; }
+  const msg=[];
+  if(q.act==='in'&&j.inChecked!==true){ msg.push(..._woCheckInCore(j)); woTouch(j,true); }
   else if(q.act==='in') msg.push('すでに入庫済です');
-  woTouch(j,true); WO_FILTER='all';
-  setTimeout(()=>{ woOpen(j.id); toast([_woTitle(j),...msg.filter(Boolean)].join('：'),5000); },0);
+  WO_FILTER='all';
+  setTimeout(()=>{ woOpen(j.id); if(msg.length) toast([_woTitle(j),...msg].join('：'),5000); },0);
 }
 function _woDeepLink(){
   _woSheetLink();
@@ -4012,6 +4028,7 @@ function _woRenderDetail(box){
       <td class="tdel"><button type="button" class="row-mv" data-mv="tasks" data-i="${i}" title="つかんで上下に動かすと並べ替え" aria-label="並べ替え">⠿</button><button type="button" class="row-del" onclick="woTaskDel(${i})" aria-label="削除">✕</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty" style="padding:10px">上の車体図をタップすると作業箇所を追加できます</td></tr>'}
   </table></div>
   <button type="button" class="btn btn-add" onclick="woTaskAdd()">＋ 図にない作業を追加</button>
+  ${_woEstHtml(j)}
   <div class="wo-sec" data-sec="steps"><span class="bar"></span>工程・担当</div>
   <div class="wo-steps">
     <div class="wo-st hd"><span>工程</span><span>担当（タップで選択）</span><span>開始日</span><span>完了・完成日</span></div>
