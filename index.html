@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="db8295dca3">
+<meta name="ark-ver" content="55f5833250">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -955,6 +955,37 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1114">
+/* 11/14：入庫済への導線（一覧のカードのボタン・作業指示の上の大きなボタン）。緑＝入庫 */
+.wo-cin{grid-column:1/-1;margin-top:6px;width:100%;min-height:44px;border-radius:10px;border:2px solid #16a34a;background:rgba(22,163,74,.14);color:#4ade80;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
+.wo-cin b{font-weight:900;}
+.wo-cin.now{background:#16a34a;color:#fff;animation:wo-cin 2.2s ease-out infinite;}
+.wo-inq{border:3px solid #16a34a;border-radius:14px;padding:10px 12px;margin:8px 0 10px;background:rgba(22,163,74,.10);}
+.wo-inq-t{font-size:14px;font-weight:800;color:#4ade80;margin-bottom:8px;}
+.wo-inq-b{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:8px 14px;border-radius:12px;border:0;background:#16a34a;color:#fff;cursor:pointer;font-family:inherit;text-align:left;}
+.wo-inq.now .wo-inq-b{animation:wo-cin 2.2s ease-out infinite;}
+.wo-inq-b .cq-i{font-size:30px;line-height:1;} .wo-inq-b .cq-t{flex:1;display:flex;flex-direction:column;gap:2px;} .wo-inq-b .cq-t b{font-size:19px;font-weight:900;} .wo-inq-b .cq-t small{font-size:12px;font-weight:700;opacity:.9;} .wo-inq-b .cq-a{font-size:20px;font-weight:900;}
+@keyframes wo-cin{0%{box-shadow:0 0 0 0 rgba(22,163,74,.6);}70%{box-shadow:0 0 0 10px rgba(22,163,74,0);}100%{box-shadow:0 0 0 0 rgba(22,163,74,0);}}
+@media (prefers-reduced-motion:reduce){.wo-cin.now,.wo-inq.now .wo-inq-b{animation:none;}}
+/* 11/14：作業前写真を畳んでいても、撮影ボタンを見出しの下に大きく出す（開いているときは中のボタンを使う） */
+.wo-camq{display:none;order:20;flex:1 0 100%;margin-top:8px;min-height:62px;border-radius:14px;border:3px solid var(--accent);background:var(--accent);color:#111;cursor:pointer;font-family:inherit;box-shadow:0 0 0 0 rgba(228,255,26,.55);animation:wo-camq 2.2s ease-out infinite;align-items:center;gap:12px;padding:8px 14px;text-align:left;letter-spacing:0;}
+.wo-sec.wo-foldh:not(.open) .wo-camq{display:flex;}
+.wo-camq.done{background:transparent;color:var(--accent);animation:none;min-height:48px;}
+.wo-camq .cq-i,.ph-btns .ph-cam .cq-i{font-size:30px;line-height:1;}
+.wo-camq .cq-t,.ph-btns .ph-cam .cq-t{flex:1;display:flex;flex-direction:column;gap:2px;}
+.wo-camq .cq-t b,.ph-btns .ph-cam .cq-t b{font-size:18px;font-weight:900;}
+.wo-camq .cq-t small,.ph-btns .ph-cam .cq-t small{font-size:12px;font-weight:700;opacity:.8;}
+.wo-camq .cq-a,.ph-btns .ph-cam .cq-a{font-size:20px;font-weight:900;}
+.wo-camq.done .cq-t small{display:none;}
+.ph-btns .ph-cam{display:flex!important;align-items:center;gap:12px;min-height:62px;padding:8px 14px!important;text-align:left;border-width:3px!important;animation:wo-camq 2.2s ease-out infinite;}
+/* 見出しの色：未完＝赤、撮影済み＝緑 */
+.wo-sec.ph-need{border-color:#ff5c5c!important;box-shadow:inset 4px 0 0 #ff5c5c;}
+.wo-sec.ph-ok{box-shadow:inset 4px 0 0 #34d399;}
+.ph-badge{font-size:12.5px;font-weight:900;border-radius:999px;padding:2px 10px;margin-left:6px;white-space:nowrap;letter-spacing:0;}
+.ph-need .ph-badge{background:#ff5c5c;color:#fff;}
+.ph-ok .ph-badge{background:rgba(52,211,153,.18);color:#34d399;}
+.wo-camq:active{filter:brightness(.92);}
+@keyframes wo-camq{0%{box-shadow:0 0 0 0 rgba(228,255,26,.55);}70%{box-shadow:0 0 0 10px rgba(228,255,26,0);}100%{box-shadow:0 0 0 0 rgba(228,255,26,0);}}
+@media (prefers-reduced-motion:reduce){.wo-camq{animation:none;}}
 .wo-aimbtn{margin-top:6px;width:100%;padding:6px 8px;border-radius:8px;border:2px solid #34d399;background:rgba(52,211,153,.12);color:#34d399;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;}
 /* 11/14：発注元の目印＋リンク（左＝目印、右の🔗＝サイトを開く） */
 .sup-pair{display:inline-flex;align-items:stretch;}
@@ -3681,6 +3712,8 @@ function woRenderBadges(){
   for(const id of ['wo-badge','yd-badge']){ const b=document.getElementById(id); if(!b) continue; b.textContent=txt; b.className='wo-badge'+(WOC.err?' err':wait?' wait':WOC.live&&CLOUD.user?' on':''); b.onclick=wait?_woReconnect:null; }
 }
 // ── 入庫済：お客様の車が入った時点で、選んでいる代車・レンタカーを貸出中にする（代車の駒は配置図・駒の欄から外す）──
+// 11/14：一覧のカードから、開かずにすぐ入庫済にする（引き取り・持ち込みで車が着いたとき）
+function woCardCheckIn(ev,id){ if(ev) ev.stopPropagation(); woOpen(id); setTimeout(()=>woCheckIn(),0); }
 async function woCheckIn(){
   const j=_woCurJob(); if(!j) return;
   const t=_woToday(), loan=j.loanerUse===true&&j.loanerCar, rent=loan&&/^レンタカー/.test(j.loanerCar);
@@ -3911,6 +3944,7 @@ function _woRenderList(){
       <div class="rt"><span class="wo-due${j.dueDate?'':' none'}">${j.dueDate?'納車 '+_woMD(j.dueDate):'納車日未定'}</span>${j.outDate?`<br><small class="wo-outd">出庫予定日 ${_woMD(j.outDate)}</small>`:''}</div>
       <div class="sub">${j.car&&j.plate?`<span class="wo-plate">${esc(j.plate)}</span>`:''}${j.color?`${j.car&&j.plate?' ／ ':''}カラー ${esc(j.color)}`:''}${!(j.car&&j.plate)&&!j.color?'—':''}</div>
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}${!j.archived&&woColor(j)===WO_SHAKEN_COLOR?';color:#fff':''}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
+      ${j.inChecked===false&&!j.archived&&!j.partsOnly?`<button type="button" class="wo-cin${j.inDate&&j.inDate<=_woToday()?' now':''}" onclick="woCardCheckIn(event,'${j.id}')">🚗 車が着いたら <b>入庫済にする</b></button>`:''}
       ${j.partsOnly?`<div class="sub ln">📍 部品単品</div>`:j.outWork?`<div class="sub ln">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub ln">📍 ${esc(_woSlotFull(j))}</div>`:''}
       ${woSeibiText_(j)?`<div class="sub ln">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub ln">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub ln">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub ln">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub ln" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;
@@ -3972,10 +4006,10 @@ function _woRenderDetail(box){
   const n=woNext(j);
   const _phTop=window.innerWidth<900;   // スマホ・タブレットは、写真をいちばん上の方に出す（撮りやすいように）
   const _phS=_woPhState(j);
-  const _phHtml=`<div class="wo-sec" data-sec="photo" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">作業前写真</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span></div>
+  const _phHtml=`<div class="wo-sec ${_phS==='未完'?'ph-need':'ph-ok'}" data-sec="photo" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">📷 作業前写真</span><span class="ph-badge">${_phS==='未完'?'🔴 まだ撮っていません':_phS==='完了'?'✅ 撮影済み':'― 不要'}</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span><button type="button" class="wo-camq${_phS==='完了'||_phS==='不要'?' done':''}" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b>${_phS==='未完'?'押して写真を撮る':'写真を追加で撮る'}</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button></div>
   <div class="check-group wo-phst" style="margin-top:8px"><button type="button" class="selbtn wo-st-no${_phS==='未完'?' on':''}" onclick="woPhSt('未完')">未完</button><button type="button" class="selbtn wo-st-ok${_phS==='完了'?' on':''}" onclick="woPhSt('完了')">完了</button><button type="button" class="selbtn${_phS==='不要'?' on':''}" onclick="woPhSt('不要')">不要</button></div>
   <div class="ph-btns wo-phb" style="margin-top:8px">
-    <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()">📷 撮影する（連続OK）</button>
+    <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b>押して写真を撮る</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button>
     <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
     <label class="btn ph-add">📸 カメラアプリで撮る<input type="file" accept="image/*" capture="environment" style="display:none" id="wo-cam-native" onchange="woPhotoAdd(this)"></label>
     <button type="button" class="btn btn-line" onclick="woPhotoShare()">💬 LINEで送る</button>
@@ -3988,6 +4022,7 @@ function _woRenderDetail(box){
     <div><div class="big">${esc(j.car||j.plate||'（未入力）')}</div><div class="meta wo-plate-d">${esc(j.car?j.plate||'':'')}</div></div>
     <span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)};font-size:13px;padding:4px 12px">${j.archived?'納車済':n?'次の工程：'+esc(n.n):'全工程 完了'}</span>
   </div>
+  ${j.inChecked===false&&!j.archived&&!j.partsOnly?`<div class="wo-inq${j.inDate&&j.inDate<=_woToday()?' now':''}"><div class="wo-inq-t">🅿️ まだ入庫していません${j.inDate?`（入庫予定 ${esc(_woMD(j.inDate))}）`:''}</div><button type="button" class="wo-inq-b" onclick="woCheckIn()"><span class="cq-i">🚗</span><span class="cq-t"><b>入庫済にする</b><small>引き取り・持ち込みで車が着いたら押す${j.loanerUse===true&&j.loanerCar?'（代車も貸出中になります）':''}</small></span><span class="cq-a">▶</span></button></div>`:''}
   ${_phTop?_phHtml:''}
   <div class="wo-sec" data-sec="src"><span class="bar"></span>依頼元</div>
   <div class="fgrid">
