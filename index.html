@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="091e46bc73">
+<meta name="ark-ver" content="db8295dca3">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -1880,6 +1880,9 @@ function _woEvents(prev,cur){
   }
   if(justDone.length) ev.push({ic:'🏁',c:'#e4ff1a',t:`全工程完了：${L}`,d:`${justDone.join('・')} 完了 ／ 納車準備OK`});
   if(cur.partsInAt&&prev.partsInAt!==cur.partsInAt){ const names=(cur.parts||[]).filter(p=>p.status==='入荷済').map(p=>p.name).filter(Boolean); ev.push({ic:'📦',c:'#188038',t:`部品入荷：${L}`,d:names.join('・')}); }
+  // 11/14：入庫済にしたとき（音つき・ARK通知の音は「入庫済」＝追加音4）。未入庫に戻したときは音なしの記録だけ
+  if(prev.inChecked===false&&cur.inChecked!==false) ev.push({ic:'📥',c:'#16a34a',snd:'in',t:`入庫済：${L}`,d:[cur.loanerUse===true&&cur.loanerCar?`代車 ${_evCarName(cur.loanerCar)}`:'',cur.dueDate?`納期 ${_evMd(cur.dueDate)}`:''].filter(Boolean).join(' ／ ')});
+  if(prev.inChecked!==false&&cur.inChecked===false) ev.push({ic:'↩️',c:'#9aa0a6',quiet:true,t:`未入庫に戻す：${L}`,d:''});
   if(!prev.archived&&cur.archived) ev.push({ic:'🚗',c:'#e4ff1a',t:`納車済：${L}`,d:''});
   if(prev.archived&&!cur.archived) ev.push({ic:'↩️',c:'#9aa0a6',quiet:true,t:`納車済を取消：${L}`,d:''});
   if(prev.dueDate!==cur.dueDate&&cur.dueDate) ev.push({ic:'📅',c:'#d93025',quiet:true,t:`納期${prev.dueDate?'変更':'決定'}：${L}`,d:prev.dueDate?`${_evMd(prev.dueDate)} → ${_evMd(cur.dueDate)}`:_evMd(cur.dueDate)});
@@ -1890,7 +1893,7 @@ function _woEvLog(prev,cur){
   if(!_woCloudOk()) return; const ev=_woEvents(prev,cur); if(!ev.length) return;
   const {fs}=CLOUD.fb, now=new Date(), ref='jobs/'+_cloudKey(cur.id);
   ev.forEach((e,i)=>{ const id='ev-'+now.getTime().toString(36)+'-'+Math.random().toString(36).slice(2,7)+i;
-    fs.setDoc(fs.doc(CLOUD.db,'comments',id),{kind:'ev',src:'wb',t:e.t,d:e.d||'',ic:e.ic,c:e.c,quiet:!!e.quiet,ref,jid:String(cur.id),key:{num:_evPlateNum(cur.plate),car:cur.car||''},
+    fs.setDoc(fs.doc(CLOUD.db,'comments',id),{kind:'ev',src:'wb',t:e.t,d:e.d||'',ic:e.ic,c:e.c,quiet:!!e.quiet,snd:e.snd||'',ref,jid:String(cur.id),key:{num:_evPlateNum(cur.plate),car:cur.car||''},
       by:(CLOUD.user&&CLOUD.user.email)||'',dev:WO_DEV,date:_woToday(),ts:now.toISOString(),push:e.quiet?'none':'wait',at:fs.serverTimestamp()}).catch(err=>console.warn('通知の記録',err)); });
 }
 // 代車の予約（作業ボードのカレンダーで入れた分）も台帳へ
