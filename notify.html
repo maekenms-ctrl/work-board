@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="ark-ver" content="5c91b1bcc9">
+<meta name="ark-ver" content="3f51ea2961">
 <base target="_top">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
@@ -756,10 +756,25 @@ async function login(){
 }
 
 // q：読む範囲（全件は読まない：速く・無料枠を超えないように）。key：同じ集まりを2つの範囲で読むときの見分け
-function listen(name, onSnap, q, key){
-  const {F} = fb; const k = key || name;
-  S.first[k] = true;
-  S.unsubs.push(F.onSnapshot(q || F.collection(db, name), snap => {
+// 11/14：hub で作業ボードと並んでいるときは、作業ボードが読んだ作業指示を受け取る（同じものを Firestore から二重に読まない）
+//  ・作業ボードが用意できていない（ログイン前・ロック中など）ときは12秒待って、今までどおり自分で読む
+//  ・作業ボードが止まったら自分で読む形に戻り、作業ボードが戻ったら（30秒ごとに確かめて）また受け取る形にする
+function boardFeed(){ try{ if(!IN_HUB) return null; const f = window.parent.document.getElementById('board'); const w = f && f.contentWindow; return (w && w.ARK_JOBS_FEED) || null; }catch(e){ return null; } }
+function listenJobs(onSnap, q, key, pred){
+  const st = {mode:'', un:null, gen:0, t:0};
+  const own = () => { if(st.mode==='own') return; const g = ++st.gen; try{ st.un && st.un(); }catch(e){} st.un = null; st.mode = 'own';
+    const n0 = S.unsubs.length; listen('jobs', onSnap, q, key); st.un = S.unsubs[n0] || null; if(st.un) S.unsubs.splice(n0, 1);
+    clearInterval(st.t); st.t = setInterval(() => { if(g !== st.gen) return clearInterval(st.t); const f = boardFeed(); if(f && f.ready()) useFeed(f); }, 30000); };
+  const useFeed = f => { const g = ++st.gen; clearInterval(st.t); try{ st.un && st.un(); }catch(e){} st.mode = 'feed'; S.first[key] = true;
+    const cb = listenCb('jobs', onSnap, q, key); let un = null;
+    un = f.subscribe(pred, snap => { if(g === st.gen) cb(snap); }, () => { if(g === st.gen){ console.warn('作業ボードが止まったので、ARK通知が自分で読みます', key); own(); } });
+    st.un = un;
+    setTimeout(() => { if(g === st.gen && !f.ready()){ console.warn('作業ボードの準備ができないので、ARK通知が自分で読みます', key); own(); } }, 12000); };
+  S.unsubs.push(() => { st.gen++; clearInterval(st.t); try{ st.un && st.un(); }catch(e){} });
+  const f = boardFeed(); if(f) useFeed(f); else own();
+}
+function listenCb(name, onSnap, q, k){
+  return snap => {
     // 11/9：つなぎ直したとき、最初は端末の控え（一部だけ）が届き、そのあと共有の全部が「追加」として届く。
     //  控えからの間は「最初の読み込み」として扱う（今までの車や予約を、新しい登録・予約として大量に通知しないように）
     const first = S.first[k]; if(!(snap.metadata && snap.metadata.fromCache)) S.first[k] = false;
@@ -776,7 +791,12 @@ function listen(name, onSnap, q, key){
     if(S.errs && Object.keys(S.errs).length){ setStatus(Object.values(S.errs)[0], 'err'); return; }
     setStatus(`受信中 ・ 作業指示 ${j.n}件${j.last?` ・ 最終 ${new Date(j.last).toLocaleTimeString('ja-JP')}`:' ・ 変更待ち'}`, 'on');
     if(S.tab==='today') renderToday();
-  }, err => {
+  };
+}
+function listen(name, onSnap, q, key){
+  const {F} = fb; const k = key || name;
+  S.first[k] = true;
+  S.unsubs.push(F.onSnapshot(q || F.collection(db, name), listenCb(name, onSnap, q, k), err => {
     if(name==='estimates' && /permission/.test(String(err&&err.code))){ S.estDenied = true; renderFeed(); return; }
     if(name==='sheet' && /permission/.test(String(err&&err.code))){ S.sheetDenied = true; return; }
     if(name==='daily' && /permission/.test(String(err&&err.code))){ S.dailyDenied = true; return; }
@@ -822,10 +842,11 @@ function start(){
     }
   };
   const ago = d => new Date(Date.now() - d*864e5).toISOString();
-  listen('jobs', onJobs('act'), F.query(JC, F.where('archived','==',false)), 'jobs');
-  listen('jobs', onJobs('arch'), F.query(JC, F.where('deliveredAt','>=',ago(3))), 'jobsArch');
+  const arch3 = ago(3);
+  listenJobs(onJobs('act'), F.query(JC, F.where('archived','==',false)), 'jobs', d => d.archived === false);
+  listenJobs(onJobs('arch'), F.query(JC, F.where('deliveredAt','>=',arch3)), 'jobsArch', d => !!d.deliveredAt && String(d.deliveredAt) >= arch3);
   // 削除された作業指示（閉じている間に削除されたものも、通知から消す）
-  listen('jobs', (snap) => { snap.docChanges().forEach(ch => { if(ch.type !== 'removed'){ dropRef('jobs/'+ch.doc.id); delete S.jobs[ch.doc.id]; } }); }, F.query(JC, F.where('deleted','==',true)), 'jobsDel');
+  listenJobs((snap) => { snap.docChanges().forEach(ch => { if(ch.type !== 'removed'){ dropRef('jobs/'+ch.doc.id); delete S.jobs[ch.doc.id]; } }); }, F.query(JC, F.where('deleted','==',true)), 'jobsDel', d => d.deleted === true);
 
   listen('loaner', (snap, first) => {
     const out = [];

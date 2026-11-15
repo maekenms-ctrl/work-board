@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="55f5833250">
+<meta name="ark-ver" content="67c262662d">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -955,6 +955,19 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 }
 </style>
 <style id="wo-1114">
+/* 11/16：写真の工程（作業前・鈑金中・鈑金完成・塗装中・最終完成） */
+.wo-ph-stg{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:8px;}
+.wo-stg{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 6px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:inherit;min-height:56px;}
+.wo-stg .nm{font-size:12.5px;font-weight:800;white-space:nowrap;}
+.wo-stg b{font-size:12px;font-weight:700;color:var(--muted);}
+.wo-stg .nw{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:900;background:var(--sc);color:#111;border-radius:99px;padding:0 6px;white-space:nowrap;}
+.wo-stg.now{border-color:var(--sc);}
+.wo-stg.on{background:var(--sc);border-color:var(--sc);color:#111;} .wo-stg.on b{color:#111;}
+.wo-ph-guide{font-size:13px;font-weight:700;margin:8px 0 2px;line-height:1.5;}
+.wo-ph-gh{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;margin:6px 0 0;padding-left:8px;border-left:5px solid var(--sc);}
+.wo-ph-gh b{font-size:11.5px;font-weight:700;color:var(--muted);}
+.wo-cam-stg{background:#e4ff1a;color:#111;font-weight:900;border-radius:99px;padding:2px 10px;margin-left:8px;}
+@media(max-width:420px){ .wo-stg .nm{font-size:11px;} }
 /* 11/14：入庫済への導線（一覧のカードのボタン・作業指示の上の大きなボタン）。緑＝入庫 */
 .wo-cin{grid-column:1/-1;margin-top:6px;width:100%;min-height:44px;border-radius:10px;border:2px solid #16a34a;background:rgba(22,163,74,.14);color:#4ade80;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
 .wo-cin b{font-weight:900;}
@@ -1578,7 +1591,41 @@ function woAimOpen(){
 }
 const WO_SUP_URL={'HONDAパーツ':'https://biz.honda.co.jp/ipo10/','ヤナセ':'https://www.yanase-autosystems.co.jp/'};   // 11/14：発注元の目印ボタンに付けるリンク（🔗で別タブ）
 const WO_TYPE_COLOR={'鈑金':'#ffb020','鈑金塗装':'#e4ff1a','塗装':'#FF2BD6','ボカシ':'#93c5fd','取替':'#00E5FF','脱着':'#ff5c5c','付属品脱着':'#d4a373','調整':'#a78bfa','エイミング':'#34d399','その他':'#e5e7eb'};
-const WO_PHOTO_MAX=15;
+const WO_PHOTO_MAX=30;   // 11/16：工程ごとに撮るので15→30枚
+// ── 11/16：写真を工程ごとに分ける（作業前・鈑金中・鈑金完成・塗装中・最終完成）──
+//  ・写真ごとの工程は作業指示の phStg（{写真のpid: 工程}）に覚える（photos の項目は増やさない：Firestore のルールに合わせるため）
+//  ・今の工程から「撮る番」を決めて案内する（_woPhNow）。押して別の工程に入れることもできる（woPhPick）
+const WO_PH_STG=[{k:'pre',n:'作業前',c:'#93c5fd'},{k:'bk1',n:'鈑金中',c:'#ffb020'},{k:'bk2',n:'鈑金完成',c:'#e4ff1a'},{k:'tc',n:'塗装中',c:'#FF2BD6'},{k:'fin',n:'最終完成',c:'#34d399'}];
+const WO_PHSEL={jid:null,k:null};
+function _woPhStgName(k){ const x=WO_PH_STG.find(v=>v.k===k); return x?x.n:'作業前'; }
+function _woPhStgOf(j,p){ return (p&&p.st)||(((j&&j.phStg)||{})[p&&p.pid])||'pre'; }
+function _woPhNow(j){
+  if(!j||j.inChecked===false) return 'pre';
+  const S=j.steps||{}, st=k=>S[k]||{};
+  const any=WO_STEPS.some(x=>st(x.k).need), all=WO_STEPS.every(x=>!st(x.k).need||st(x.k).done);
+  if(any&&all) return 'fin';
+  const bk=st('bankin'), ts=st('toso');
+  if(bk.need&&!bk.done) return bk.date?'bk1':'pre';
+  if(ts.need&&!ts.done) return ts.date?'tc':(bk.need?'bk2':'pre');
+  if(!bk.need&&!ts.need) return 'pre';
+  return 'fin';
+}
+function _woPhSel(j){ return j&&WO_PHSEL.jid===j.id&&WO_PHSEL.k?WO_PHSEL.k:_woPhNow(j); }
+function woPhPick(k){ const j=_woCurJob(); if(!j) return; WO_PHSEL.jid=j.id; WO_PHSEL.k=k; _woPhStgPaint(); }
+function _woPhCounts(j){ const c={}; WO_PH_STG.forEach(x=>c[x.k]=0); if(j&&WO_PHOTOS_FOR===j.id) WO_PHOTOS.forEach(p=>{ const k=_woPhStgOf(j,p); c[k]=(c[k]||0)+1; }); return c; }
+function _woPhStgPaint(){
+  const j=_woCurJob(); if(!j) return; const c=_woPhCounts(j), now=_woPhNow(j), sel=_woPhSel(j), nowN=_woPhStgName(now), selN=_woPhStgName(sel);
+  const box=document.getElementById('wo-ph-stg');
+  if(box) box.innerHTML=WO_PH_STG.map(x=>`<button type="button" class="wo-stg${x.k===sel?' on':''}${x.k===now?' now':''}" style="--sc:${x.c}" onclick="woPhPick('${x.k}')">${x.k===now?'<span class="nw">👉 今</span>':''}<span class="nm">${x.n}</span><b>${c[x.k]||0}枚</b></button>`).join('');
+  const g=document.getElementById('wo-ph-guide');
+  if(g) g.innerHTML=`今は <b style="color:${(WO_PH_STG.find(x=>x.k===now)||{}).c}">「${esc(nowN)}」</b> の写真の番です。${sel!==now?`<br>いまは <b>「${esc(selN)}」</b> に入れる設定です（👉 今 を押すと戻ります）。`:'撮った写真は、ここに入ります。'}`;
+  document.querySelectorAll('.cq-stg').forEach(el=>{ el.textContent=`${selN}の写真を撮る`; });
+  const need=!(c[now]>0);
+  const h=document.querySelector('#wo-detail .wo-sec[data-sec="photo"]');
+  if(h){ h.classList.toggle('ph-need',need); h.classList.toggle('ph-ok',!need); }
+  const b=document.getElementById('wo-ph-badge'); if(b) b.textContent=need?`🔴 ${nowN}の写真がまだです`:`✅ ${nowN} ${c[now]}枚`;
+  document.querySelectorAll('.wo-camq').forEach(el=>el.classList.toggle('done',!need));
+}
 const YD_COLS=24, YD_ROWS=24, YD_VER=6;
 const YD_KINDS=[
   {k:'kita',  n:'北',      c:'#4ea1ff'},
@@ -1869,7 +1916,7 @@ function _woCloudOk(){ return CLOUD.started&&WOC.live&&!WOC.err; }   // WOC.err 
 // 作業指示ごとに「共有から受け取ったときの内容」を覚える（WO_ORIG）。送るのは、この端末で実際に変えた項目だけ
 //  → ほかの端末や入出庫管理表（Apps Script）が同じ時に直した項目を、古い内容で上書きしない
 const WO_ORIG=new WeakMap();
-const WO_NEST=['steps','seibi','shaken','ins'];
+const WO_NEST=['steps','seibi','shaken','ins','phStg'];
 function _woUnsent(){ try{ return JSON.parse(_lsGet('wo-unsent')||'{}')||{}; }catch(e){ return {}; } }
 function _woUnsentSet(id,on){ try{ const u=_woUnsent(); if(on) u[id]=Date.now(); else delete u[id]; _lsSet('wo-unsent',JSON.stringify(u)); }catch(e){} }
 function _woCloudPut(j){
@@ -2090,6 +2137,34 @@ function _woFlush(){ try{ for(const id of Object.keys(WOC.pend||{})){ clearTimeo
 window.addEventListener('pagehide',_woFlush);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ _woFlush(); WOC.hidAt=Date.now(); return; } if(WOC.hidAt&&Date.now()-WOC.hidAt>8000) _woReconnect(); WOC.hidAt=0; });
 window.addEventListener('online',_woReconnect);
+// ── 11/14：読んだ作業指示を、同じ hub の ARK通知へ渡す（ARK通知が同じ作業指示を Firestore から二重に読まないように）──
+//  ・ARK通知は window.ARK_JOBS_FEED.subscribe(条件, 受け取り, 止まったとき) で受け取る。中身は Firestore の snapshot と同じ形
+//  ・作業ボードが止まった（ロック・ログアウト・読み込み直し）ときは dead を呼ぶ → ARK通知は自分で読む形に戻る
+const WO_FEED={parts:{},cache:{},subs:new Set()};
+function _woFeedReady(){ return !!(WOC.live&&['act','arch','del','sh'].every(k=>WOC.got[k])); }
+function _woFeedGet(id){ for(const k in WO_FEED.parts){ const v=WO_FEED.parts[k][id]; if(v) return v; } return null; }
+function _woFeedCache(){ return Object.values(WO_FEED.cache).some(Boolean); }
+function _woFeedEmit(s,touched){
+  if(!s.init){ if(!_woFeedReady()) return; s.init=true; touched=new Set(); for(const k in WO_FEED.parts) for(const id in WO_FEED.parts[k]) touched.add(id); }
+  const ch=[];
+  touched.forEach(id=>{ const d=_woFeedGet(id), want=!!(d&&s.pred(d)), had=s.in.has(id);
+    if(want){ ch.push({type:had?'modified':'added',doc:{id,data:()=>d}}); s.in.set(id,d); }
+    else if(had){ const o=s.in.get(id); s.in.delete(id); ch.push({type:'removed',doc:{id,data:()=>o}}); } });
+  const fc=_woFeedCache();
+  if(!ch.length&&s.fc===fc) return; s.fc=fc;
+  s.cb({docChanges:()=>ch,metadata:{fromCache:fc},size:s.in.size});
+}
+function _woFeedUpdate(k,snap){
+  const m=WO_FEED.parts[k]||(WO_FEED.parts[k]={}), touched=new Set();
+  snap.docChanges().forEach(ch=>{ const id=ch.doc.id; if(ch.type==='removed') delete m[id]; else m[id]=ch.doc.data(); touched.add(id); });
+  WO_FEED.cache[k]=!!(snap.metadata&&snap.metadata.fromCache);
+  WO_FEED.subs.forEach(s=>{ try{ if(s.init) _woFeedEmit(s,touched); }catch(e){ console.warn('ARK通知へ渡す',e); } });
+}
+function _woFeedKick(){ WO_FEED.subs.forEach(s=>{ if(!s.init) try{ _woFeedEmit(s,new Set()); }catch(e){ console.warn('ARK通知へ渡す',e); } }); }
+function _woFeedDead(){ WO_FEED.parts={}; WO_FEED.cache={}; const L=[...WO_FEED.subs]; WO_FEED.subs.clear(); L.forEach(s=>{ try{ if(s.dead) s.dead(); }catch(e){} }); }
+window.ARK_JOBS_FEED={ver:1, ready:()=>_woFeedReady(),
+  subscribe(pred,cb,dead){ const s={pred,cb,dead,in:new Map(),init:false,fc:null}; WO_FEED.subs.add(s); try{ _woFeedEmit(s,new Set()); }catch(e){} return ()=>{ WO_FEED.subs.delete(s); }; }};
+window.addEventListener('pagehide',_woFeedDead);
 function woCloudStart(){
   if(!CLOUD.started||WOC.live) return;
   const {fs}=CLOUD.fb; WOC.live=true; WOC.err=''; WOC.first={};
@@ -2099,17 +2174,20 @@ function woCloudStart(){
   const recv=()=>{ WOC.lastRx=Date.now(); if(WOC.err&&!/権限/.test(WOC.err)) WOC.err=''; woRenderBadges(); };
   // 範囲を絞って読めないとき（ルール・通信の都合など）は、前と同じ「全部を読む」に切り替えて、かならず動かす
   const full=why=>{ if(WOC.mode==='full'||!WOC.live) return; console.warn('jobs: 全部を読む形に切り替え',why); WOC.mode='full'; WOC.why=String(why&&(why.code||why.message)||why||'');
+    ['act','arch','del','sh'].forEach(k=>{ delete WO_FEED.parts[k]; delete WO_FEED.cache[k]; });
     WOC.pun.forEach(f=>{try{f();}catch(e){}}); WOC.pun=[]; clearTimeout(WOC._ft);
     WOC.unsubs.push(fs.onSnapshot(JC,{includeMetadataChanges:true},snap=>{ _woConn(snap.metadata);
+      try{ _woFeedUpdate('full',snap); }catch(e){}
       if(WOC.got.act&&snap.docChanges&&!snap.docChanges().length) return;
       const P={act:{},arch:{},del:{},sh:{}};
       snap.forEach(d=>{ const v=d.data()||{}; if(v.deleted) P.del[d.id]=v; else if(v._sheet) P.sh[d.id]=v; else if(v.archived){ if(!v.deliveredAt||v.deliveredAt>=cut) P.arch[d.id]=v; } else P.act[d.id]=v; });
-      WOC.part=P; WOC.got={act:true,arch:true,del:true,sh:true}; recv(); _woJobsApply();
+      WOC.part=P; WOC.got={act:true,arch:true,del:true,sh:true}; recv(); _woJobsApply(); _woFeedKick();
     },err=>_woCloudErr(err,'jobs'))); };
   const part=(k,q)=>{ const u=fs.onSnapshot(q,{includeMetadataChanges:true},snap=>{
     _woConn(snap.metadata);
+    if(WOC.mode!=='full') try{ _woFeedUpdate(k,snap); }catch(e){}
     if(WOC.got[k]&&snap.docChanges&&!snap.docChanges().length) return;   // 接続の状態が変わっただけ
-    const m={}; snap.forEach(d=>{ m[d.id]=d.data(); }); WOC.part[k]=m; WOC.got[k]=true; recv(); _woJobsApply();
+    const m={}; snap.forEach(d=>{ m[d.id]=d.data(); }); WOC.part[k]=m; WOC.got[k]=true; recv(); _woJobsApply(); _woFeedKick();
   },err=>{ if(/permission/.test(String(err&&err.code))&&k==='act') return _woCloudErr(err,'jobs'); full(err); });
     WOC.pun.push(u); WOC.unsubs.push(u); };
   try{
@@ -2237,7 +2315,8 @@ function woCoatLearn(v){ v=String(v||'').trim().slice(0,40); if(!v) return; cons
 function _woFoldSum(k,j){
   const md=d=>d?_woMD(d):'';
   try{
-    if(k==='photo'){ const n=(typeof WO_PHOTOS!=='undefined'&&WO_PHOTOS_FOR===j.id)?WO_PHOTOS.length:0; return (n?n+'枚・':'')+(j.photoTaken===false?'不要':(j.phSt||'未完')); }
+    if(k==='photo'){ const c=_woPhCounts(j), L=WO_PH_STG.filter(x=>c[x.k]).map(x=>x.n+c[x.k]); return (L.length?L.join('・')+' ／ ':'')+'今：'+_woPhStgName(_woPhNow(j)); }
+    if(k==='photo_old'){ const n=(typeof WO_PHOTOS!=='undefined'&&WO_PHOTOS_FOR===j.id)?WO_PHOTOS.length:0; return (n?n+'枚・':'')+(j.photoTaken===false?'不要':(j.phSt||'未完')); }
     if(k==='src') return [(j.outsrc||[]).map(x=>x==='その他'?(j.outsrcOther||'その他'):x).join('・'),j.outsrcNote].filter(Boolean).join('　')||'未選択';
     if(k==='car') return [j.plate,j.color&&('カラー '+j.color+(j.paintType?' '+j.paintType:'')),j.chassis].filter(Boolean).join(' ／ ')||'未入力';
     if(k==='pay'){ const ins=_woInsKinds(j).map(x=>{ const y=(j.ins||{})[x]||{}; return [y.co,y.aj&&('AJ '+y.aj)].filter(Boolean).join(' '); }).filter(Boolean);
@@ -2262,7 +2341,7 @@ function _woFold(box,j){
     if(!L.length) continue;
     h.after(body); L.forEach(x=>body.appendChild(x));
     const before=area&&(h.compareDocumentPosition(area)&Node.DOCUMENT_POSITION_FOLLOWING);
-    const open=k in WO_FOLD.st?WO_FOLD.st[k]:!before;
+    const open=k in WO_FOLD.st?WO_FOLD.st[k]:(window.innerWidth>=900?true:!before);   // 11/16：パソコン（横）は全部開いた状態から
     h.classList.add('wo-foldh'); h.insertAdjacentHTML('beforeend',`<span class="fold-sum"></span><span class="fold-i">▼</span>`);
     _woFoldSet(h,body,open,j);
     h.addEventListener('click',e=>{ if(e.target.closest('button,input,select,a,label')) return; const o=!h.classList.contains('open'); WO_FOLD.st[k]=o; _woFoldSet(h,body,o,_woCurJob()); });
@@ -2352,7 +2431,7 @@ function _woSameDayRun(){
     // 新しい作業指示は、入出庫管理表の Apps Script が作る（端末では作らない）
   }
 }
-function woCloudStop(){ WOC.unsubs.forEach(f=>{try{f();}catch(e){}}); WOC.unsubs=[]; WOC.live=false; WOC.first={}; WOC.got={}; WOC.part={}; lbStop(); woRenderBadges(); }
+function woCloudStop(){ _woFeedDead(); WOC.unsubs.forEach(f=>{try{f();}catch(e){}}); WOC.unsubs=[]; WOC.live=false; WOC.first={}; WOC.got={}; WOC.part={}; lbStop(); woRenderBadges(); }
 
 // ── 写真（端末内のみ・暗号化してIndexedDBへ） ──
 let _woDb=null;
@@ -2766,8 +2845,9 @@ async function _woPhotoAddNow(j,files,quiet){
   const arr=_woPhDrop(j.id,await woPhotosGet(j.id)); const room=WO_PHOTO_MAX-arr.length;
   if(room<=0){ toast(`写真は最大${WO_PHOTO_MAX}枚までです`); return; }
   if(!quiet) _busy('写真を取り込んでいます…');
-  const added=[];
-  for(const f of files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name||'')).slice(0,room)){ try{ const p={pid:f._pid||_woPid(),d:await _woPhotoData(f),tag:''}; arr.push(p); added.push(p); }catch(e){ toast('写真を開けませんでした',5000); } }
+  const added=[], stg0=_woPhSel(j);
+  for(const f of files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name||'')).slice(0,room)){ try{ const p={pid:f._pid||_woPid(),d:await _woPhotoData(f),tag:'',st:f._stg||stg0}; arr.push(p); added.push(p); }catch(e){ toast('写真を開けませんでした',5000); } }
+  if(added.length){ j.phStg=j.phStg||{}; added.forEach(p=>{ j.phStg[p.pid]=p.st; }); woTouch(j,true); }
   if(!quiet) _busy(null); await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); }
   added.forEach(p=>_woPhUp(j.id,p));
   if(added.length&&_woCloudOk()&&!quiet) toast(`写真${added.length}枚をチームで共有しました`);
@@ -2783,10 +2863,10 @@ async function woCamOpen(){
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ const n=document.getElementById('wo-cam-native'); if(n) n.click(); return; }
   let st; try{ st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1440}},audio:false}); }
   catch(e){ toast('カメラを使えませんでした（カメラの許可を確認してください）。「📸 カメラアプリで撮る」でも撮れます',7000); return; }
-  WOCAM.stream=st; WOCAM.n=have; WOCAM.jid=j.id;
+  WOCAM.stream=st; WOCAM.n=have; WOCAM.jid=j.id; const stg=_woPhSel(j);
   const ov=document.createElement('div'); ov.id='wo-cam'; ov.className='wo-cam';
   ov.innerHTML=`<video playsinline autoplay muted></video><div class="wo-cam-fl"></div>
-    <div class="wo-cam-top"><span class="wo-cam-n"></span><span class="wo-cam-car">${esc(_woTitle(j))}</span></div>
+    <div class="wo-cam-top"><span class="wo-cam-n"></span><span class="wo-cam-car">${esc(_woTitle(j))}</span><span class="wo-cam-stg">📁 ${esc(_woPhStgName(stg))}</span></div>
     <div class="wo-cam-th"></div>
     <div class="wo-cam-bar"><button type="button" class="wo-cam-undo" disabled>↩ 1枚消す</button><button type="button" class="wo-cam-sh" aria-label="シャッター"></button><button type="button" class="wo-cam-ok">完了</button></div>`;
   document.body.appendChild(ov);
@@ -2803,7 +2883,7 @@ async function woCamOpen(){
     WOCAM.n++; cnt();
     const th=document.createElement('img'); th.src=c.toDataURL('image/jpeg',0.4); ov.querySelector('.wo-cam-th').appendChild(th);
     const pid=_woPid();
-    const done=new Promise(res=>c.toBlob(b=>{ if(!b){ res(); return; } const jj=_woJob(WOCAM.jid)||j; const f=new File([b],'cam-'+Date.now()+'.jpg',{type:'image/jpeg'}); f._pid=pid; _woPhotoAddFiles(jj,[f],true).then(res,res); },'image/jpeg',0.92));
+    const done=new Promise(res=>c.toBlob(b=>{ if(!b){ res(); return; } const jj=_woJob(WOCAM.jid)||j; const f=new File([b],'cam-'+Date.now()+'.jpg',{type:'image/jpeg'}); f._pid=pid; f._stg=stg; _woPhotoAddFiles(jj,[f],true).then(res,res); },'image/jpeg',0.92));
     shots.push({pid,th,done}); cnt();
     if(WOCAM.n>=WO_PHOTO_MAX) toast(`${WO_PHOTO_MAX}枚になりました。「完了」を押してください`,5000);
   };
@@ -2876,7 +2956,7 @@ function woPhotoSavePC(){
 async function _woPhotoSaveGo(j,items,ov){
   if(!items.length) return;
   const car=_woFileName([j.car,j.plate].filter(Boolean).join(' ')||_woTitle(j))||'写真';
-  const name=x=>{ const ext=/^data:image\/png/.test(x.p.d)?'png':'jpg'; return car+'_'+String(x.i+1).padStart(2,'0')+(x.p.tag?'_'+_woFileName(x.p.tag).slice(0,24):'')+'.'+ext; };
+  const name=x=>{ const ext=/^data:image\/png/.test(x.p.d)?'png':'jpg'; return car+'_'+String(x.i+1).padStart(2,'0')+'_'+_woPhStgName(_woPhStgOf(j,x.p))+(x.p.tag?'_'+_woFileName(x.p.tag).slice(0,24):'')+'.'+ext; };
   const blob=async p=>(await fetch(p.d)).blob();
   if(window.showDirectoryPicker){
     let dir; try{ dir=await window.showDirectoryPicker({id:'ark-photos',mode:'readwrite',startIn:'pictures'}); }catch(e){ if(e&&e.name==='AbortError') return; toast('フォルダーを開けませんでした：'+(e&&e.message||e),6000); return; }
@@ -3027,13 +3107,15 @@ async function woMergeDup(oid){
 // 写真を別の作業指示へ移す（まとめるとき）。この端末の写真と、共有の写真（ほかの端末で撮ったもの・見積りから入れたもの）の両方
 function _woPhMove(fromId,j){
   const r=_WO_PHQ.then(async()=>{
-    const L=_woPhDrop(fromId,await woPhotosGet(fromId)).map(p=>({pid:p.pid,d:p.d,tag:p.tag||''}));
+    const fj=_woJob(fromId);
+    const L=_woPhDrop(fromId,await woPhotosGet(fromId)).map(p=>({pid:p.pid,d:p.d,tag:p.tag||'',st:_woPhStgOf(fj,p)}));
     if(_woCloudOk()){ try{ const {fs}=CLOUD.fb; const sn=await fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',String(fromId))));
-      sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)&&!L.some(x=>x.d===v.d)) L.push({pid:v.pid,d:v.d,tag:v.tag||''}); }); }catch(e){ console.warn('写真を移す（共有）',e); } }
+      sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)&&!L.some(x=>x.d===v.d)) L.push({pid:v.pid,d:v.d,tag:v.tag||'',st:_woPhStgOf(fj,{pid:v.pid})}); }); }catch(e){ console.warn('写真を移す（共有）',e); } }
     let moved=0, left=0;
     if(L.length){
       const arr=_woPhDrop(j.id,await woPhotosGet(j.id)), have=new Set(arr.map(p=>p.d)), add=[];
-      for(const v of L){ if(have.has(v.d)) continue; if(arr.length>=WO_PHOTO_MAX){ left++; continue; } const p={pid:_woPid(),d:v.d,tag:v.tag}; arr.push(p); add.push(p); have.add(v.d); }
+      for(const v of L){ if(have.has(v.d)) continue; if(arr.length>=WO_PHOTO_MAX){ left++; continue; } const p={pid:_woPid(),d:v.d,tag:v.tag,st:v.st||'pre'}; arr.push(p); add.push(p); have.add(v.d); }
+      if(add.length){ j.phStg=j.phStg||{}; add.forEach(p=>{ j.phStg[p.pid]=p.st; }); woTouch(j,true); }
       if(add.length){ await woPhotosPut(j.id,arr); if(WO_CUR===j.id){ WO_PHOTOS=arr; WO_PHOTOS_FOR=j.id; woRenderPhotos(); } add.forEach(p=>_woPhUp(j.id,p)); moved=add.length; }
       if(!left&&_woCloudOk()) L.forEach(v=>{ if(v.pid) _woPhDelCloud(fromId,v.pid); });   // 全部移せたら、元の共有の写真は消す（移せなかった分があれば残す）
     }
@@ -4006,10 +4088,11 @@ function _woRenderDetail(box){
   const n=woNext(j);
   const _phTop=window.innerWidth<900;   // スマホ・タブレットは、写真をいちばん上の方に出す（撮りやすいように）
   const _phS=_woPhState(j);
-  const _phHtml=`<div class="wo-sec ${_phS==='未完'?'ph-need':'ph-ok'}" data-sec="photo" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">📷 作業前写真</span><span class="ph-badge">${_phS==='未完'?'🔴 まだ撮っていません':_phS==='完了'?'✅ 撮影済み':'― 不要'}</span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span><button type="button" class="wo-camq${_phS==='完了'||_phS==='不要'?' done':''}" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b>${_phS==='未完'?'押して写真を撮る':'写真を追加で撮る'}</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button></div>
-  <div class="check-group wo-phst" style="margin-top:8px"><button type="button" class="selbtn wo-st-no${_phS==='未完'?' on':''}" onclick="woPhSt('未完')">未完</button><button type="button" class="selbtn wo-st-ok${_phS==='完了'?' on':''}" onclick="woPhSt('完了')">完了</button><button type="button" class="selbtn${_phS==='不要'?' on':''}" onclick="woPhSt('不要')">不要</button></div>
+  const _phHtml=`<div class="wo-sec ph-need" data-sec="photo" style="flex-wrap:wrap"><span class="bar"></span><span style="white-space:nowrap">📷 写真（工程ごと）</span><span class="ph-badge" id="wo-ph-badge"></span> <span id="wo-ph-n" class="wo-chip" style="--sc:var(--surface3);color:var(--text)"></span><span style="font-weight:500;letter-spacing:0">（${_woCloudOk()?'チームで共有':'この端末のみ'}・作業指示書に載ります・画面にドラッグでも追加できます）</span><button type="button" class="wo-camq${_phS==='完了'||_phS==='不要'?' done':''}" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b class="cq-stg">写真を撮る</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button></div>
+  <div class="wo-ph-stg" id="wo-ph-stg"></div><div class="wo-ph-guide" id="wo-ph-guide"></div>
+  <div class="check-group wo-phst" style="margin-top:8px"><span class="sg-note" style="margin:0 6px 0 0;align-self:center">作業前写真：</span><button type="button" class="selbtn wo-st-no${_phS==='未完'?' on':''}" onclick="woPhSt('未完')">未完</button><button type="button" class="selbtn wo-st-ok${_phS==='完了'?' on':''}" onclick="woPhSt('完了')">完了</button><button type="button" class="selbtn${_phS==='不要'?' on':''}" onclick="woPhSt('不要')">不要</button></div>
   <div class="ph-btns wo-phb" style="margin-top:8px">
-    <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b>押して写真を撮る</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button>
+    <button type="button" class="btn ph-add ph-cam" onclick="woCamOpen()"><span class="cq-i">📷</span><span class="cq-t"><b class="cq-stg">写真を撮る</b><small>カメラが開きます（続けて撮れます）</small></span><span class="cq-a">▶</span></button>
     <label class="btn ph-add">🖼 写真から選ぶ<input type="file" accept="image/*" multiple style="display:none" onchange="woPhotoAdd(this)"></label>
     <label class="btn ph-add">📸 カメラアプリで撮る<input type="file" accept="image/*" capture="environment" style="display:none" id="wo-cam-native" onchange="woPhotoAdd(this)"></label>
     <button type="button" class="btn btn-line" onclick="woPhotoShare()">💬 LINEで送る</button>
@@ -4132,6 +4215,14 @@ function _woRenderDetail(box){
     <button type="button" class="btn danger" onclick="woDelete()">🗑 削除</button>
   </div>`;
   _woFold(box,j);
+  // 11/16：スマホ・タブレット（幅900px未満）は「作業前写真 → 作業箇所 → 工程・担当 → 部品 → 注意事項 → 依頼元 → 車両 → 区分・お支払い・保険 → 代車 → 部品発注元」の順に並べる（パソコンはそのまま）
+  //  （畳む・開くの初めの状態は今までどおり：作業前写真〜部品発注元は畳む、作業箇所・工程は開く）
+  if(_phTop){ try{
+    const sec=k=>{ const h=box.querySelector(`.wo-sec[data-sec="${k}"]`); if(!h) return []; const b=box.querySelector(`.wo-fold-b[data-for="${k}"]`); return b?[h,b]:[h]; };
+    let at=sec('photo').pop();
+    const dup=box.querySelector('#wo-dup'); if(at&&dup&&at.parentNode===box){ at.after(dup); at=dup; }   // 重複の注意は下に埋もれないように上へ
+    if(at&&at.parentNode===box) for(const k of ['area','steps','parts','note']) for(const el of sec(k)){ at.after(el); at=el; }
+  }catch(e){ console.warn('項目の並び',e); } }
   lbRenderCars(); if(WO_FILES_FOR!==j.id) WO_FILES=[]; WO_FILES_FOR=null; woRenderFiles();
   if(WO_PHOTOS_FOR!==j.id){ WO_PHOTOS=[]; WO_PHOTOS_FOR=j.id; WOPH.loaded=null; woRenderPhotos(); _woPhStop(); woPhotosGet(j.id).then(a=>{ if(WO_CUR===j.id&&WO_PHOTOS_FOR===j.id){ WO_PHOTOS=_woPhDrop(j.id,a); WOPH.loaded=j.id; woRenderPhotos(); _woPhWatch(j.id); } }); }
   else { woRenderPhotos(); if(WOPH.loaded===j.id) _woPhWatch(j.id); }   // 端末の写真を読み終わってから共有と合わせる
@@ -4223,7 +4314,9 @@ function _woPhDrag(ev,i){
 }
 function woRenderPhotos(){
   const g=document.getElementById('wo-ph'); if(!g) return;
-  g.innerHTML=WO_PHOTOS.length?WO_PHOTOS.map((p,i)=>`<div class="it${WOPS.jid===_woCurJob()?.id&&WOPS.sel.has(p.pid)?' pc-on':''}"><img src="${p.d}" alt="" style="cursor:zoom-in" draggable="${WO_PH_DRAG?'true':'false'}" ondragstart="_woPhDrag(event,${i})" onclick="if(!_woPhSelClick(event,${i}))woPhotoView(${i})"><button type="button" class="x" onclick="event.stopPropagation();woPhotoDel(${i},'${esc(p.pid||'')}')" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`).join(''):'<div class="sg-note">写真はありません</div>';
+  const _j=_woCurJob(); const one=(p,i)=>`<div class="it${WOPS.jid===_woCurJob()?.id&&WOPS.sel.has(p.pid)?' pc-on':''}"><img src="${p.d}" alt="" style="cursor:zoom-in" draggable="${WO_PH_DRAG?'true':'false'}" ondragstart="_woPhDrag(event,${i})" onclick="if(!_woPhSelClick(event,${i}))woPhotoView(${i})"><button type="button" class="x" onclick="event.stopPropagation();woPhotoDel(${i},'${esc(p.pid||'')}')" aria-label="削除">✕</button><input value="${esc(p.tag||'')}" placeholder="${i+1}. メモ" oninput="woPhotoTag(${i},this.value)"></div>`;
+  g.innerHTML=WO_PHOTOS.length?WO_PH_STG.map(x=>{ const L=WO_PHOTOS.map((p,i)=>[p,i]).filter(([p])=>_woPhStgOf(_j,p)===x.k); return L.length?`<div class="wo-ph-gh" style="--sc:${x.c}">${x.n}<b>${L.length}枚</b></div>${L.map(([p,i])=>one(p,i)).join('')}`:''; }).join(''):'<div class="sg-note">写真はありません</div>';
+  try{ _woPhStgPaint(); }catch(e){}
   const ns=WOPS.jid===(_woCurJob()||{}).id?WO_PHOTOS.filter(p=>WOPS.sel.has(p.pid)).length:0;
   const c=document.getElementById('wo-ph-n'); if(c) c.textContent=`${WO_PHOTOS.length}／${WO_PHOTO_MAX}枚${ns?`・${ns}枚選択中`:''}`;
   const pb=document.querySelector('.ph-pc'); if(pb) pb.textContent=ns?`💾 選んだ${ns}枚をPCに保存`:'💾 PCに保存（まとめて）';
@@ -4279,7 +4372,7 @@ ${WO_STEPS.map(s=>{ const st=j.steps[s.k]||{}; return `<tr class="${st.need?'':'
 ${(j.parts||[]).length?`<h2>部品</h2><table><tr><th style="width:auto">部品名</th><th>数</th><th>状況</th><th>入荷予定</th><th>入荷確認</th></tr>${j.parts.map(p=>`<tr><td class="w">${esc(p.name)}</td><td class="n">${esc(p.qty)}</td><td>${esc(p.status)}</td><td>${esc(_woMD(p.eta))}</td><td style="text-align:center"><span class="ck">${p.status==='入荷済'?'✓':''}</span></td></tr>`).join('')}</table>`:''}
 ${pdfs.length?`<div style="font-size:10px;margin:-4px 0 8px">📎 添付PDF：${pdfs.map(f=>esc(f.name)).join('、')}</div>`:''}
 <h2>注意事項</h2><div class="caution">${esc(j.caution||'')}</div>
-${ph.length?`<h2>写真</h2><div class="ph">${ph.map((p,i)=>`<figure><img src="${p.d}"><figcaption>${i+1}. ${esc(p.tag||'')}</figcaption></figure>`).join('')}</div>`:''}
+${ph.length?`<h2>写真</h2><div class="ph">${ph.map((p,i)=>`<figure><img src="${p.d}"><figcaption>${i+1}. 【${esc(_woPhStgName(_woPhStgOf(j,p)))}】${esc(p.tag||'')}</figcaption></figure>`).join('')}</div>`:''}
 <button class="pbtn" onclick="print()">🖨 印刷</button>
 </body></html>`;
   return html;
@@ -4381,7 +4474,7 @@ async function _woPrepShare(){
     const name=`${(j.plate||'photo').replace(/[\\/:*?"<>|\s]/g,'')}_${String(i+1).padStart(2,'0')}.jpg`;
     if(!im){ files.push(_woDataFile(p.d,name)); continue; }
     const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; const x=c.getContext('2d'); x.drawImage(im,0,0);
-    const label=`${j.plate||''} ${i+1}. ${p.tag||''}`.trim(); const fsz=Math.max(18,Math.round(Math.min(c.width,c.height)*0.045)); const pad=fsz*0.45;
+    const label=`${j.plate||''} ${i+1}. 【${_woPhStgName(_woPhStgOf(j,p))}】${p.tag||''}`.trim(); const fsz=Math.max(18,Math.round(Math.min(c.width,c.height)*0.045)); const pad=fsz*0.45;
     x.font=`bold ${fsz}px "Hiragino Sans","Noto Sans JP",sans-serif`; const tw=x.measureText(label).width;
     x.fillStyle='rgba(228,255,26,.95)'; x.fillRect(0,c.height-fsz-pad*2,tw+pad*2,fsz+pad*2); x.fillStyle='#111'; x.textBaseline='middle'; x.fillText(label,pad,c.height-fsz/2-pad);
     const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));
