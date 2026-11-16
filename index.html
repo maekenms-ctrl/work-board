@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="b509ca5cc3">
+<meta name="ark-ver" content="7a2f25bdc8">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -15,7 +15,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script>if('serviceWorker' in navigator&&location.protocol==='https:'){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
 <!-- 代車カレンダー（作業ボード・見積りツールの共通ファイル。読めなくても作業ボードはふだんどおり動く） -->
-<script src="loaner-cal.js"></script>
+<script src="loaner-cal.js?v=2026-11-17"></script>
 <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
 <link id="pwa-icon" rel="icon" type="image/png" href="icon-192.png">
 <style>
@@ -5007,7 +5007,7 @@ async function _lbSheetLoad(){
       const car=_sheetCar(x.car); if(car===null||car==='?') continue;
       const from=_sheetDate(x.inDate); if(!from) continue;
       const to=_sheetDate(x.out)||_sheetDate(x.due)||OPEN_END, open=to===OPEN_END, where=(x.tab?x.tab+' ':'')+x.row+'行目';
-      rows.push({id:'sheet-'+(x.tab||'')+'-'+x.row,key:(x.tab||'')+'-'+x.row,car,from:from<=to?from:to,to:from<=to?to:from,src:'sheet',name:[x.name,x.model,x.plate].filter(Boolean).join(' '),
+      rows.push({id:'sheet-'+(x.tab||'')+'-'+x.row,key:(x.tab||'')+'-'+x.row,car,from:from<=to?from:to,to:from<=to?to:from,src:'sheet',name:[x.name,x.model,x.plate].filter(Boolean).join(' '),cust:String(x.name||'').trim(),
         model:x.model||'',plate:x.plate||'',open,kinds:_sheetKinds(x.kind),kind:_sheetKinds(x.kind).join('・'),memo:`入庫管理表 ${where}${x.car?'（'+x.car+'）':''}${open?'・返却日未定':''}`});
     }
     const rent=rows.filter(r=>/^レンタカー/.test(r.car)).sort((a,b)=>a.from<b.from?-1:1);

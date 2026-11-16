@@ -4,7 +4,8 @@
  *  ・作業ボード（work-board/index.html）と見積りツール（estimate-tool/index.html）の両方がこのファイルを読む
  *  ・カレンダーを直すときは、このファイルだけを直してアップロードする
  *  ・データの読み書き（共有への保存など）は、それぞれのアプリが window.LCAL で渡す（下の「LCAL」）
- *  ・予約は Firestore の loaner、店休日は loaner の '_shop'。お客様名は扱わない（車種・番号だけ）
+ *  ・予約は Firestore の loaner、店休日は loaner の '_shop'。お客様名は保存しない（車種・番号だけ）
+ *  ・11/17：入出庫管理表（K列）の予約だけ、表のF列のお客様名（cust）を帯と詳しい画面に出す。表から毎回読むだけで、どこにも保存しない
  *
  * LCAL（アプリが用意するもの）
  *   shopKey      店休日を端末に覚える名前（localStorage）
@@ -19,7 +20,7 @@
  *   reloadBtn()  表を読み直すボタン（なければ ''）   warn()  上に出す注意（なければ ''）   errs()  下に出す注意（HTML）
  *   onOpen()  onClose()   formNote(b)  予約の画面に出す説明（HTML）
  * ===================================================================== */
-var LCAL_VER = '2026-11-04';
+var LCAL_VER = '2026-11-17';
 var OPEN_END = '9999-12-31';
 // レンタカーの枠（10/31）：中の名前（n）は前のまま（前の予約を引き継ぐため）。レンタカー1・2＝トヨレン①②（前の「他社レンタカー①②」）、3・4＝キンレン①②
 var RENTAL_ROWS = [{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1}];
@@ -50,9 +51,9 @@ function _kinds(b){ if(Array.isArray(b.kinds)&&b.kinds.length) return b.kinds.fi
 function _kindBg(b){ const ks=_kinds(b); if(!ks.length) return '#9AA4B2'; if(ks.length===1) return _kindColor(ks[0]);
   const n=ks.length; return 'linear-gradient(110deg,'+ks.map((k,i)=>`${_kindColor(k)} ${Math.round(i*100/n)}% ${Math.round((i+1)*100/n)}%`).join(',')+')'; }
 function _toLabel(d){ return d===OPEN_END?'返却未定':d.slice(5).replace('-','/'); }
-// 帯に出す名前（お客様名は出さない：表のK列の予約は車種・番号）
+// 帯に出す名前：表のK列の予約は 車種・番号・お客様名（F列。11/17）。ほかの予約は名前欄（お客様名は入れない決まり）
 function _barNames(b){ const clean=t=>String(t||'').replace(/\s*様\s*/g,' ').replace(/[\s　]+/g,' ').trim();
-  if(b.src==='sheet') return [clean(b.model),clean(b.plate)]; const n=clean(_lcName(b)); const i=n.indexOf(' '); return i>0?[n.slice(0,i),n.slice(i+1)]:[n,'']; }
+  if(b.src==='sheet') return [clean(b.model),clean(b.plate),clean(b.cust)]; const n=clean(_lcName(b)); const i=n.indexOf(' '); return i>0?[n.slice(0,i),n.slice(i+1)]:[n,'']; }
 // その日にその代車を使う予約（重なっていれば全部）
 function _lcOn(all,car,day){ return all.filter(b=>b.car===car&&b.from<=day&&day<=b.to); }
 
@@ -205,8 +206,8 @@ function _renderLoanerCal(){
         const nm=L.map(b=>_lcName(b)||'予約').join(' ／ ');
         h+=`<td class="bk ov${span<=2?' short':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_lcPick('${_lcEsc(k0)}','${x.d}')" title="${_lcEsc('予約が重なっています：'+nm)}"><div class="bk-bar lc-ovbar"><span class="bk-t"><span class="bk-n">⚠ 重なり ${L.length}件</span>${span>=2?`<span class="bk-m">${_lcEsc(nm)}</span>`:''}</span></div></td>`;
       } else {
-        const b=L[0], kt=_kinds(b).join('・'), lab=[_lcName(b)||'予約',kt].filter(Boolean).join(' '), [cu,mo]=_barNames(b);
-        h+=`<td class="bk${b.src==='sheet'?' sh':''}${b.src==='hist'?' hist':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_loanerForm('${_lcEsc(b.id)}')" title="${_lcEsc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':b.src==='hist'?'<i class="shm">🗂</i>':''}${_lcEsc(cu||'予約')}</span>${mo?`<span class="bk-m">${_lcEsc(mo)}</span>`:''}${kt&&span>=3?`<small>${_lcEsc(kt)}</small>`:''}</span></div></td>`;
+        const b=L[0], kt=_kinds(b).join('・'), lab=[_lcName(b)||'予約',kt].filter(Boolean).join(' '), [cu,mo,cs]=_barNames(b);
+        h+=`<td class="bk${b.src==='sheet'?' sh':''}${b.src==='hist'?' hist':''}${span<=2?' short':''}${b.to===OPEN_END?' open':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_loanerForm('${_lcEsc(b.id)}')" title="${_lcEsc(lab+(b.memo?' ／ '+b.memo:''))}"><div class="bk-bar" style="background:${_kindBg(b)}"><span class="bk-t"><span class="bk-n">${b.src==='sheet'?'<i class="shm">📄</i>':b.src==='hist'?'<i class="shm">🗂</i>':''}${_lcEsc(cu||'予約')}</span>${mo?`<span class="bk-m">${_lcEsc(mo)}</span>`:''}${cs?`<span class="bk-m bk-c">${_lcEsc(cs)} 様</span>`:''}${kt&&span>=3?`<small>${_lcEsc(kt)}</small>`:''}</span></div></td>`;
       }
       i+=span;
     }
@@ -239,7 +240,7 @@ function _loanerForm(id,car,day){
   const A=_lcA();
   const sb=id&&A.sheetGet&&A.sheetGet(id);
   if(sb){ const ov=document.createElement('div'); ov.className='cf-ov'; ov.style.zIndex=9500;
-    ov.innerHTML=`<div class="cf-box"><div style="font-weight:700;margin-bottom:8px">📄 入出庫管理表の予約</div><div style="line-height:1.9;font-size:14px">代車：${_lcEsc(_lcLabel(sb.car))}<br>入庫日（貸出）：${sb.from}<br>納期・出庫日（返却）：${sb.to===OPEN_END?'未定（決まるまで貸出中として表示）':sb.to}<br>車両：${_lcEsc(_lcName(sb))}<br>区分：${_lcEsc(sb.kind||'-')}<br><span style="color:var(--muted)">${_lcEsc(sb.memo||'')}</span></div><div style="font-size:12px;color:var(--muted);margin:8px 0">この予約はスプレッドシートから読み込んでいます。変更はシートで行ってください。</div><div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn btn-primary">閉じる</button></div></div>`;
+    ov.innerHTML=`<div class="cf-box"><div style="font-weight:700;margin-bottom:8px">📄 入出庫管理表の予約</div><div style="line-height:1.9;font-size:14px">代車：${_lcEsc(_lcLabel(sb.car))}<br>入庫日（貸出）：${sb.from}<br>納期・出庫日（返却）：${sb.to===OPEN_END?'未定（決まるまで貸出中として表示）':sb.to}<br>車両：${_lcEsc(_lcName(sb))}<br>${sb.cust?`お客様名：${_lcEsc(sb.cust)} 様<br>`:''}区分：${_lcEsc(sb.kind||'-')}<br><span style="color:var(--muted)">${_lcEsc(sb.memo||'')}</span></div><div style="font-size:12px;color:var(--muted);margin:8px 0">この予約はスプレッドシートから読み込んでいます。変更はシートで行ってください。</div><div class="cf-btns" style="grid-template-columns:1fr"><button type="button" class="btn btn-primary">閉じる</button></div></div>`;
     ov.querySelector('button').onclick=()=>ov.remove(); ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();}); document.body.appendChild(ov); return; }
   const b=id&&A.ownGet?A.ownGet(id):null;
   const d0=day||_lcYmd(new Date());
