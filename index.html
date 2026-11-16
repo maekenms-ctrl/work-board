@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="67c262662d">
+<meta name="ark-ver" content="b509ca5cc3">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -2623,8 +2623,8 @@ function _woListFoldPaint(){
   const c=document.getElementById('wo-listcard'); if(!c) return;
   c.classList.toggle('wo-lfold',!!WO_LFOLD);
   const b=document.getElementById('wo-lfold-btn'); if(b) b.textContent=WO_LFOLD?'▼ 一覧を開く':'▲ 畳む';
-  const cur=document.getElementById('wo-lcur'); if(cur){ const j=_woCurJob(); const n=JOBS.filter(x=>!x.archived&&!x.deleted).length;
-    cur.innerHTML=WO_LFOLD?`<span>${j?'開いている車：<b>'+esc(_woTitle(j))+'</b>':'作業指示を選んでいません'}</span><small>作業中 ${n}台・押すと一覧を開きます</small>`:''; }
+  const cur=document.getElementById('wo-lcur'); if(cur){ const j=_woCurJob(); const n=JOBS.filter(woInWork).length;
+    cur.innerHTML=WO_LFOLD?`<span>${j?'開いている車：<b>'+esc(_woTitle(j))+'</b>':'作業指示を選んでいません'}</span><small>作業中〜完成 ${n}台・押すと一覧を開きます</small>`:''; }
 }
 window.addEventListener('resize',()=>{ if(window.innerWidth>=900&&WO_LFOLD){ WO_LFOLD=false; _woListFoldPaint(); } });
 
@@ -3782,6 +3782,8 @@ async function woBackToBefore(){
 // 入庫前：入出庫管理表の入庫日（D列）が明日以降で、まだ「入庫済」を押していない車（先の予定）。入庫日になると作業前へ移る
 function woIsBefore(j){ if(!j||j.archived||j.partsOnly||j.inChecked===true) return false; if(j.backBefore&&j.inDate!==_woToday()) return true;   /* 「入庫前に戻す」を押した車も、入庫日（表のD列）が今日になったら本日入庫に出す（11/12 シビックの件） */ return j.inDate?j.inDate>_woToday():j.inChecked===false&&!!j.fromSheet; }
 function woIsTodayIn(j){ return !!j&&!j.archived&&!j.partsOnly&&j.inChecked===false&&j.inDate===_woToday()&&woIsPre(j); }
+// 11/17：「作業中〜完成」の車（入庫前・作業前・納車済を除く）。一覧の台数と、車両配置の「残り作業で探す」の台数に使う
+function woInWork(j){ return !!j&&!j.archived&&!j.deleted&&!woIsBefore(j)&&!woIsPre(j); }
 function woIsPre(j){ if(j.archived||woIsBefore(j)) return false; const st=_woStages(j); if(st) return st.every(x=>x==='前'); return !WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&(st.done||st.date); }); }
 // 作業前＝工程が1つも完了していない車（入庫待ちを含む）。作業中には入れない
 function _woInFilter(j){ if(WO_FILTER==='all') return true; if(WO_FILTER==='before') return woIsBefore(j); if(WO_FILTER==='pre') return woIsPre(j); if(WO_FILTER==='active') return woState(j)==='active'&&!woIsPre(j)&&!woIsBefore(j); return woState(j)===WO_FILTER&&!woIsBefore(j); }
@@ -4614,7 +4616,7 @@ function _ydOsHtml(j,inl){ const a=(j.outsrc||[]); if(!a.length) return ''; cons
 function _ydCarHtml(j){
   const due=woDueTag(j);
   const lcn=(()=>{ if(j.archived||j.inChecked===false) return ''; const lc=_woLoanerPiece(j); return lc&&_ydLcOut(lc)?lc:''; })();
-  const left=_ydLeft(j); const dim=YD.filter&&!left.includes(YD.filter);
+  const left=_ydLeft(j); const dim=YD.filter&&!(woInWork(j)&&left.includes(YD.filter));
   const ps=_woPlateShort(j.plate), name=j.car||ps||'—', sub=j.car?ps:'', hasos=(j.outsrc||[]).length>0;
   // 上に車種（大きく・枠に合わせて自動で縮める）、その下に依頼元、ナンバーは小さく
   const nw=+_ydTextW(name);
@@ -4670,7 +4672,7 @@ function ydRender(){
       +(typeof LB!=='undefined'&&!LB.live?'<div class="sg-note" style="flex-basis:100%;margin:4px 0 0">チーム共有にログインすると、代車カレンダーと連動して貸出中の代車が分かります</div>':'');
   }
   const fb=document.getElementById('yd-filter');
-  if(fb){ const act=locked?[]:JOBS.filter(j=>!j.archived); const n=k=>act.filter(j=>_ydLeft(j).includes(k)).length;
+  if(fb){ const act=locked?[]:JOBS.filter(woInWork); const n=k=>act.filter(j=>_ydLeft(j).includes(k)).length;
     fb.innerHTML=`<span class="sg-note" style="margin:0">残り作業で探す：</span><button type="button" class="selbtn rbtn${YD.filter==='obd'?' on':''}" onclick="ydFilter('obd')"><i class="b-obd">OBD</i> 未完了 ${n('obd')}台</button><button type="button" class="selbtn rbtn${YD.filter==='wash'?' on':''}" onclick="ydFilter('wash')"><i class="b-wash">洗</i> 洗車・完成検査 未完了 ${n('wash')}台</button>`; }
   const lg=document.getElementById('yd-legend');
   if(lg) lg.innerHTML=YD_CATS.filter(c=>c!=='その他').map(c=>`<span class="yd-lg">${YD_STAGES.map(t=>`<span class="wo-chip" style="--sc:${YD_PAL[c][t][0]};color:${YD_PAL[c][t][1]}">${c}${t}</span>`).join('')}</span>`).join('')+`<span class="wo-chip" style="--sc:${YD_OTHER[0]}">その他</span><span style="margin-left:6px">点線＝部品待ち／赤枠＝納期遅れ／車をタップすると区分・段階を変えられます</span>`;
