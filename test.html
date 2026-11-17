@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="1e6f5b89bd">
+<meta name="ark-ver" content="01ca4f2b33">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -1001,6 +1001,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   body.m-carv #tab-wo .wo-top, body.m-carv #wo-listcard{display:none!important;}
   body.m-listv #wo-detail{display:none!important;}
   body.m-listv #wo-lfold-btn, body.m-listv #wo-lcur{display:none!important;}
+  /* 11/17 重複を整理：上の「作業指示」「車両配置」は下の「一覧」「配置」と同じなので隠す（設定だけ残す） */
+  .tabs .tab-btn[data-tab="wo"], .tabs .tab-btn[data-tab="yard"]{display:none!important;}
+  .m-qa{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px;}
+  .m-qa button{min-height:64px;border-radius:14px;border:2px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:16px;font-weight:900;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;touch-action:manipulation;line-height:1.2;}
+  .m-qa button small{font-size:11px;font-weight:700;opacity:.8;}
+  .m-qa .qa-cam{background:var(--accent);color:#111;border-color:var(--accent);}
+  .m-qa .qa-ok{border-color:#16a34a;color:#4ade80;background:rgba(22,163,74,.10);}
+  .m-qa .qa-out{border-color:var(--accent);color:var(--accent);}
   body.m-listv #wo-listbody{display:block!important;}
   .m-back{position:sticky;top:0;z-index:30;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px;margin:-4px -4px 10px;padding:8px 4px;background:var(--card);border-bottom:1px solid var(--border);}
   .m-back button{min-height:46px;padding:0 14px 0 10px;border-radius:12px;border:2px solid var(--accent);background:rgba(228,255,26,.10);color:var(--accent);font:inherit;font-size:15px;font-weight:900;cursor:pointer;max-width:56vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;}
@@ -3632,7 +3640,7 @@ function mSec(k){ M.sec=k; M.secJ=WO_CUR; M.view='car'; _mPaint(); window.scroll
 function mTiles(){ M.sec=null; _mPaint(); window.scrollTo(0,0); }
 function _mView(){
   const d=document.getElementById('wo-detail'); if(!d) return; const j=_woCurJob();
-  d.querySelectorAll('.m-tiles,.m-back').forEach(x=>x.remove()); d.querySelectorAll('.m-hide').forEach(x=>x.classList.remove('m-hide'));
+  d.querySelectorAll('.m-tiles,.m-back,.m-qa').forEach(x=>x.remove()); d.querySelectorAll('.m-hide').forEach(x=>x.classList.remove('m-hide'));
   const mob=_mMob(); if(!j&&M.view==='car') M.view='list';
   document.body.classList.toggle('m-carv',mob&&M.view==='car'); document.body.classList.toggle('m-listv',mob&&M.view!=='car');
   if(!mob||!j) return;
@@ -3655,7 +3663,14 @@ function _mView(){
       else { try{ sub=_woFoldSum(t.k,j)||''; }catch(e){} }
       return `<button type="button" class="m-tile" onclick="mSec('${t.k}')"><span class="mt-i" style="--mtc:${t.c}22;border:2px solid ${t.c}">${t.i}</span>${b?`<span class="mt-b">${esc(b)}</span>`:''}<span class="mt-n">${esc(t.n)}</span><span class="mt-s">${esc(sub)}</span></button>`; }).join('');
     anchor.after(g);
-    const bk0=document.createElement('div'); bk0.className='m-back'; bk0.innerHTML=`<button type="button" onclick="mList()">◀ 車両一覧</button><span>${esc([j.car,_woPlateShort(j.plate)].filter(Boolean).join(' ')||_woTitle(j))}</span>`;
+    if(false){   // 11/17：上の2つのボタンはやめた（下の4つと重なるため）
+      const st=WO_PH_STG.find(x=>x.k===_woPhSel(j)), qa=document.createElement('div'); qa.className='m-qa';
+      qa.innerHTML=`<button type="button" class="qa-cam" onclick="woCamOpen()">📷 写真を撮る<small>${esc(st?st.n+'に入ります':'')}</small></button>`
+        +(nx?`<button type="button" class="qa-ok" onclick="mDone(null,'${j.id}')">✅ ${esc(_mShort(j,nx))} 完了<small>押すと確認が出ます</small></button>`
+            :`<button type="button" class="qa-out" onclick="woArchive(true)">🚗 納車済にする<small>全工程完了</small></button>`);
+      g.before(qa);
+    }
+    const bk0=document.createElement('div'); bk0.className='m-back'; bk0.innerHTML=`<button type="button" onclick="mList()">◀ 車両一覧</button><span></span>`;
     d.prepend(bk0); return;
   }
   const bk=document.createElement('div'); bk.className='m-back';
@@ -3680,7 +3695,7 @@ function _mPaint(){
   else if(bar) bar.remove();
   // 開いた車の操作ボタン
   const act=document.getElementById('mact'), j=_woCurJob();
-  const show=_mMob()&&t==='wo'&&!!j&&M.view==='car'&&!document.getElementById('wo-cam');
+  const show=_mMob()&&t==='wo'&&!!j&&M.view==='car'&&!document.getElementById('wo-cam');   // 11/17：下の4つのボタンを残す（ユーザー指示）。上の2つのボタン（.m-qa）はやめた
   document.body.classList.toggle('m-act',show);
   try{ _mView(); }catch(e){ console.warn('項目のアイコン',e); }
   if(!show||!act){ if(act) act.innerHTML=''; return; }
