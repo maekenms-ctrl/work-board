@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="0d0fecb333">
+<meta name="ark-ver" content="1032225f66">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -988,6 +988,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .m-sheet .ms-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .m-sheet .ms-g button{min-height:52px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:16px;font-weight:800;cursor:pointer;}
   .m-sheet .ms-g button.on{border-color:#16a34a;color:#4ade80;}
+  /* 11/17 開いた車の項目をアイコンで並べる（iPhoneのホーム画面のように） */
+  .m-hide{display:none!important;}
+  .m-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;margin:12px 0 6px;}
+  .m-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;color:var(--text);font:inherit;cursor:pointer;padding:0;touch-action:manipulation;}
+  .m-tile .mt-i{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;background:var(--mtc,#2b303b);box-shadow:0 2px 6px rgba(0,0,0,.35);}
+  .m-tile .mt-n{font-size:12px;font-weight:800;line-height:1.2;text-align:center;}
+  .m-tile .mt-s{font-size:10.5px;color:var(--muted);line-height:1.2;text-align:center;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .m-tile .mt-b{position:absolute;top:-6px;right:calc(50% - 40px);min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card);}
+  .m-tile:active .mt-i{transform:scale(.94);}
+  .m-back{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;margin:8px 0 10px;padding:8px 0;background:var(--card);}
+  .m-back button{min-height:44px;padding:0 16px;border-radius:12px;border:2px solid var(--accent);background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:900;cursor:pointer;}
+  .m-back span{font-size:14px;font-weight:800;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 }
 </style>
 <style id="wo-1114">
@@ -3550,7 +3562,7 @@ function woFilter(f){ WO_FILTER=f; woRenderList(); }
 // ═══ 11/17 スマホ特化（幅900px未満だけ。パソコンの画面は変えない）═══
 //  ・画面の下にいつも出るボタン：一覧／探す／自分（担当だけ）／配置／代車
 //  ・作業指示を開いたら、その下に：📷 写真／✅ 次の工程を完了／📦 部品／🚗 入庫済・納車済（または 工程へ）
-//  ・一覧のカードに：📷 写真／✅ 次の工程を完了（開かずに1回で）
+//  ・一覧のカードのボタンはやめた（11/17 ユーザー指示：車両情報を優先）
 //  ・自分の担当：この端末で「自分」を1回選ぶと、工程の担当・受付担当が自分の車だけを出す（名前はこの端末にだけ覚える）
 const M={meOn:false, me:''};
 try{ M.me=localStorage.getItem('wo-me')||''; M.meOn=!!M.me&&localStorage.getItem('wo-me-on')==='1'; }catch(e){}
@@ -3559,6 +3571,7 @@ function _mMob(){ return window.innerWidth<900; }
 function _mShort(j,s){ return s.k==='seibi'&&_woSeibiAs(j)?_woSeibiAs(j):(M_SHORT[s.k]||s.n); }
 function _woIsMine(j){ if(!M.me) return true; if(j.staff===M.me) return true; return WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.who===M.me; }); }
 function _mQkHtml(j){
+  return '';   // 11/17：カードは車両情報を優先（写真・完了のボタンは出さない。開いた車の下のボタンで操作）
   if(!j||j.archived||j.partsOnly||woIsBefore(j)||j.inChecked===false) return '';
   const nx=woNext(j);
   return `<div class="wo-qk"><button type="button" class="qk-cam" onclick="mCam(event,'${j.id}')">📷 写真</button>${nx?`<button type="button" class="qk-ok" onclick="mDone(event,'${j.id}')">✅ ${esc(_mShort(j,nx))} 完了</button>`:'<button type="button" disabled style="opacity:.5">🏁 全工程完了</button>'}</div>`;
@@ -3573,7 +3586,7 @@ async function mDone(ev,id){
   woTouch(j,true); woRenderAll(); try{ ydRender(); }catch(e){}
   const n2=woNext(j); toast(`${nm} を完了にしました${n2?'（次は '+_woStepName(j,n2)+'）':'（全工程完了）'}`,3500);
 }
-function _mSec(k){ const h=document.querySelector(`#wo-detail .wo-sec[data-sec="${k}"]`); if(!h) return; if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click(); setTimeout(()=>h.scrollIntoView({behavior:'smooth',block:'start'}),60); }
+function _mSec(k){ if(_mMob()){ mSec(k); return; } const h=document.querySelector(`#wo-detail .wo-sec[data-sec="${k}"]`); if(!h) return; if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click(); setTimeout(()=>h.scrollIntoView({behavior:'smooth',block:'start'}),60); }
 function mGo(k){
   if(k==='list'){ _woGoTab('wo'); woListFold(false); const c=document.getElementById('wo-listcard'); if(c) setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'start'}),30); }
   else if(k==='find'){ _woGoTab('wo'); woListFold(false); const q=document.getElementById('wo-q'); if(q){ q.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>{ q.focus(); q.select&&q.select(); },250); } }
@@ -3597,6 +3610,49 @@ function mMePick(){
     if(M.me) toast(`${M.me}さんの担当の車だけにしました（もう一度 👤 で全員に戻ります）`,4000); });
   document.body.appendChild(ov);
 }
+
+// ── 11/17 開いた車の項目をアイコンで並べる（スマホだけ）：押すとその項目だけを開く。「◀ 項目に戻る」でアイコンへ ──
+const M_TILES=[
+  {k:'photo',i:'📷',n:'写真',c:'#e4ff1a'},{k:'area',i:'🗺️',n:'作業箇所',c:'#3b82f6'},{k:'steps',i:'🔧',n:'工程・担当',c:'#f59e0b'},
+  {k:'parts',i:'📦',n:'部品',c:'#16a34a'},{k:'note',i:'⚠️',n:'注意事項',c:'#ef4444'},{k:'src',i:'🏢',n:'依頼元',c:'#8b5cf6'},
+  {k:'car',i:'🚗',n:'車両',c:'#0ea5e9'},{k:'pay',i:'💴',n:'区分・支払い',c:'#14b8a6'},{k:'loan',i:'🔑',n:'代車',c:'#a855f7'},
+  {k:'sup',i:'🧾',n:'発注元・PDF',c:'#64748b'},{k:'acts',i:'⋯',n:'保存・納車',c:'#475569'}];
+function mSec(k){ M.sec=k; M.secJ=WO_CUR; _mView(); const d=document.getElementById('wo-detail'); if(d) d.scrollIntoView({block:'start'}); }
+function mTiles(){ M.sec=null; _mView(); const d=document.getElementById('wo-detail'); if(d) d.scrollIntoView({block:'start'}); }
+function _mView(){
+  const d=document.getElementById('wo-detail'); if(!d) return; const j=_woCurJob();
+  d.querySelectorAll('.m-tiles,.m-back').forEach(x=>x.remove()); d.querySelectorAll('.m-hide').forEach(x=>x.classList.remove('m-hide'));
+  if(!_mMob()||!j) return;
+  if(M.secJ!==WO_CUR){ M.sec=null; M.secJ=WO_CUR; }
+  const heads=[...d.querySelectorAll('.wo-sec[data-sec]')], two=d.querySelector('.wo-two'), acts=d.querySelector('.wo-acts');
+  const parts=h=>[h,h.nextElementSibling&&h.nextElementSibling.classList.contains('wo-fold-b')?h.nextElementSibling:null].filter(Boolean);
+  heads.forEach(h=>parts(h).forEach(x=>x.classList.add('m-hide'))); if(two) two.classList.add('m-hide'); if(acts) acts.classList.add('m-hide');
+  const anchor=d.querySelector('#wo-dup')||d.querySelector('.wo-inq')||d.querySelector('.wo-head');
+  if(!M.sec){
+    const has=new Set(heads.map(h=>h.dataset.sec)); if(acts) has.add('acts');
+    const wait=(j.parts||[]).filter(p=>p.status==='未発注'||p.status==='発注済').length, nx=woNext(j);
+    const g=document.createElement('div'); g.className='m-tiles';
+    g.innerHTML=M_TILES.filter(t=>has.has(t.k)).map(t=>{
+      let b='', sub='';
+      if(t.k==='photo'){ const h=d.querySelector('.wo-sec[data-sec="photo"]'); if(h&&h.classList.contains('ph-need')) b='!'; const n=(document.getElementById('wo-ph-n')||{}).textContent||''; sub=n.split('／')[0]?n.split('／')[0]+'枚':''; }
+      else if(t.k==='parts'){ if(wait) b=String(wait); sub=(j.parts||[]).length?`${(j.parts||[]).length}点`:'なし'; }
+      else if(t.k==='steps') sub=nx?'次：'+_mShort(j,nx):'全工程完了';
+      else if(t.k==='note'){ const c=String(j.caution||'').trim(); sub=c?'あり':'なし'; if(c) b='!'; }
+      else if(t.k==='acts') sub=j.archived?'納車済':'';
+      else { try{ sub=_woFoldSum(t.k,j)||''; }catch(e){} }
+      return `<button type="button" class="m-tile" onclick="mSec('${t.k}')"><span class="mt-i" style="--mtc:${t.c}22;border:2px solid ${t.c}">${t.i}</span>${b?`<span class="mt-b">${esc(b)}</span>`:''}<span class="mt-n">${esc(t.n)}</span><span class="mt-s">${esc(sub)}</span></button>`; }).join('');
+    anchor.after(g); return;
+  }
+  const bk=document.createElement('div'); bk.className='m-back';
+  const t=M_TILES.find(x=>x.k===M.sec)||{i:'',n:''};
+  bk.innerHTML=`<button type="button" onclick="mTiles()">◀ 項目に戻る</button><span>${t.i} ${esc(t.n)}</span>`;
+  anchor.after(bk);
+  if(M.sec==='acts'){ if(acts) acts.classList.remove('m-hide'); return; }
+  const h=d.querySelector(`.wo-sec[data-sec="${M.sec}"]`); if(!h){ M.sec=null; return _mView(); }
+  parts(h).forEach(x=>x.classList.remove('m-hide'));
+  if(two&&two.contains(h)) two.classList.remove('m-hide');
+  if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click();
+}
 function _mMeSave(){ try{ M.me?localStorage.setItem('wo-me',M.me):localStorage.removeItem('wo-me'); localStorage.setItem('wo-me-on',M.meOn?'1':'0'); }catch(e){} }
 function _mPaint(){
   const nav=document.getElementById('mnav'); if(!nav) return;
@@ -3611,6 +3667,7 @@ function _mPaint(){
   const act=document.getElementById('mact'), j=_woCurJob();
   const show=_mMob()&&t==='wo'&&!!j&&!document.getElementById('wo-cam');
   document.body.classList.toggle('m-act',show);
+  try{ _mView(); }catch(e){ console.warn('項目のアイコン',e); }
   if(!show||!act){ if(act) act.innerHTML=''; return; }
   const nx=woNext(j), bef=j.inChecked===false&&!j.archived&&!j.partsOnly;
   let last;
