@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="1032225f66">
+<meta name="ark-ver" content="1e6f5b89bd">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -997,9 +997,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   .m-tile .mt-s{font-size:10.5px;color:var(--muted);line-height:1.2;text-align:center;max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .m-tile .mt-b{position:absolute;top:-6px;right:calc(50% - 40px);min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card);}
   .m-tile:active .mt-i{transform:scale(.94);}
-  .m-back{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;margin:8px 0 10px;padding:8px 0;background:var(--card);}
-  .m-back button{min-height:44px;padding:0 16px;border-radius:12px;border:2px solid var(--accent);background:transparent;color:var(--accent);font:inherit;font-size:15px;font-weight:900;cursor:pointer;}
-  .m-back span{font-size:14px;font-weight:800;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 11/17 画面の行き来：車両一覧 ⇄ 車の画面（アイコン） ⇄ 項目。一覧は畳まず、画面ごと切り替える */
+  body.m-carv #tab-wo .wo-top, body.m-carv #wo-listcard{display:none!important;}
+  body.m-listv #wo-detail{display:none!important;}
+  body.m-listv #wo-lfold-btn, body.m-listv #wo-lcur{display:none!important;}
+  body.m-listv #wo-listbody{display:block!important;}
+  .m-back{position:sticky;top:0;z-index:30;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px;margin:-4px -4px 10px;padding:8px 4px;background:var(--card);border-bottom:1px solid var(--border);}
+  .m-back button{min-height:46px;padding:0 14px 0 10px;border-radius:12px;border:2px solid var(--accent);background:rgba(228,255,26,.10);color:var(--accent);font:inherit;font-size:15px;font-weight:900;cursor:pointer;max-width:56vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;touch-action:manipulation;}
+  .m-back span{font-size:16px;font-weight:900;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 }
 </style>
 <style id="wo-1114">
@@ -2672,7 +2677,7 @@ function woNewBlank(){
   toast('作業指示を作りました。登録番号と作業箇所を入力してください',4000);
 }
 function _woGoTab(t){ const b=document.querySelector(`.tab-btn[data-tab="${t}"]`); if(b) b.click(); }
-function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); if(window.innerWidth<900) WO_LFOLD=true; woRenderAll(); _woListFoldPaint(); const d=document.getElementById('wo-listcard')||document.getElementById('wo-detail'); if(d&&window.innerWidth<900) d.scrollIntoView({behavior:'smooth',block:'start'}); }
+function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); if(window.innerWidth<900) WO_LFOLD=true; woRenderAll(); _woListFoldPaint(); /* 11/17：スマホは画面ごと切り替える（上へ移る）ので、ここでは動かさない */ }
 // ── スマホ・タブレット（幅900px未満）だけ：作業指示一覧を畳める（縦のスクロールを減らす）──
 //  ・作業指示を開くと自動で畳む。「▼ 一覧を開く」かいま開いている車の帯を押すと開く
 //  ・パソコン（横並びの画面）では畳まない
@@ -3588,15 +3593,15 @@ async function mDone(ev,id){
 }
 function _mSec(k){ if(_mMob()){ mSec(k); return; } const h=document.querySelector(`#wo-detail .wo-sec[data-sec="${k}"]`); if(!h) return; if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click(); setTimeout(()=>h.scrollIntoView({behavior:'smooth',block:'start'}),60); }
 function mGo(k){
-  if(k==='list'){ _woGoTab('wo'); woListFold(false); const c=document.getElementById('wo-listcard'); if(c) setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'start'}),30); }
-  else if(k==='find'){ _woGoTab('wo'); woListFold(false); const q=document.getElementById('wo-q'); if(q){ q.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>{ q.focus(); q.select&&q.select(); },250); } }
+  if(k==='list'){ mList(); return; }
+  else if(k==='find'){ mList(); const q=document.getElementById('wo-q'); if(q){ q.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>{ q.focus(); q.select&&q.select(); },250); } }
   else if(k==='me') mMe();
   else if(k==='yard') _woGoTab('yard');
   else if(k==='cal') openLoanerCal();
   _mPaint();
 }
 function mMe(){
-  if(M.me&&!M.meOn){ M.meOn=true; _mMeSave(); woRenderList(); _mPaint(); _woGoTab('wo'); woListFold(false); toast(`${M.me}さんの担当の車だけにしました`,3000); return; }
+  if(M.me&&!M.meOn){ M.meOn=true; _mMeSave(); mList(); toast(`${M.me}さんの担当の車だけにしました`,3000); return; }
   if(M.me&&M.meOn){ M.meOn=false; _mMeSave(); woRenderList(); _mPaint(); toast('全員の車を出しています',2500); return; }
   mMePick();
 }
@@ -3606,23 +3611,31 @@ function mMePick(){
     <div class="ms-g">${woStaffList().map(x=>`<button type="button" data-n="${esc(x.n)}" class="${x.n===M.me?'on':''}">${esc(x.n)}</button>`).join('')}</div>
     <div class="ms-g" style="margin-top:10px;grid-template-columns:1fr">${M.me?'<button type="button" data-n="">名前を外す</button>':''}<button type="button" data-x="1">閉じる</button></div></div>`;
   ov.addEventListener('click',e=>{ if(e.target===ov||e.target.dataset.x){ ov.remove(); return; } const b=e.target.closest('button[data-n]'); if(!b) return;
-    M.me=b.dataset.n; M.meOn=!!M.me; _mMeSave(); ov.remove(); woRenderList(); _mPaint(); _woGoTab('wo'); woListFold(false);
+    M.me=b.dataset.n; M.meOn=!!M.me; _mMeSave(); ov.remove(); mList();
     if(M.me) toast(`${M.me}さんの担当の車だけにしました（もう一度 👤 で全員に戻ります）`,4000); });
   document.body.appendChild(ov);
 }
 
 // ── 11/17 開いた車の項目をアイコンで並べる（スマホだけ）：押すとその項目だけを開く。「◀ 項目に戻る」でアイコンへ ──
 const M_TILES=[
-  {k:'photo',i:'📷',n:'写真',c:'#e4ff1a'},{k:'area',i:'🗺️',n:'作業箇所',c:'#3b82f6'},{k:'steps',i:'🔧',n:'工程・担当',c:'#f59e0b'},
+  {k:'photo',i:'📷',n:'写真',c:'#e4ff1a'},{k:'area',i:'🩹',n:'作業箇所',c:'#3b82f6'},{k:'steps',i:'🔧',n:'工程・担当',c:'#f59e0b'},
   {k:'parts',i:'📦',n:'部品',c:'#16a34a'},{k:'note',i:'⚠️',n:'注意事項',c:'#ef4444'},{k:'src',i:'🏢',n:'依頼元',c:'#8b5cf6'},
   {k:'car',i:'🚗',n:'車両',c:'#0ea5e9'},{k:'pay',i:'💴',n:'区分・支払い',c:'#14b8a6'},{k:'loan',i:'🔑',n:'代車',c:'#a855f7'},
   {k:'sup',i:'🧾',n:'発注元・PDF',c:'#64748b'},{k:'acts',i:'⋯',n:'保存・納車',c:'#475569'}];
-function mSec(k){ M.sec=k; M.secJ=WO_CUR; _mView(); const d=document.getElementById('wo-detail'); if(d) d.scrollIntoView({block:'start'}); }
-function mTiles(){ M.sec=null; _mView(); const d=document.getElementById('wo-detail'); if(d) d.scrollIntoView({block:'start'}); }
+
+// ── 11/17 画面の行き来（スマホだけ）：M.view＝'list'（車両一覧）／'car'（車の画面）。項目を開いているときは M.sec ──
+M.view='list'; M.listY=0;
+{ const _oOpen=woOpen; woOpen=function(id){ if(_mMob()){ if(M.view!=='car'){ M.listY=window.scrollY; M.sec=null; } else if(id!==WO_CUR) M.sec=null; M.view='car'; }
+    const r=_oOpen.apply(this,arguments); if(_mMob()){ _mPaint(); window.scrollTo(0,0); } return r; }; }
+function mList(){ M.view='list'; M.sec=null; _woGoTab('wo'); WO_LFOLD=false; _woListFoldPaint(); woRenderList(); _mPaint(); window.scrollTo(0,M.listY||0); }
+function mSec(k){ M.sec=k; M.secJ=WO_CUR; M.view='car'; _mPaint(); window.scrollTo(0,0); }
+function mTiles(){ M.sec=null; _mPaint(); window.scrollTo(0,0); }
 function _mView(){
   const d=document.getElementById('wo-detail'); if(!d) return; const j=_woCurJob();
   d.querySelectorAll('.m-tiles,.m-back').forEach(x=>x.remove()); d.querySelectorAll('.m-hide').forEach(x=>x.classList.remove('m-hide'));
-  if(!_mMob()||!j) return;
+  const mob=_mMob(); if(!j&&M.view==='car') M.view='list';
+  document.body.classList.toggle('m-carv',mob&&M.view==='car'); document.body.classList.toggle('m-listv',mob&&M.view!=='car');
+  if(!mob||!j) return;
   if(M.secJ!==WO_CUR){ M.sec=null; M.secJ=WO_CUR; }
   const heads=[...d.querySelectorAll('.wo-sec[data-sec]')], two=d.querySelector('.wo-two'), acts=d.querySelector('.wo-acts');
   const parts=h=>[h,h.nextElementSibling&&h.nextElementSibling.classList.contains('wo-fold-b')?h.nextElementSibling:null].filter(Boolean);
@@ -3634,19 +3647,21 @@ function _mView(){
     const g=document.createElement('div'); g.className='m-tiles';
     g.innerHTML=M_TILES.filter(t=>has.has(t.k)).map(t=>{
       let b='', sub='';
-      if(t.k==='photo'){ const h=d.querySelector('.wo-sec[data-sec="photo"]'); if(h&&h.classList.contains('ph-need')) b='!'; const n=(document.getElementById('wo-ph-n')||{}).textContent||''; sub=n.split('／')[0]?n.split('／')[0]+'枚':''; }
+      if(t.k==='photo'){ const h=d.querySelector('.wo-sec[data-sec="photo"]'); if(h&&h.classList.contains('ph-need')) b='!'; const k=_woPhNow(j), st=WO_PH_STG.find(x=>x.k===k); sub=st?`${st.n} ${(_woPhCounts(j)[k]||0)}枚`:''; }   // 今撮る工程とその枚数（11/17）
       else if(t.k==='parts'){ if(wait) b=String(wait); sub=(j.parts||[]).length?`${(j.parts||[]).length}点`:'なし'; }
       else if(t.k==='steps') sub=nx?'次：'+_mShort(j,nx):'全工程完了';
       else if(t.k==='note'){ const c=String(j.caution||'').trim(); sub=c?'あり':'なし'; if(c) b='!'; }
       else if(t.k==='acts') sub=j.archived?'納車済':'';
       else { try{ sub=_woFoldSum(t.k,j)||''; }catch(e){} }
       return `<button type="button" class="m-tile" onclick="mSec('${t.k}')"><span class="mt-i" style="--mtc:${t.c}22;border:2px solid ${t.c}">${t.i}</span>${b?`<span class="mt-b">${esc(b)}</span>`:''}<span class="mt-n">${esc(t.n)}</span><span class="mt-s">${esc(sub)}</span></button>`; }).join('');
-    anchor.after(g); return;
+    anchor.after(g);
+    const bk0=document.createElement('div'); bk0.className='m-back'; bk0.innerHTML=`<button type="button" onclick="mList()">◀ 車両一覧</button><span>${esc([j.car,_woPlateShort(j.plate)].filter(Boolean).join(' ')||_woTitle(j))}</span>`;
+    d.prepend(bk0); return;
   }
   const bk=document.createElement('div'); bk.className='m-back';
   const t=M_TILES.find(x=>x.k===M.sec)||{i:'',n:''};
-  bk.innerHTML=`<button type="button" onclick="mTiles()">◀ 項目に戻る</button><span>${t.i} ${esc(t.n)}</span>`;
-  anchor.after(bk);
+  bk.innerHTML=`<button type="button" onclick="mTiles()">◀ ${esc(j.car||_woPlateShort(j.plate)||'車')}</button><span>${t.i} ${esc(t.n)}</span>`;
+  d.prepend(bk);
   if(M.sec==='acts'){ if(acts) acts.classList.remove('m-hide'); return; }
   const h=d.querySelector(`.wo-sec[data-sec="${M.sec}"]`); if(!h){ M.sec=null; return _mView(); }
   parts(h).forEach(x=>x.classList.remove('m-hide'));
@@ -3665,7 +3680,7 @@ function _mPaint(){
   else if(bar) bar.remove();
   // 開いた車の操作ボタン
   const act=document.getElementById('mact'), j=_woCurJob();
-  const show=_mMob()&&t==='wo'&&!!j&&!document.getElementById('wo-cam');
+  const show=_mMob()&&t==='wo'&&!!j&&M.view==='car'&&!document.getElementById('wo-cam');
   document.body.classList.toggle('m-act',show);
   try{ _mView(); }catch(e){ console.warn('項目のアイコン',e); }
   if(!show||!act){ if(act) act.innerHTML=''; return; }
