@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta name="ark-ver" content="d5845eb058">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d21">
+<title>【試し】作業ボード＋通知</title>
+<link rel="manifest" href="hub.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{--bar:#1a1d21;--ink:#e8eaed;--sub:#9aa0a6;--acc:#e4ff1a;--red:#ff4d4d}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bar);overflow:hidden;font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",sans-serif}
+  .bar{position:fixed;left:0;right:0;top:0;height:46px;padding:5px 6px env(safe-area-inset-top);display:flex;gap:6px;background:var(--bar);border-bottom:1px solid #2c3036;z-index:2}
+  .sw{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #3a3f46;border-radius:10px;background:#23272d;color:var(--sub);font:inherit;font-size:15px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;position:relative}
+  .sw.on{background:var(--acc);border-color:var(--acc);color:#111}
+  .dot{display:none;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--red);color:#fff;font-size:12px;line-height:20px;font-weight:800}
+  .dot.show{display:inline-block}
+  .sw.on .dot{display:none}
+  .pane{position:fixed;left:0;right:0;top:46px;bottom:0;border:0;width:100%;height:calc(100% - 46px);background:#fff;visibility:hidden}
+  .pane.on{visibility:visible}
+  body.full .bar{display:none} body.full .pane{top:0;height:100%}
+  #board{background:#1a1d21}
+  .sw.bell{flex:0 0 52px;font-size:20px}
+  .sw.bell.off{background:#d93025;border-color:#d93025;color:#fff;animation:bellp 2s infinite}
+  .sw.bell.on{background:#188038;border-color:#188038;color:#fff}
+  @keyframes bellp{50%{opacity:.6}}
+  .bellbox{position:fixed;top:50px;right:6px;left:6px;max-width:420px;margin-left:auto;z-index:5;background:#23272d;color:var(--ink);border:1px solid #3a3f46;border-radius:12px;padding:14px;font-size:14px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .bellbox b{color:var(--acc)} .bellbox button{display:block;width:100%;margin-top:8px;padding:11px;border-radius:10px;border:1px solid #3a3f46;background:#2c3036;color:var(--ink);font:inherit;font-weight:800;cursor:pointer}
+  .bellbox button.pri{background:var(--acc);color:#111;border-color:var(--acc)}
+  .htoast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:6;background:#111;color:var(--acc);border:1px solid var(--acc);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .2s}
+  .htoast.on{opacity:1}
+</style>
+<style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
+<script>
+// iPhone：タップ位置のずれ・反応しなくなるのを防ぐ（11/7）
+//  ・入力欄を押したときの自動の拡大と、2本指・2回タップでの画面全体の拡大を止める（拡大したままだと、押した所と反応する所がずれる）
+//  ・キーボードを閉じたあとに画面の位置がずれたまま残るのを直す
+(function(){
+  var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!ios) return;
+  document.addEventListener('gesturestart',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.wo-pv,.pv-stage,[data-zoom]')) return; e.preventDefault(); },{passive:false});
+  var fix=function(){ setTimeout(function(){ var a=document.activeElement; if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    window.scrollTo(window.scrollX,window.scrollY); try{ if(window.parent!==window) window.parent.postMessage({ark:'blur'},location.origin); }catch(e){} },150); };
+  document.addEventListener('focusout',fix,true);
+})();
+</script>
+</head>
+<body>
+<div class="bar">
+  <button class="sw" id="b-board" type="button">🛠 作業ボード</button>
+  <button class="sw" id="b-notify" type="button">📣 ARK通知 <span class="dot" id="dot"></span></button>
+  <button class="sw bell" id="b-bell" type="button" title="プッシュ通知">🔕</button>
+</div>
+<div id="bellbox" class="bellbox" hidden></div>
+<div id="htoast" class="htoast"></div>
+<!-- どちらも読み込んだまま切り替える（ARK通知は裏でも受信・通知音あり） -->
+<iframe class="pane" id="board" src="./test.html" title="作業ボード" allow="autoplay; screen-wake-lock; clipboard-write; camera"></iframe>
+<iframe class="pane" id="notify" src="./notify.html" title="ARK通知" allow="autoplay; screen-wake-lock"></iframe>
+<script src="push.js?v=1111"></script>
+<script>
+// ── プッシュ通知の受け取り（11/9）：上の 🔔 で、この端末をプッシュ通知を受け取る端末にする ──
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function toast(t,ms){ var el=$('htoast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(function(){ el.classList.remove('on'); },ms||4000); }
+  function paint(){ var b=$('b-bell'); if(!window.ARKPUSH){ b.style.display='none'; return; } var st=ARKPUSH.state();
+    b.classList.toggle('on',st==='on'); b.classList.toggle('off',st==='off'||st==='denied'); b.textContent=st==='on'?'🔔':'🔕'; }
+  function box(html){ var x=$('bellbox'); x.innerHTML=html; x.hidden=false; }
+  function close(){ $('bellbox').hidden=true; }
+  $('b-bell').onclick=function(){
+    if(!$('bellbox').hidden){ close(); return; }
+    var st=window.ARKPUSH?ARKPUSH.state():'unsupported';
+    if(st==='on') box('<b>🔔 この端末はプッシュ通知を受け取ります</b><br>アプリを閉じていても、工程の完了・部品入荷・納車済・代車予約・コメントなどが届きます。<button class="pri" id="bt-test">テスト通知を送る（この端末だけ・1分以内）</button><button id="bt-off">この端末で受け取るのをやめる</button><button id="bt-x">閉じる</button>');
+    else if(st==='need-home') box('<b>ホーム画面のアプリから開いてください</b><br>iPhone は、Safari で開いて 共有ボタン（□に↑）→「ホーム画面に追加」で追加したアプリから開くと、プッシュ通知を受け取れます（iOS 16.4 以上）。<button id="bt-x">閉じる</button>');
+    else if(st==='unsupported') box('<b>この画面ではプッシュ通知を使えません</b><br>Android：LINE などのアプリの中で開いた画面では使えません。<b>Chrome</b> で開いてください（Chrome の︙ →「ホーム画面に追加」→「インストール」でアプリにすると便利です）。<br>iPhone：iOS 16.4 以上が必要です。<br>パソコン：Chrome で開いてください。<button id="bt-x">閉じる</button>');
+    else if(st==='denied') box('<b>通知が「許可しない」になっています</b><br>iPhone：「設定」→「通知」→ このアプリ →「通知を許可」をオン。<br>Android：Chrome の︙ →「設定」→「サイトの設定」→「通知」で、このサイトを「許可」。Android 本体の「設定」→「アプリ」→「Chrome」→「通知」もオン。<br>パソコン：アドレス欄の左の鍵マーク →「通知」を「許可」。<br>そのあと、もう一度 🔕 を押してください。<button id="bt-x">閉じる</button>');
+    else box('<b>🔕 この端末はまだプッシュ通知を受け取りません</b><br>大事なお知らせを見落とさないように、各端末で1回だけ「受け取る」を押して、出てきた画面で「許可」を押してください。<button class="pri" id="bt-on">プッシュ通知を受け取る</button><button id="bt-x">閉じる</button>');
+    var on=$('bt-on'), off=$('bt-off'), te=$('bt-test'), x=$('bt-x');
+    if(x) x.onclick=close;
+    if(on) on.onclick=function(){ on.disabled=true; on.textContent='登録しています…'; ARKPUSH.enable().then(function(){ close(); paint(); toast('この端末でプッシュ通知を受け取ります。🔔 → テスト通知で確かめられます',6000); },function(e){ on.disabled=false; on.textContent='プッシュ通知を受け取る'; toast(String(e&&e.message||e),8000); paint(); }); };
+    if(off) off.onclick=function(){ ARKPUSH.disable().then(function(){ close(); paint(); toast('この端末で受け取るのをやめました'); }); };
+    if(te) te.onclick=function(){ te.disabled=true; ARKPUSH.test().then(function(){ close(); toast('テスト通知を頼みました。1分以内に届きます（アプリを閉じて待ってみてください）',7000); },function(e){ te.disabled=false; toast('送れませんでした：'+(e&&e.message||e),6000); }); };
+  };
+  paint();
+  if(window.ARKPUSH) ARKPUSH.refresh().then(paint,paint);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&window.ARKPUSH) ARKPUSH.refresh().then(paint,paint); });
+})();
+</script>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var cur='', unseen=0;
+  function show(k){
+    cur=k;
+    $('board').classList.toggle('on',k==='board'); $('notify').classList.toggle('on',k==='notify');
+    $('b-board').classList.toggle('on',k==='board'); $('b-notify').classList.toggle('on',k==='notify');
+    if(k==='notify'){ unseen=0; badge(); }
+    // 見えていない方の画面は描き直しを止める（同じ画面の中で2つが動くと、押しても反応が遅れるため。11/7）
+    try{ $('notify').contentWindow.postMessage({ark:'vis',on:k==='notify'},location.origin); }catch(e){}
+    try{ $('board').contentWindow.postMessage({ark:'vis',on:k==='board'},location.origin); }catch(e){}
+    try{ localStorage.setItem('hub-tab',k); }catch(e){}
+  }
+  function badge(){ var d=$('dot'); d.textContent=unseen>99?'99+':unseen; d.classList.toggle('show',unseen>0); }
+  $('b-board').onclick=function(){ show('board'); };
+  $('b-notify').onclick=function(){ show('notify'); };
+  // ARK通知からの合図：新しい通知／作業ボードで開く
+  addEventListener('message',function(e){
+    if(e.origin!==location.origin) return;
+    var m=e.data||{};
+    if(m.ark==='full'){ document.body.classList.toggle('full',!!m.on); return; }   // 作業ボードのカメラ：上の段を隠して画面いっぱいに（11/11）
+    if(m.ark==='blur'){ resetPos(); return; }
+    if(m.ark==='ready'){ document.body.classList.remove('full'); show(cur); return; }
+    if(m.ark==='new' && cur!=='notify'){ unseen+=m.n||1; badge(); }
+    if(m.ark==='openJob' && m.jid){
+      try{ $('board').contentWindow.location.hash='job='+encodeURIComponent(m.jid); }catch(err){ $('board').src='./test.html#job='+encodeURIComponent(m.jid); }
+      show('board');
+    }
+    if(m.ark==='openHash' && m.hash){
+      try{ $('board').contentWindow.location.hash=m.hash; }catch(err){ $('board').src='./test.html#'+m.hash; }
+      show('board');
+    }
+    if(m.ark==='openEst'){ window.open('https://maekenms-ctrl.github.io/estimate-tool/','_blank','noopener'); }
+  });
+  // iPhone：キーボードを閉じたあと、画面全体が上にずれたまま残る（押した所と反応する所がずれる）のを元の位置に戻す（11/7）
+  function resetPos(){ setTimeout(function(){ if(window.scrollX||window.scrollY) window.scrollTo(0,0); var se=document.scrollingElement; if(se&&se.scrollTop) se.scrollTop=0; },60); }
+  if(window.visualViewport){ var vh=0; visualViewport.addEventListener('resize',function(){ var h=visualViewport.height; if(h>vh+80) resetPos(); vh=h; }); }
+  addEventListener('scroll',function(){ if(window.scrollY&&(!window.visualViewport||visualViewport.height>innerHeight*0.85)) resetPos(); },{passive:true});
+  $('notify').addEventListener('load',function(){ show(cur); }); $('board').addEventListener('load',function(){ show(cur); });
+  var first='board'; try{ first=localStorage.getItem('hub-tab')||'board'; }catch(e){}
+  show(first==='notify'?'notify':'board');
+  if('serviceWorker' in navigator && location.protocol==='https:') addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+})();
+</script>
+<script>
+// ── 新しい版のお知らせ：GitHubのファイルが新しくなったら、画面の下に「更新する」を出す ──
+(function(){
+  if(!/github\.io$/.test(location.hostname) || !window.fetch) return;
+  var base=null, shown=false;
+  function show(){
+    if(shown) return; shown=true;
+    var b=document.createElement('div');
+    b.setAttribute('style','position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:2147483000;background:#0b57d0;color:#fff;border-radius:22px;padding:8px 8px 8px 16px;font:700 14px/1.4 "Noto Sans JP",sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.35);max-width:calc(100% - 24px)');
+    b.innerHTML='<span>新しい版があります</span><button type="button" style="border:0;border-radius:16px;background:#fff;color:#0b57d0;font:inherit;padding:6px 14px;cursor:pointer">更新する</button>';
+    b.querySelector('button').onclick=function(){ location.reload(); };
+    document.body.appendChild(b);
+  }
+  // 11/9：前は、GitHubの「最終更新の印」を比べていた。GitHubはどれか1つのファイルを入れ直すと全部の印が変わるため、
+  //  中身が変わっていないのに「新しい版」と何度も出ていた。→ ファイルの頭に書いた版の番号（ark-ver）だけを読んで比べる
+  var mine=(document.querySelector('meta[name="ark-ver"]')||{}).content||'';
+  function check(){
+    if(!mine) return;
+    fetch(location.pathname+'?v='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-4095'}}).then(function(r){
+      if(!r.ok) return null; return r.text();
+    }).then(function(t){
+      if(!t) return; var m=t.slice(0,8192).match(/<meta name="ark-ver" content="([^"]+)"/); if(!m) return;
+      if(m[1]!==mine) show();
+    }).catch(function(){});
+  }
+  check(); setInterval(check, 5*60*1000);
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') check(); });
+})();
+</script>
+</body>
+</html>
