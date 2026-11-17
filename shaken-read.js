@@ -10007,7 +10007,7 @@ function parseShakenQR(codes){
     const t=_z2h(t0);
     const ch=t.match(/\/([A-Z0-9]{2,8}-\d{5,8})\//); if(ch&&!out.chassis) out.chassis=ch[1];
     const kt=t.match(/\/((?:[A-Z0-9]{2,4}-)?[A-Z]{1,5}[0-9]{1,3}[A-Z0-9]{0,4})\/\d{4}\//); if(kt&&!out.kata) out.kata=kt[1];
-    const q3=t.match(/^(?:\d|K\/\d{2})\/[^\/]*\/(\d{9})?\s*\/(\d{6})\/(\d{4})\//);   /* 軽自動車（軽自動車検査協会）は「K/32/…」で始まる（11/12） */ if(q3&&!out.expiry){ if(q3[1]) out.typeNo=q3[1].slice(0,5)+'-'+q3[1].slice(5); if(q3[2]!=='999999') out.expiry=`20${q3[2].slice(0,2)}/${q3[2].slice(2,4)}/${q3[2].slice(4,6)}`; out.firstReg=`20${q3[3].slice(0,2)}/${q3[3].slice(2,4)}`; }
+    const q3=t.match(/^(?:\d|K\/\d{2})\/[^\/]*\/(\d{9})?\s*\/(\d{6})\/(\d{4})\//);   /* 軽自動車（軽自動車検査協会）は「K/32/…」で始まる（11/12） */ if(q3&&!out.expiry){ if(q3[1]) out.typeNo=q3[1].slice(0,5)+'-'+q3[1].slice(5); if(q3[2]!=='999999') out.expiry=`20${q3[2].slice(0,2)}/${q3[2].slice(2,4)}/${q3[2].slice(4,6)}`; { const yy=+q3[3].slice(0,2), cy=new Date().getFullYear()%100; out.firstReg=`${yy>cy+1?19:20}${q3[3].slice(0,2)}/${q3[3].slice(2,4)}`; } }   /* 初度登録（年月）。1999年以前の車は19〜（11/17） */
     const pm=t.match(/([一-龠ぁ-んァ-ヶ]{1,4})\s*([0-9]{1,3})\s*([ぁ-んァ-ヶ])\s*([0-9]{1,4})/); if(pm&&!out.plate) out.plate=`${pm[1]} ${pm[2]} ${pm[3]} ${pm[4]}`;
   }
   return out;
