@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="01ca4f2b33">
+<meta name="ark-ver" content="0f2f993180">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -1910,6 +1910,10 @@ function _woSeibiAs(j){ const c=ydCats(j); return c.includes('車検')?(c.includ
 function woColor(j){ const n=woNext(j); if(n&&n.k==='seibi'&&_woSeibiAs(j)==='車検') return WO_SHAKEN_COLOR; return n?n.c:WO_DONE_COLOR; }
 function woLabel(j){ if(j.archived) return '納車済'; const n=woNext(j); if(n&&n.k==='seibi'&&_woSeibiAs(j)) return _woSeibiAs(j); return n?n.n:'完成'; }
 function _woPlateShort(p){ p=String(p||'').trim(); const m=p.match(/(\d{1,2}[-‐－ー]?\d{2})\s*$/); return m?m[1]:p; }
+// 年月（YYYY-MM）を「2018年3月（平成30年3月）」に。令和は2019年5月から、平成は1989年2月から（11/18）
+function _woYmEra(ym){ const m=String(ym||'').match(/^(\d{4})-(\d{1,2})/); if(!m) return ''; const y=+m[1], mo=+m[2], k=y*100+mo;
+  const [g,b]=k>=201905?['令和',2018]:k>=198902?['平成',1988]:k>=192601?['昭和',1925]:['',0]; if(!g) return `${y}年${mo}月`;
+  const n=y-b; return `${y}年${mo}月（${g}${n===1?'元':n}年${mo}月）`; }
 function _woTitle(j){ return j.plate||j.car||'（未入力）'; }
 // 入出庫管理表のI列（内容）：表を書き直したら、それに合わせて表示する（読めないときは覚えている内容）
 function _woWork(j){ const x=_woSheetMatch(j); const w=x&&String(x.work||'').trim(); return w||j.sheetWork||''; }
@@ -2456,7 +2460,7 @@ function _woApplyQR(id,info){
   if(tn[1]){ j.ruiNo=tn[1]; msgs.push('類別区分番号 '+tn[1]); }
   if(info.chassis&&!String(j.chassis||'').trim()){ j.chassis=info.chassis; msgs.push('車台番号 '+info.chassis); }
   // 初度登録（11/17）：QRの「YYYY/MM」→ 年月（YYYY-MM）
-  { const m=String(info.firstReg||'').match(/^(\d{4})\/(\d{2})$/); if(m&&+m[2]>=1&&+m[2]<=12){ j.firstReg=m[1]+'-'+m[2]; msgs.push(`初度登録 ${m[1]}年${+m[2]}月`); } }
+  { const m=String(info.firstReg||'').match(/^(\d{4})\/(\d{2})$/); if(m&&+m[2]>=1&&+m[2]<=12){ j.firstReg=m[1]+'-'+m[2]; msgs.push('初度登録 '+_woYmEra(j.firstReg)); } }
   // 登録番号（11/13）：空なら入れる。数字だけ同じ（表から入った「1825」など）なら、地名・ひらがな付きに直す。違う番号なら入れ替えずに知らせる
   let plWarn='';
   if(info.plate){ const qp=String(info.plate).normalize('NFKC').replace(/\s+/g,''), cur=String(j.plate||'').trim();
@@ -4343,7 +4347,7 @@ function _woRenderDetail(box){
     <div class="field"><label>塗装タイプ <small id="wo-pt-note" style="font-weight:400;color:var(--muted)"></small></label><select id="wo-pt" onchange="woSet('paintType',this.value)"><option value="">—</option>${PAINT_TYPES.map(p=>`<option${j.paintType===p?' selected':''}>${p}</option>`).join('')}</select></div>
     <div class="field"><label>車台番号</label><input id="wo-chassis" value="${v('chassis')}" placeholder="例：RP3-1234567" oninput="woSet('chassis',this.value)" onblur="woChassisLearn()"><div class="wo-chb" id="wo-chb">${_woChassisChips(j)}</div></div>
     ${inp('typeNo','型式指定番号','inputmode="numeric" placeholder="例：12345"')}${inp('ruiNo','類別区分番号','inputmode="numeric" placeholder="例：0001"')}
-    <div class="field"><label>初度登録（年月）</label><input type="month" value="${v('firstReg')}" onchange="woSet('firstReg',this.value)"></div>
+    <div class="field"><label>初度登録（年月）</label><input type="month" value="${v('firstReg')}" onchange="woSet('firstReg',this.value);const e=this.nextElementSibling;if(e)e.textContent=_woYmEra(this.value)"><div class="sg-note" style="margin:3px 0 0;font-size:13px;font-weight:700">${esc(_woYmEra(j.firstReg))}</div></div>
     <div class="field span2 wo-scan"><button type="button" class="btn" onclick="woReadQR()">📷 車検証QRを読む</button><button type="button" class="btn" onclick="document.getElementById('wo-lbl-in').click()">🏷 コーションプレートからカラー番号</button><input type="file" id="wo-qr-in" accept="image/*" hidden onchange="woReadQRFile(this)"><input type="file" id="wo-lbl-in" accept="image/*" hidden onchange="woReadLabel(this)"></div>
     ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
