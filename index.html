@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="1b120abc28">
+<meta name="ark-ver" content="507851d091">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -3232,7 +3232,9 @@ async function woPartsIn(){
 function _woPays(j){ return String(j.pay||'').split('・').filter(Boolean); }
 function woPay(k){ const j=_woCurJob(); if(!j) return; const a=_woPays(j); const i=a.indexOf(k); if(i>=0) a.splice(i,1); else a.push(k); j.pay=WO_PAY.filter(x=>a.includes(x)).concat(a.filter(x=>!WO_PAY.includes(x))).join('・'); woTouch(j,true); woRenderDetail(); woRenderList(); }
 // 写真・協定の 未完／完了（作業前の一覧に出す）
-function woSt(f,v){ const j=_woCurJob(); if(!j) return; if(v==='未完') delete j[f]; else j[f]=v; woTouch(j,true); woRenderDetail(); woRenderList(); }
+function woSt(f,v){ const j=_woCurJob(); if(!j) return; if(v==='未完') delete j[f]; else j[f]=v;
+  if(f==='kyotei'){ if(v==='完了'){ if(!j.kyoteiDate) j.kyoteiDate=_woToday(); } else delete j.kyoteiDate; }   // 協定日（11/19）：「完了」を押した日を自動で記録。未完・不要に戻すと消す
+  woTouch(j,true); woRenderDetail(); woRenderList(); }
 // 作業前写真：未完・完了・不要（前の版の「写真撮影 なし」は「不要」として扱う）
 function _woPhState(j){ return j.phSt==='完了'?'完了':j.photoTaken===false?'不要':'未完'; }
 function woPhSt(v){ const j=_woCurJob(); if(!j) return;
@@ -4368,7 +4370,7 @@ function _woRenderDetail(box){
   </div>
   <div class="wo-inl" style="margin-top:8px">
     <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
-    ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div></div>`:''}
+    ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div>${j.kyotei==='完了'&&j.kyoteiDate?`<div style="margin-top:6px;font-size:13px;color:var(--muted)">協定日：${esc(j.kyoteiDate.replace(/^(\d{4})-0?(\d+)-0?(\d+)$/,'$1/$2/$3'))}</div>`:''}</div>`:''}
     ${woInsHtml(j)}
   </div>
   <div class="wo-sec" data-sec="loan"><span class="bar"></span>代車</div>
