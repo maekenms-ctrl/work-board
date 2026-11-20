@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="8fd4fae227">
+<meta name="ark-ver" content="e4cc7ed1d6">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -640,7 +640,10 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .selbtn.wo-p1btn.on{background:#f59e0b;border-color:#f59e0b;color:#111;}
 .wo-tag.inwait{background:transparent;color:var(--text);border:1px dashed var(--muted);}
 .wo-tag.sameday{background:#ff4d4d;color:#fff;}
-.wo-tag.kensa{background:#0f7a52;color:#fff;}   /* 11/20：車検 検査中（陸自） */
+.wo-tag.kensa{background:#0f7a52;color:#fff;}
+.wo-aja-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;}
+.wo-aja-g small{display:block;font-size:12px;color:var(--muted);margin-bottom:3px;}
+.wo-aja-g input{width:100%;box-sizing:border-box;}   /* 11/20：車検 検査中（陸自） */
 .yd-car .yd-kz{display:block;font-style:normal;font-size:10px;font-weight:900;background:#0f7a52;color:#fff;border-radius:4px;padding:0 4px;margin-top:2px;}
 .wo-kz{margin-top:8px;}
 .wo-kzbar{margin:10px 0 4px;}
@@ -1710,7 +1713,8 @@ function _woPhNow(j){
     if(ts.need&&!ts.done) return ts.date?'tc':(bk.need?'bk2':'pre');
   }
   if(mech){   // 整備・車検：始める前＝入庫時、始めたら＝原因の箇所／整備不良の箇所、終わったら＝修理・交換後／交換・整備後
-    if(sb.need&&!sb.done) return sb.date?mech+'1':'pre';
+    const ms=mech==='sk'&&S.shaken&&S.shaken.need&&!(sb.need&&!sb.done)?S.shaken:sb;   // 車検は車検の工程で決める（整備が先にあれば整備から）
+    if(ms.need&&!ms.done) return ms.date?mech+'1':'pre';
     return mech==='sk'?'sk4':'sb3';
   }
   if(!bk.need&&!ts.need) return 'pre';
@@ -1987,6 +1991,10 @@ function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ dele
   for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ if(s.k==='shaken'){ const sb=j.steps.seibi||{}, on=Array.isArray(j.yCats)&&j.yCats.includes('車検');   // 11/20：車検の工程を足した。前は整備の工程を「車検」と呼んでいたので、整備が済んでいれば車検も済み
     j.steps.shaken={need:on,who:on&&sb.done?sb.who||'':'',date:on&&sb.done?sb.date||'':'',done:!!(on&&sb.done),at:on&&sb.done?sb.at||'':'',doneDate:on&&sb.done?sb.doneDate||'':''}; ch=true; return; }
     j.steps[s.k]={need:s.k==='seibi'?(j.yCat==='整備'||(Array.isArray(j.yCats)&&j.yCats.includes('整備'))):true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
+  if(!j.shkFix&&j.steps.shaken&&Array.isArray(j.yCats)&&j.yCats.includes('車検')&&!j.yCats.includes('整備')){   // 11/20：車検だけの車は整備の工程を不要に（前は整備の工程が車検の意味だった）
+    const sb=j.steps.seibi, sk=j.steps.shaken;
+    if(sb&&sb.need&&!sb.done){ if(!sk.done&&!sk.who&&!sk.date&&(sb.who||sb.date)){ sk.who=sb.who||''; sk.date=sb.date||''; } sk.need=true; sb.need=false; }
+    j.shkFix=1; ch=true; }
   (j.tasks||[]).forEach(t=>{ for(const k of ['panel','replace','paint','acc','paintType','quarter','twoTone']){ if(k in t){ delete t[k]; ch=true; } } }); return ch; }
 
 // ── 保存（端末：暗号化／共有：Firestore） ──
@@ -2030,7 +2038,7 @@ function _woCloudOk(){ return CLOUD.started&&WOC.live&&!WOC.err; }   // WOC.err 
 // 作業指示ごとに「共有から受け取ったときの内容」を覚える（WO_ORIG）。送るのは、この端末で実際に変えた項目だけ
 //  → ほかの端末や入出庫管理表（Apps Script）が同じ時に直した項目を、古い内容で上書きしない
 const WO_ORIG=new WeakMap();
-const WO_NEST=['steps','seibi','shaken','ins','phStg'];
+const WO_NEST=['steps','seibi','shaken','ins','phStg','aja'];
 function _woUnsent(){ try{ return JSON.parse(_lsGet('wo-unsent')||'{}')||{}; }catch(e){ return {}; } }
 function _woUnsentSet(id,on){ try{ const u=_woUnsent(); if(on) u[id]=Date.now(); else delete u[id]; _lsSet('wo-unsent',JSON.stringify(u)); }catch(e){} }
 function _woCloudPut(j){
@@ -3448,6 +3456,28 @@ function _insSave(){ _ydChanged(); }
 // 保険会社ごとに覚えている部署名（AJの部署＋FAXで読んだ部署 c.dp）
 function _insDepts(c){ if(!c) return []; return [...new Set([...(c.aj||[]).map(y=>y.dept),...(Array.isArray(c.dp)?c.dp:[])].map(d=>String(d||'').trim()).filter(Boolean))].slice(0,20); }
 function _insDeptAdd(c,d){ d=String(d||'').trim().slice(0,60); if(!c||!d) return; c.dp=Array.isArray(c.dp)?c.dp:[]; if(!c.dp.includes(d)) c.dp.push(d); if(c.dp.length>20) c.dp=c.dp.slice(-20); }
+// ── 11/21：AJ（アジャスター）の立会い予定：会社名・氏名・日にち・AM／PM・時間。j.aja={co,name,date,ap,time} ──
+function _woAjaOn(j){ const a=j&&j.aja; return !!(a&&(a.co||a.name||a.date||a.time)); }
+function woAjaText(j,short){ const a=j&&j.aja; if(!_woAjaOn(j)) return ''; return [a.date?_woMD(a.date):'',a.ap||'',a.time||'',a.co||'',a.name?a.name+(short?'':' 様'):''].filter(Boolean).join(' '); }
+function woAjaHtml(j){
+  if(!_woInsKinds(j).length&&!_woAjaOn(j)) return '';
+  const a=j.aja||{}, ins=_woInsKinds(j).map(k=>(j.ins||{})[k]).find(x=>x&&(x.co||x.aj));
+  const ap=k=>`<button type="button" class="selbtn${a.ap===k?' on':''}" onclick="woAja('ap','${k}',1)">${k}</button>`;
+  return `<div class="field span2 wo-aja"><label>🤝 AJ（アジャスター）の立会い予定</label>
+    ${ins&&!a.co&&!a.name?`<button type="button" class="btn" style="margin-bottom:8px" onclick="woAjaFromIns()">保険の会社・AJを入れる（${esc([ins.co,ins.aj].filter(Boolean).join(' '))}）</button>`:''}
+    <div class="wo-aja-g">
+      <div><small>会社名</small><input value="${esc(a.co||'')}" placeholder="例：東京海上日動" oninput="woAja('co',this.value)" onchange="woRenderList()"></div>
+      <div><small>氏名</small><input value="${esc(a.name||'')}" placeholder="例：山田" oninput="woAja('name',this.value)" onchange="woRenderList()"></div>
+      <div><small>日にち</small><input type="date" value="${esc(a.date||'')}" onchange="woAja('date',this.value,1)"></div>
+      <div><small>午前・午後</small><div class="check-group">${ap('AM')}${ap('PM')}</div></div>
+      <div><small>時間</small><input type="time" value="${esc(a.time||'')}" onchange="woAja('time',this.value,1)"></div>
+    </div>
+    ${_woAjaOn(j)?`<button type="button" class="btn" style="margin-top:8px" onclick="woAjaClear()">立会い予定を消す</button>`:''}</div>`; }
+function woAja(f,v,big){ const j=_woCurJob(); if(!j) return; j.aja=j.aja||{}; if(f==='ap'&&j.aja.ap===v) v=''; j.aja[f]=v;
+  if(f==='time'&&v&&!j.aja.ap){ j.aja.ap=+v.slice(0,2)<12?'AM':'PM'; big=1; }   // 時間を入れたら午前・午後も自動
+  woTouch(j,!!big); if(big){ woRenderDetail(); woRenderList(); } }
+function woAjaFromIns(){ const j=_woCurJob(); if(!j) return; const x=_woInsKinds(j).map(k=>(j.ins||{})[k]).find(y=>y&&(y.co||y.aj)); if(!x) return; j.aja=j.aja||{}; j.aja.co=x.co||''; j.aja.name=x.aj||''; woTouch(j,true); woRenderDetail(); woRenderList(); }
+async function woAjaClear(){ const j=_woCurJob(); if(!j) return; if(!await askConfirm('AJの立会い予定を消しますか？')) return; j.aja={}; woTouch(j,true); woRenderDetail(); woRenderList(); }
 function woInsHtml(j){
   const kinds=_woInsKinds(j); if(!kinds.length) return '';
   return kinds.map(k=>{ const x=(j.ins||{})[k]||{}, co=x.co&&_insCo(x.co), ajs=co?(co.aj||[]):[], ka=JSON.stringify(k).replace(/"/g,'&quot;');
@@ -4118,6 +4148,8 @@ function _ydMergeLoaner(j,sid){
 }
 // 作業ボードで予約した代車で、まだ入庫していない（＝お客様に渡していない）ものか
 function _woLoanPending(b){
+  if(b&&b.src==='sheet'){   // 11/21：入出庫管理表（K列）の代車も、その車をまだ入庫済にしていなければ「貸出予定」（貸出中にしない）
+    try{ return JOBS.some(x=>!x.archived&&x.inChecked===false&&(()=>{ const m=_woSheetMatch(x); return m&&_woSheetKey(m)===b.key; })()); }catch(e){ return false; } }
   if(!b||b.src!=='wb') return false;
   const j=JOBS.find(x=>x.loanerBook===b.id||_cloudKey('wb-'+x.id)===b.id||'wb-'+x.id===b.id);
   return !!(j&&!j.archived&&j.inChecked===false);
@@ -4304,7 +4336,7 @@ function _woRenderList(){
       <div class="rt"><span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)}${!j.archived&&woColor(j)===WO_SHAKEN_COLOR?';color:#fff':''}">${esc(woLabel(j))}${n&&n.who?' · '+esc(n.who):''}</span></div>
       ${j.inChecked===false&&!j.archived&&!j.partsOnly?`<button type="button" class="wo-cin${j.inDate&&j.inDate<=_woToday()?' now':''}" onclick="woCardCheckIn(event,'${j.id}')">🚗 車が着いたら <b>入庫済にする</b></button>`:''}${_mQkHtml(j)}
       ${j.partsOnly?`<div class="sub ln">📍 部品単品</div>`:j.outWork?`<div class="sub ln">📍 外注作業${j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''}</div>`:j.slot&&_woSlotName(j.slot)?`<div class="sub ln">📍 ${esc(_woSlotFull(j))}</div>`:''}
-      ${woSeibiText_(j)?`<div class="sub ln">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub ln">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub ln">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub ln">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub ln" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
+      ${_woAjaOn(j)&&!j.archived&&(!j.aja.date||j.aja.date>=_woToday())?`<div class="sub ln">🤝 AJ立会い ${esc(woAjaText(j,true))}</div>`:''}${woSeibiText_(j)?`<div class="sub ln">${esc(woSeibiText_(j))}</div>`:''}${woShakenText(j)?`<div class="sub ln">${esc(woShakenText(j))}</div>`:''}${_woWork(j)&&!(j.tasks||[]).length?`<div class="sub ln">📋 ${esc(_woWork(j))}</div>`:''}${_woLoanerLine(j)}${j.archived&&j.autoDelivered==='sheet'?'<div class="sub ln">📋 入庫管理表から消えたため自動で納車済</div>':''}${!j.archived&&j.sheetPlateDiff!=null?`<div class="sub ln" style="color:#ffb020">⚠ 入庫管理表の番号は「${esc(j.sheetPlateDiff||'空欄')}」です。どちらかを直してください</div>`:''}
     </div>`;
   }
   if(WOC._oldBtn) list.insertAdjacentHTML('beforeend',`<button type="button" class="btn" style="width:100%;margin-top:8px" onclick="woLoadOld()">📂 ${WO_ARCH_DAYS}日より前の納車済も読む</button>`);
@@ -4424,6 +4456,7 @@ function _woRenderDetail(box){
     <div class="field half"><label>お支払い区分（複数選べます）</label><div class="check-group">${WO_PAY.map(k=>`<button type="button" class="selbtn${_woPays(j).includes(k)?' on':''}" onclick="woPay('${k}')">${k}</button>`).join('')}</div></div>
     ${_woNeedKyotei(j)?`<div class="field half"><label>協定</label><div class="check-group"><button type="button" class="selbtn wo-st-no${!j.kyotei||j.kyotei==='未完'?' on':''}" onclick="woSt('kyotei','未完')">未完</button><button type="button" class="selbtn wo-st-ok${j.kyotei==='完了'?' on':''}" onclick="woSt('kyotei','完了')">完了</button><button type="button" class="selbtn${j.kyotei==='不要'?' on':''}" onclick="woSt('kyotei','不要')">不要</button></div>${j.kyotei==='完了'&&j.kyoteiDate?`<div style="margin-top:6px;font-size:13px;color:var(--muted)">協定日：${esc(j.kyoteiDate.replace(/^(\d{4})-0?(\d+)-0?(\d+)$/,'$1/$2/$3'))}</div>`:''}</div>`:''}
     ${woInsHtml(j)}
+    ${woAjaHtml(j)}
   </div>
   <div class="wo-sec" data-sec="loan"><span class="bar"></span>代車</div>
   ${lbDetailHtml(j)}
@@ -4637,7 +4670,7 @@ h2{font-size:12px;margin:10px 0 4px;padding-left:6px;border-left:4px solid #111;
 <table class="info">
 ${row('依頼元',(j.outsrc||[]).map(x=>`<span class="ty" style="background:${_woOutColor(x)}">${esc(x==='その他'?(j.outsrcOther||'その他'):x)}</span>`).join(' ')+(j.outsrcNote?'　'+esc(j.outsrcNote):''))}${row('入庫日',esc(_woMD(j.inDate)))}${row('納車予定',`<span class="big">${esc(j.dueDate?j.dueDate.replace(/-/g,'/'):'未定')}</span>`)}${j.outDate?row('出庫予定日',esc(j.outDate.replace(/-/g,'/'))):''}
 ${row('カラー',esc([j.color,j.paintType].filter(Boolean).join('　')))}${row('車台番号',esc(j.chassis))}${j.typeNo||j.ruiNo?row('型式指定・類別',esc([j.typeNo||'—',j.ruiNo||'—'].join(' - '))):''}
-${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${_woInsKinds(j).map(k=>{ const x=(j.ins||{})[k]||{}; return x.co||x.aj?row(esc(k),esc([x.co,x.dept,x.aj?'AJ '+x.aj:'',x.tel?'TEL '+x.tel:'',x.fax?'FAX '+x.fax:'',x.mail].filter(Boolean).join('　'))):''; }).join('')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
+${_woSheetName(j)?row('お名前',esc(_woSheetName(j))):''}${woSeibiText_(j)?row('整備内容',esc(woSeibiText_(j))):''}${woShakenText(j)?row('点検・車検',esc(woShakenText(j))):''}${row('受付担当',esc(j.staff))}${_woAjaOn(j)?row('AJ立会い',esc(woAjaText(j))):''}${row('お支払い',esc(j.pay||''))}${row('作業前写真',_woPhState(j))}${_woNeedKyotei(j)?row('協定',j.kyotei||'未完'):''}${_woInsKinds(j).map(k=>{ const x=(j.ins||{})[k]||{}; return x.co||x.aj?row(esc(k),esc([x.co,x.dept,x.aj?'AJ '+x.aj:'',x.tel?'TEL '+x.tel:'',x.fax?'FAX '+x.fax:'',x.mail].filter(Boolean).join('　'))):''; }).join('')}${row('代車',j.loanerUse===true?esc('あり　'+[_lbLabel(j.loanerCar),(j.loanerFrom||j.loanerTo)?_woMD(j.loanerFrom)+'〜'+_woMD(j.loanerTo):''].filter(Boolean).join('　')):j.loanerUse===false?'なし':'')}${row('置き場所',j.partsOnly?'部品単品（車両なし）':j.outWork?'外注作業'+(j.outWorkTo?'（'+esc(j.outWorkTo)+'）':''):esc(j._slotFull!=null?j._slotFull:_woSlotFull(j)))}${row('部品発注元',esc(_woSupplierNames(j)))}${row('ガラス業者',esc(_woGlassName(j)))}${row('コーティング',j.coating?'<b>あり</b>　'+esc(j.coatType||'（種類未記入）'):'なし')}
 </table></div>
 <div>${map}${skel}<div class="lg">${WO_TASK_TYPES.map(k=>`<span style="background:${WO_TYPE_COLOR[k]}">${k}</span>`).join('')}</div></div></div>
 <h2>作業内容</h2>
@@ -4845,8 +4878,8 @@ function _woStepsForCats(j){
   if(!j.steps) return; const a=ydCats(j); const body=['bankin','toso','kumitsuke','migaki'];
   const set=(k,v)=>{ const st=j.steps[k]; if(st&&!st.done) st.need=v; };
   if(a.includes('鈑金')) body.forEach(k=>set(k,true));
-  if(!a.includes('鈑金')&&(a.includes('整備')||a.includes('車検'))){ body.forEach(k=>set(k,false)); ['seibi','obd','kensa'].forEach(k=>set(k,true)); }
-  else if(a.includes('整備')) set('seibi',true);
+  if(!a.includes('鈑金')&&(a.includes('整備')||a.includes('車検'))){ body.forEach(k=>set(k,false)); ['obd','kensa'].forEach(k=>set(k,true)); }
+  set('seibi',a.includes('整備'));   // 11/20：整備の工程は区分に整備があるときだけ（車検だけの車は 車検→OBD→洗車）
   if(!j.steps.shaken) j.steps.shaken={need:false,who:'',date:'',done:false,at:'',doneDate:''};
   set('shaken',a.includes('車検'));   // 11/20：車検の工程は区分に車検があるときだけ要
 }
