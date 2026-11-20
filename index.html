@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="0eed4d32cd">
+<meta name="ark-ver" content="8fd4fae227">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -562,7 +562,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-dup b{color:#ffb020;}
 .wo-dupb{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
 .wo-tag.dup{background:#ffb020;color:#111;}
-.wo-nm{font-size:13px;font-weight:700;color:#ffd27a;margin-left:8px;}
+.wo-nm{font-size:13px;font-weight:700;color:#ffd27a;margin-left:8px;white-space:nowrap;}   /* 11/20：「清水 様」の間で改行しない */
 .wo-nmbox{padding:8px 10px;border-radius:8px;background:var(--surface2,#2a2f36);font-weight:800;font-size:15px;}
 .wo-drop{outline:3px dashed var(--accent,#e4ff1a);outline-offset:-6px;}
 .wo-drop::after{content:'ここに落とすと、写真・PDFを追加します';position:sticky;bottom:12px;display:block;margin:10px auto 0;width:max-content;max-width:90%;padding:8px 14px;border-radius:20px;background:var(--accent,#e4ff1a);color:#111;font-weight:800;}
@@ -1651,6 +1651,7 @@ const WO_STEPS=[
   {k:'migaki',   n:'磨き・仕上げ',  c:'#5ec98f'},
   {k:'kumitsuke',n:'組付',          c:'#00E5FF'},
   {k:'seibi',    n:'整備',          c:'#14b8a6'},
+  {k:'shaken',   n:'車検',          c:'#0f7a52'},   // 11/20：車検の工程（区分に車検があるときだけ要）
   {k:'obd',      n:'OBDコンピュータチェック',c:'#fb7185'},
   {k:'kensa',    n:'洗車・完成検査',c:'#4ea1ff'},
 ];
@@ -1943,8 +1944,8 @@ function woDueTag(j){
 }
 // 次の工程が「整備」の工程のとき：区分が車検だけなら「車検」、整備と車検の両方なら「整備・車検」と出す（11/2。色も分ける）
 const WO_SHAKEN_COLOR='#0f7a52';   // 車検（配置図の「車検完成」と同じ濃い緑・白い字）
-function _woSeibiAs(j){ const c=ydCats(j); return c.includes('車検')?(c.includes('整備')?'整備・車検':'車検'):''; }
-function woColor(j){ const n=woNext(j); if(n&&n.k==='seibi'&&_woSeibiAs(j)==='車検') return WO_SHAKEN_COLOR; return n?n.c:WO_DONE_COLOR; }
+function _woSeibiAs(j){ return ''; }   // 11/20：車検の工程ができたので、整備の工程を「車検」と呼び替えるのはやめた
+function woColor(j){ const n=woNext(j); return n?n.c:WO_DONE_COLOR; }
 function woLabel(j){ if(j.archived) return '納車済'; const n=woNext(j); if(n&&n.k==='seibi'&&_woSeibiAs(j)) return _woSeibiAs(j); return n?n.n:'完成'; }
 function _woPlateShort(p){ p=String(p||'').trim(); const m=p.match(/(\d{1,2}[-‐－ー]?\d{2})\s*$/); return m?m[1]:p; }
 // 年月（YYYY-MM）を「2018年3月（平成30年3月）」に。令和は2019年5月から、平成は1989年2月から（11/18）
@@ -1983,7 +1984,9 @@ function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ dele
   if(!Array.isArray(j.outsrc)) j.outsrc=[];
   if(j.outsrc.length>1){ j.outsrc=j.outsrc.slice(0,1); ch=true; }
   if(!j.steps) j.steps={};
-  for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ j.steps[s.k]={need:s.k==='seibi'?(j.yCat==='整備'||(Array.isArray(j.yCats)&&j.yCats.includes('整備'))):true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
+  for(const k in j.steps){ const x=j.steps[k]; if(x&&x.done&&x.at&&!x.doneDate){ x.doneDate=String(x.at).slice(0,10); ch=true; } } WO_STEPS.forEach(s=>{ if(!j.steps[s.k]){ if(s.k==='shaken'){ const sb=j.steps.seibi||{}, on=Array.isArray(j.yCats)&&j.yCats.includes('車検');   // 11/20：車検の工程を足した。前は整備の工程を「車検」と呼んでいたので、整備が済んでいれば車検も済み
+    j.steps.shaken={need:on,who:on&&sb.done?sb.who||'':'',date:on&&sb.done?sb.date||'':'',done:!!(on&&sb.done),at:on&&sb.done?sb.at||'':'',doneDate:on&&sb.done?sb.doneDate||'':''}; ch=true; return; }
+    j.steps[s.k]={need:s.k==='seibi'?(j.yCat==='整備'||(Array.isArray(j.yCats)&&j.yCats.includes('整備'))):true,who:'',date:'',done:false,at:'',doneDate:''}; ch=true; } });
   (j.tasks||[]).forEach(t=>{ for(const k of ['panel','replace','paint','acc','paintType','quarter','twoTone']){ if(k in t){ delete t[k]; ch=true; } } }); return ch; }
 
 // ── 保存（端末：暗号化／共有：Firestore） ──
@@ -2716,7 +2719,7 @@ async function woRenderFiles(){
 
 // ── 作業指示を作る ──
 function _woNew(){
-  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:s.k!=='seibi',who:'',date:'',done:false,at:'',doneDate:''}; });
+  const steps={}; WO_STEPS.forEach(s=>{ steps[s.k]={need:s.k!=='seibi'&&s.k!=='shaken',who:'',date:'',done:false,at:'',doneDate:''}; });
   const now=new Date().toISOString();
   return {id:_woId(),createdAt:now,updatedAt:now,plate:'',car:'',color:'',chassis:'',paintType:'',staff:'',pay:'',photoTaken:null,loanerUse:null,loanerCar:'',loanerFrom:'',loanerTo:'',loanerBook:'',
     inDate:_woToday(),inChecked:false,dueDate:'',tasks:[],steps,parts:[],suppliers:[],supplierOther:'',outsrc:[],outsrcOther:'',outsrcNote:'',glassVendor:'',glassOther:'',coating:false,coatType:'',caution:'',slot:'',archived:false};
@@ -2769,7 +2772,7 @@ function woStep(k,f,v){
   if(f==='doneDate'&&v&&!st.done){ st.done=true; st.at=new Date().toISOString(); }
   // 11/20：担当を選んだら、その作業を始めたことにする（開始日が空なら今日）。鈑金（鈑金の最初の工程）と整備・車検（整備の工程）
   if(f==='who'&&v&&!st.date&&!st.done&&st.need){ const body=YD_BODY_STEPS.find(x=>j.steps[x]&&j.steps[x].need);
-    if(k==='seibi'||k===body){ st.date=_woToday(); toast(`${(WO_STEPS.find(x=>x.k===k)||{}).n||''}の開始日に今日を入れました（直せます）`); } }
+    if(k==='seibi'||k==='shaken'||k===body){ st.date=_woToday(); toast(`${(WO_STEPS.find(x=>x.k===k)||{}).n||''}の開始日に今日を入れました（直せます）`); } }
   const big=['done','need','who','doneDate'].includes(f);
   woTouch(j,big); woRenderList(); ydRender();
   if(big) woRenderDetail();
@@ -3630,7 +3633,7 @@ function woFilter(f){ WO_FILTER=f; woRenderList(); }
 //  ・自分の担当：この端末で「自分」を1回選ぶと、工程の担当・受付担当が自分の車だけを出す（名前はこの端末にだけ覚える）
 const M={meOn:false, me:''};
 try{ M.me=localStorage.getItem('wo-me')||''; M.meOn=!!M.me&&localStorage.getItem('wo-me-on')==='1'; }catch(e){}
-const M_SHORT={bankin:'板金',toso:'塗装',migaki:'磨き',kumitsuke:'組付',seibi:'整備',obd:'OBD',kensa:'洗車・検査'};
+const M_SHORT={bankin:'板金',toso:'塗装',migaki:'磨き',kumitsuke:'組付',seibi:'整備',shaken:'車検',obd:'OBD',kensa:'洗車・検査'};
 function _mMob(){ return window.innerWidth<900; }
 function _mShort(j,s){ return s.k==='seibi'&&_woSeibiAs(j)?_woSeibiAs(j):(M_SHORT[s.k]||s.n); }
 function _woIsMine(j){ if(!M.me) return true; if(j.staff===M.me) return true; return WO_STEPS.some(s=>{ const st=j.steps&&j.steps[s.k]; return st&&st.need&&st.who===M.me; }); }
@@ -4808,7 +4811,7 @@ const YD_BODY_STEPS=['bankin','toso','migaki','kumitsuke'];   // 下地は塗装
 function ydCats(j){ const a=Array.isArray(j.yCats)&&j.yCats.length?j.yCats:[j.yCat||'鈑金']; return a.includes('その他')?['その他']:YD_CATS.filter(c=>a.includes(c)); }
 function _ydGroup(j,c){ const cats=ydCats(j); const mech=cats.includes('整備')||cats.includes('車検');
   if(c==='鈑金') return mech?YD_BODY_STEPS:[...YD_BODY_STEPS,'obd','kensa'];
-  return ['seibi','obd','kensa']; }
+  return c==='車検'?['seibi','shaken','obd','kensa']:['seibi','obd','kensa']; }
 function _ydStageOf(j,c){
   const st=_ydGroup(j,c).map(k=>j.steps&&j.steps[k]).filter(x=>x&&x.need);
   if(!st.length) return {stage:'前',auto:true};
@@ -4844,6 +4847,8 @@ function _woStepsForCats(j){
   if(a.includes('鈑金')) body.forEach(k=>set(k,true));
   if(!a.includes('鈑金')&&(a.includes('整備')||a.includes('車検'))){ body.forEach(k=>set(k,false)); ['seibi','obd','kensa'].forEach(k=>set(k,true)); }
   else if(a.includes('整備')) set('seibi',true);
+  if(!j.steps.shaken) j.steps.shaken={need:false,who:'',date:'',done:false,at:'',doneDate:''};
+  set('shaken',a.includes('車検'));   // 11/20：車検の工程は区分に車検があるときだけ要
 }
 // 入力中は画面を描き直さない（日本語入力が途切れないように）。入力欄を離れたときに反映
 function ydSetNote(id,v){ const j=_woJob(id); if(!j) return; j.yNote=v; woTouch(j); }
