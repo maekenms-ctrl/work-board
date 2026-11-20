@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="6ba63788bb">
+<meta name="ark-ver" content="0eed4d32cd">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -643,6 +643,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-tag.kensa{background:#0f7a52;color:#fff;}   /* 11/20：車検 検査中（陸自） */
 .yd-car .yd-kz{display:block;font-style:normal;font-size:10px;font-weight:900;background:#0f7a52;color:#fff;border-radius:4px;padding:0 4px;margin-top:2px;}
 .wo-kz{margin-top:8px;}
+.wo-kzbar{margin:10px 0 4px;}
+@media(max-width:899px){ .wo-kzbar{display:none;} }   /* スマホは「保存・納車」の横のアイコンで付け外し */
+.wo-kzbar button{width:100%;min-height:50px;border-radius:12px;border:2px dashed #0f7a52;background:transparent;color:var(--text);font:inherit;font-size:16px;font-weight:900;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px;}
+.wo-kzbar.on button{background:#0f7a52;border:2px solid #0f7a52;color:#fff;}
+.wo-kzbar small{font-size:12px;font-weight:700;opacity:.9;}
 .wo-kz .selbtn.on{background:#0f7a52;color:#fff;border-color:#0f7a52;}
 .wo-sp-box{max-width:560px;max-height:86vh;display:flex;flex-direction:column;}
 /* 見積りツールからの転送 */
@@ -1674,24 +1679,27 @@ const WO_PHOTO_MAX=30;   // 11/16：工程ごとに撮るので15→30枚
 // ── 11/20：整備・車検の写真は、お客様への説明（原因・交換の必要／不要）に合わせた分け方にする ──
 //  ・区分が鈑金なら鈑金の5つ、整備なら整備の分け方、車検なら車検の分け方（両方あれば並べて出す）。最後はどれも「最終完成」
 //  ・WO_PH_STG は全部の分け方（名前・色を引くため）。車ごとに出すのは _woPhList(j)
+// 11/20 昼：「作業前」はどの区分も共通（症状・入庫時の状態は作業前にまとめた）。整備の原因は「原因の箇所・部品」の1つ。車検の「交換しなくてよい」は「現状確認」
 const WO_PH_STG=[{k:'pre',n:'作業前',c:'#93c5fd'},{k:'bk1',n:'鈑金中',c:'#ffb020'},{k:'bk2',n:'鈑金完成',c:'#e4ff1a'},{k:'tc',n:'塗装中',c:'#FF2BD6'},
-  {k:'sb0',n:'症状（入庫時）',c:'#93c5fd'},{k:'sb1',n:'原因の箇所',c:'#ff5c5c'},{k:'sb2',n:'原因の部品',c:'#ffb020'},{k:'sb3',n:'修理・交換後',c:'#14b8a6'},
-  {k:'sk0',n:'入庫時の状態',c:'#93c5fd'},{k:'sk1',n:'整備不良の箇所',c:'#ff5c5c'},{k:'sk2',n:'交換が必要',c:'#ffb020'},{k:'sk3',n:'交換しなくてよい',c:'#a78bfa'},{k:'sk4',n:'交換・整備後',c:'#14b8a6'},
+  {k:'sb1',n:'原因の箇所・部品',c:'#ff5c5c'},{k:'sb3',n:'修理・交換後',c:'#14b8a6'},
+  {k:'sk1',n:'整備不良の箇所',c:'#ff5c5c'},{k:'sk2',n:'交換が必要',c:'#ffb020'},{k:'sk3',n:'現状確認',c:'#a78bfa'},{k:'sk4',n:'交換・整備後',c:'#14b8a6'},
   {k:'fin',n:'最終完成',c:'#34d399'}];
-const WO_PH_SET={鈑金:['pre','bk1','bk2','tc'],整備:['sb0','sb1','sb2','sb3'],車検:['sk0','sk1','sk2','sk3','sk4']};
-const WO_PH_HINT={sb0:'お客様が気になっている症状・警告灯・音の出る所など',sb1:'原因が見つかった所（どこが悪いか）',sb2:'原因の部品（外した部品・傷み・漏れ）',sb3:'直したあと・新しい部品を付けたあと',
-  sk0:'走行距離（メーター）・外観・入庫時の状態',sk1:'整備不良の所（漏れ・ガタ・ひび・球切れなど）',sk2:'交換が必要な理由が分かる写真（残量・摩耗・ひび）',sk3:'まだ使える理由が分かる写真（残量・測った数字）',sk4:'交換・整備したあと',
-  pre:'',bk1:'',bk2:'',tc:'',fin:''};
+const WO_PH_OLD={sb0:'pre',sk0:'pre',sb2:'sb1'};   // 前の分け方で撮った写真は、まとめた先に入れて見せる
+const WO_PH_SET={鈑金:['pre','bk1','bk2','tc'],整備:['pre','sb1','sb3'],車検:['pre','sk1','sk2','sk3','sk4']};
+const WO_PH_HINT={sb1:'原因が見つかった所・原因の部品（外した部品・傷み・漏れ）',sb3:'直したあと・新しい部品を付けたあと',
+  sk1:'整備不良の所（漏れ・ガタ・ひび・球切れなど）',sk2:'交換が必要な理由が分かる写真（残量・摩耗・ひび）',sk3:'今の状態が分かる写真（残量・測った数字など。交換しなくてよい理由）',sk4:'交換・整備したあと',
+  bk1:'',bk2:'',tc:'',fin:''};
+function _woPhHint(j,k){ if(k==='pre'){ const c=_woPhCats(j); return c.includes('鈑金')?'':'症状・警告灯・走行距離（メーター）・外観など、入庫したときの状態'; } return WO_PH_HINT[k]||''; }
 function _woPhCats(j){ let c=[]; try{ c=ydCats(j); }catch(e){} if(!c.length||c[0]==='その他') c=['鈑金']; return c; }
 function _woPhList(j){ const c=_woPhCats(j), cnt=_woPhCounts(j); const keys=new Set(['fin']); c.forEach(x=>(WO_PH_SET[x]||[]).forEach(k=>keys.add(k)));
   Object.keys(cnt).forEach(k=>{ if(cnt[k]) keys.add(k); });   // ほかの分け方に入っている写真も、見えるように出す
   return WO_PH_STG.filter(x=>keys.has(x.k)); }
 const WO_PHSEL={jid:null,k:null};
 function _woPhStgName(k){ const x=WO_PH_STG.find(v=>v.k===k); return x?x.n:'作業前'; }
-function _woPhStgOf(j,p){ return (p&&p.st)||(((j&&j.phStg)||{})[p&&p.pid])||'pre'; }
+function _woPhStgOf(j,p){ const k=(p&&p.st)||(((j&&j.phStg)||{})[p&&p.pid])||'pre'; return WO_PH_OLD[k]||k; }
 function _woPhNow(j){
   const c=_woPhCats(j), body=c.includes('鈑金'), mech=c.includes('車検')?'sk':c.includes('整備')?'sb':'';
-  if(!j||j.inChecked===false) return body||!mech?'pre':mech+'0';
+  if(!j||j.inChecked===false) return 'pre';
   const S=j.steps||{}, st=k=>S[k]||{};
   const any=WO_STEPS.some(x=>st(x.k).need), all=WO_STEPS.every(x=>!st(x.k).need||st(x.k).done);
   if(any&&all) return 'fin';
@@ -1701,7 +1709,7 @@ function _woPhNow(j){
     if(ts.need&&!ts.done) return ts.date?'tc':(bk.need?'bk2':'pre');
   }
   if(mech){   // 整備・車検：始める前＝入庫時、始めたら＝原因の箇所／整備不良の箇所、終わったら＝修理・交換後／交換・整備後
-    if(sb.need&&!sb.done) return sb.date?mech+'1':mech+'0';
+    if(sb.need&&!sb.done) return sb.date?mech+'1':'pre';
     return mech==='sk'?'sk4':'sb3';
   }
   if(!bk.need&&!ts.need) return 'pre';
@@ -1716,7 +1724,7 @@ function _woPhStgPaint(){
   const PL=_woPhList(j); if(box){ box.style.setProperty('--n',PL.length); box.classList.toggle('many',PL.length>5); }
   if(box) box.innerHTML=PL.map(x=>`<button type="button" class="wo-stg${x.k===sel?' on':''}${x.k===now?' now':''}" style="--sc:${x.c}" onclick="woPhPick('${x.k}')">${x.k===now?'<span class="nw">👉 今</span>':''}<span class="nm">${x.n}</span><b>${c[x.k]||0}枚</b></button>`).join('');
   const g=document.getElementById('wo-ph-guide');
-  if(g) g.innerHTML=`今は <b style="color:${(WO_PH_STG.find(x=>x.k===now)||{}).c}">「${esc(nowN)}」</b> の写真の番です。${sel!==now?`<br>いまは <b>「${esc(selN)}」</b> に入れる設定です（👉 今 を押すと戻ります）。`:'撮った写真は、ここに入ります。'}${WO_PH_HINT[sel]?`<br><span style="color:var(--muted)">📷 ${esc(WO_PH_HINT[sel])}</span>`:''}`;
+  if(g) g.innerHTML=`今は <b style="color:${(WO_PH_STG.find(x=>x.k===now)||{}).c}">「${esc(nowN)}」</b> の写真の番です。${sel!==now?`<br>いまは <b>「${esc(selN)}」</b> に入れる設定です（👉 今 を押すと戻ります）。`:'撮った写真は、ここに入ります。'}${_woPhHint(j,sel)?`<br><span style="color:var(--muted)">📷 ${esc(_woPhHint(j,sel))}</span>`:''}`;
   document.querySelectorAll('.cq-stg').forEach(el=>{ el.textContent=`${selN}の写真を撮る`; });
   const need=!(c[now]>0);
   const h=document.querySelector('#wo-detail .wo-sec[data-sec="photo"]');
@@ -2373,7 +2381,8 @@ const WO_SHAKEN=[{k:'pre',ic:'🔍',n:'事前点検'},{k:'m3',ic:'📋',n:'3カ�
 function woShakenHtml(j){ const a=Array.isArray(j.shaken)?j.shaken:[]; return `<div class="check-group wo-sb">${WO_SHAKEN.map(x=>`<button type="button" class="selbtn${a.includes(x.k)?' on':''}" onclick="woShaken('${x.k}')">${x.ic} ${x.n}</button>`).join('')}</div>`; }
 function woShaken(k){ const j=_woCurJob(); if(!j) return; const a=Array.isArray(j.shaken)?j.shaken:[]; j.shaken=a.includes(k)?a.filter(x=>x!==k):WO_SHAKEN.map(x=>x.k).filter(x=>x===k||a.includes(x)); woTouch(j,true); woRenderDetail(); woRenderList(); }
 // 11/20：検査中（陸自で検査をしている間）。車検の欄のボタンで付けたり外したりする。一覧・配置図に札を出す
-function woKensaOutHtml(j){ return `<div class="check-group wo-kz"><button type="button" class="selbtn${j.kensaOut?' on':''}" onclick="woKensaOut()">🏛 検査中（陸自で検査をしている）</button></div>${j.kensaOut&&j.kensaOutAt?`<div style="margin-top:4px;font-size:13px;color:var(--muted)">${esc(_woMD(j.kensaOutAt))} から検査中。戻ってきたら、もう一度押して外してください</div>`:''}`; }
+function woKensaBar(j){ if(!j||j.archived||j.inChecked===false||!ydCats(j).includes('車検')) return '';
+  return `<div class="wo-kzbar${j.kensaOut?' on':''}"><button type="button" onclick="woKensaOut()">🏛 ${j.kensaOut?`陸自で検査中${j.kensaOutAt?'（'+esc(_woMD(j.kensaOutAt))+'〜）':''}<small>戻ってきたら押して外す</small>`:'陸自で検査中にする'}</button></div>`; }
 function woKensaOut(){ const j=_woCurJob(); if(!j) return; j.kensaOut=!j.kensaOut; if(j.kensaOut) j.kensaOutAt=_woToday(); else delete j.kensaOutAt; woTouch(j,true); woRenderDetail(); woRenderList(); try{ ydRender(); }catch(e){} }
 function _woKensaOn(j){ return !!(j&&j.kensaOut&&!j.archived&&ydCats(j).includes('車検')); }
 function woShakenText(j){ if(!ydCats(j).includes('車検')||!Array.isArray(j.shaken)) return ''; return WO_SHAKEN.filter(x=>j.shaken.includes(x.k)).map(x=>x.ic+x.n).join('・'); }
@@ -3671,7 +3680,7 @@ const M_TILES=[
   {k:'photo',i:'📷',n:'写真',c:'#e4ff1a'},{k:'area',i:'🩹',n:'作業箇所',c:'#3b82f6'},{k:'steps',i:'🔧',n:'工程・担当',c:'#f59e0b'},
   {k:'parts',i:'📦',n:'部品',c:'#16a34a'},{k:'note',i:'⚠️',n:'注意事項',c:'#ef4444'},{k:'src',i:'🏢',n:'依頼元',c:'#8b5cf6'},
   {k:'car',i:'🚗',n:'車両',c:'#0ea5e9'},{k:'pay',i:'💴',n:'区分・支払い',c:'#14b8a6'},{k:'loan',i:'🔑',n:'代車',c:'#a855f7'},
-  {k:'sup',i:'🧾',n:'発注元・PDF',c:'#64748b'},{k:'acts',i:'⋯',n:'保存・納車',c:'#475569'}];
+  {k:'sup',i:'🧾',n:'発注元・PDF',c:'#64748b'},{k:'acts',i:'⋯',n:'保存・納車',c:'#475569'},{k:'kz',i:'🏛',n:'陸自で検査中',c:'#0f7a52'}];   // kz：押すとその場で検査中を付け外し（11/20。車検の車だけ）
 
 // ── 11/17 画面の行き来（スマホだけ）：M.view＝'list'（車両一覧）／'car'（車の画面）。項目を開いているときは M.sec ──
 M.view='list'; M.listY=0;
@@ -3692,7 +3701,7 @@ function _mView(){
   heads.forEach(h=>parts(h).forEach(x=>x.classList.add('m-hide'))); if(two) two.classList.add('m-hide'); if(acts) acts.classList.add('m-hide');
   const anchor=d.querySelector('#wo-dup')||d.querySelector('.wo-inq')||d.querySelector('.wo-head');
   if(!M.sec){
-    const has=new Set(heads.map(h=>h.dataset.sec)); if(acts) has.add('acts');
+    const has=new Set(heads.map(h=>h.dataset.sec)); if(acts) has.add('acts'); if(woKensaBar(j)) has.add('kz');
     const wait=(j.parts||[]).filter(p=>p.status==='未発注'||p.status==='発注済').length, nx=woNext(j);
     const g=document.createElement('div'); g.className='m-tiles';
     g.innerHTML=M_TILES.filter(t=>has.has(t.k)).map(t=>{
@@ -3702,7 +3711,9 @@ function _mView(){
       else if(t.k==='steps') sub=nx?'次：'+_mShort(j,nx):'全工程完了';
       else if(t.k==='note'){ const c=String(j.caution||'').trim(); sub=c?'あり':'なし'; if(c) b='!'; }
       else if(t.k==='acts') sub=j.archived?'納車済':'';
+      else if(t.k==='kz'){ sub=j.kensaOut?`検査中${j.kensaOutAt?' '+_woMD(j.kensaOutAt)+'〜':''}`:'押すと検査中'; if(j.kensaOut) b='中'; }
       else { try{ sub=_woFoldSum(t.k,j)||''; }catch(e){} }
+      if(t.k==='kz') return `<button type="button" class="m-tile${j.kensaOut?' kz-on':''}" onclick="woKensaOut()"><span class="mt-i" style="--mtc:${j.kensaOut?t.c:t.c+'22'};border:2px solid ${t.c}">${t.i}</span>${b?`<span class="mt-b" style="background:${t.c}">${esc(b)}</span>`:''}<span class="mt-n">${esc(t.n)}</span><span class="mt-s">${esc(sub)}</span></button>`;
       return `<button type="button" class="m-tile" onclick="mSec('${t.k}')"><span class="mt-i" style="--mtc:${t.c}22;border:2px solid ${t.c}">${t.i}</span>${b?`<span class="mt-b">${esc(b)}</span>`:''}<span class="mt-n">${esc(t.n)}</span><span class="mt-s">${esc(sub)}</span></button>`; }).join('');
     anchor.after(g);
     if(false){   // 11/17：上の2つのボタンはやめた（下の4つと重なるため）
@@ -4367,6 +4378,7 @@ function _woRenderDetail(box){
     <div><div class="big">${esc(j.car||j.plate||'（未入力）')}</div><div class="meta wo-plate-d">${esc(j.car?j.plate||'':'')}</div></div>
     <span class="wo-chip" style="--sc:${j.archived?'var(--surface3)':woColor(j)};font-size:13px;padding:4px 12px">${j.archived?'納車済':n?'次の工程：'+esc(n.n):'全工程 完了'}</span>
   </div>
+  ${woKensaBar(j)}
   ${j.inChecked===false&&!j.archived&&!j.partsOnly?`<div class="wo-inq${j.inDate&&j.inDate<=_woToday()?' now':''}"><div class="wo-inq-t">🅿️ まだ入庫していません${j.inDate?`（入庫予定 ${esc(_woMD(j.inDate))}）`:''}</div><button type="button" class="wo-inq-b" onclick="woCheckIn()"><span class="cq-i">🚗</span><span class="cq-t"><b>入庫済にする</b><small>引き取り・持ち込みで車が着いたら押す${j.loanerUse===true&&j.loanerCar?'（代車も貸出中になります）':''}</small></span><span class="cq-a">▶</span></button></div>`:''}
   ${_phTop?_phHtml:''}
   <div class="wo-sec" data-sec="src"><span class="bar"></span>依頼元</div>
@@ -4402,7 +4414,7 @@ function _woRenderDetail(box){
   <div class="wo-two"><div class="wo-two-l"><div class="wo-sec" data-sec="pay" style="margin-top:4px"><span class="bar"></span>区分・お支払い・保険</div><div class="fgrid">
     <div class="field span2"><label>配置図の表示（区分・段階）</label>${ydStateButtons(j,'wod')}</div>
     ${ydCats(j).includes('整備')?`<div class="field span2"><label>整備内容（複数選べます）</label>${woSeibiHtml(j)}</div>`:''}
-    ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}${woKensaOutHtml(j)}</div>`:''}
+    ${ydCats(j).includes('車検')?`<div class="field span2"><label>点検・車検の内容（複数選べます）</label>${woShakenHtml(j)}</div>`:''}
     ${(YARD.spaces.find(s=>s.id===j.slot)||{}).memo?`<div class="field span2"><label>場所のメモ（${esc(_woSlotName(j.slot))}）</label><input value="${v('slotNote')}" placeholder="例：裏の駐車場・提携工場" oninput="woSet('slotNote',this.value);ydRender()"></div>`:''}
   </div>
   <div class="wo-inl" style="margin-top:8px">
