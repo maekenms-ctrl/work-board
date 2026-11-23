@@ -20,10 +20,10 @@
  *   reloadBtn()  表を読み直すボタン（なければ ''）   warn()  上に出す注意（なければ ''）   errs()  下に出す注意（HTML）
  *   onOpen()  onClose()   formNote(b)  予約の画面に出す説明（HTML）
  * ===================================================================== */
-var LCAL_VER = '2026-11-17';
+var LCAL_VER = '2026-11-24';
 var OPEN_END = '9999-12-31';
 // レンタカーの枠（10/31）：中の名前（n）は前のまま（前の予約を引き継ぐため）。レンタカー1・2＝トヨレン①②（前の「他社レンタカー①②」）、3・4＝キンレン①②
-var RENTAL_ROWS = [{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1}];
+var RENTAL_ROWS = [{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1},{n:'レンタカー5',lab:'その他レンタカー',ext:1,multi:1}]   // 11/24：レンタカー5＝その他レンタカー（何台でも入る・重なりにしない）;
 var LOANER_CARS = [{n:'N-BOX'},{n:'ラパン',low:1},{n:'フィット',low:1},{n:'フリード'},{n:'プリウス',low:1},{n:'ミライース',low:1},{n:'ムーブ'}];   // low：全高1550mm以下
 var LOANER_KINDS = [{k:'鈑金塗装',c:'#E6FF1A'},{k:'整備',c:'#FF2BD6'},{k:'車検点検',c:'#00E5FF'}];   // ネオンイエロー／ネオンピンク／ネオンブルー
 var SHOP_CLOSED = (typeof SHOP_CLOSED !== 'undefined' && SHOP_CLOSED) || {w:[],d:[]};
@@ -201,7 +201,10 @@ function _renderLoanerCal(){
         h+=`<td class="bk ho${x.n===1?' m1':''}" style="${bg}" onclick="_lcPick('${_lcEsc(a.id+'|'+b.id)}','${x.d}')" title="${_lcEsc('入れ替え：'+(_lcName(a)||'予約')+' 返却 → '+(_lcName(b)||'予約')+' 貸出')}"><div class="lc-ho"><div class="bk-bar" style="background:${_kindBg(a)}"></div><b>🔁</b><div class="bk-bar" style="background:${_kindBg(b)}"></div></div></td>`;
         i++; continue;
       }
-      if(L.length>1){   // 重なり：同じ代車に同じ日の予約が2つ以上
+      if(L.length>1&&c.multi){   // その他レンタカー：何台でも。重なりにしない（11/24）
+        const nm=L.map(b=>_lcName(b)||'予約').join(' ／ ');
+        h+=`<td class="bk${span<=2?' short':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_lcPick('${_lcEsc(k0)}','${x.d}')" title="${_lcEsc(nm)}"><div class="bk-bar" style="background:#9AA4B2"><span class="bk-t"><span class="bk-n">${L.length}台</span>${span>=2?`<span class="bk-m">${_lcEsc(nm)}</span>`:''}</span></div></td>`;
+      } else if(L.length>1){   // 重なり：同じ代車に同じ日の予約が2つ以上
         L.forEach(b=>ovIds.add(b.id));
         const nm=L.map(b=>_lcName(b)||'予約').join(' ／ ');
         h+=`<td class="bk ov${span<=2?' short':''}${x.n===1?' m1':''}" colspan="${span}" style="${bg}" onclick="_lcPick('${_lcEsc(k0)}','${x.d}')" title="${_lcEsc('予約が重なっています：'+nm)}"><div class="bk-bar lc-ovbar"><span class="bk-t"><span class="bk-n">⚠ 重なり ${L.length}件</span>${span>=2?`<span class="bk-m">${_lcEsc(nm)}</span>`:''}</span></div></td>`;
@@ -266,7 +269,7 @@ function _loanerForm(id,car,day){
     const n={id:b?b.id:(A.newId?A.newId():'cal-'+Date.now().toString(36)),car:ov.querySelector('#lf-car').value,from:ov.querySelector('#lf-from').value,to,name:ov.querySelector('#lf-name').value.trim(),kinds,kind:kinds.join('・'),memo:ov.querySelector('#lf-memo').value.trim()};
     if(!n.from||!n.to){ toast('貸出日と返却予定日を入れてください'); return; }
     if(n.to<n.from){ const t=n.from; n.from=n.to; n.to=t; }
-    const clash=_lcAll().find(x=>x.id!==n.id&&x.car===n.car&&x.from<=n.to&&n.from<=x.to&&!_lcTouch(x,n));   // 返却日＝貸出日（入れ替え）は重なりにしない
+    const clash=n.car==='レンタカー5'?null:_lcAll().find(x=>x.id!==n.id&&x.car===n.car&&x.from<=n.to&&n.from<=x.to&&!_lcTouch(x,n));   // 返却日＝貸出日（入れ替え）は重なりにしない
     if(clash&&!await askConfirm(`${_lcLabel(n.car)}は ${clash.from.slice(5)}〜${_toLabel(clash.to)}（${_lcName(clash)||'予約'}）と重なっています。このまま保存しますか？`,'保存する')) return;
     let ok=false; try{ ok=A.put?A.put(n,b):false; }catch(e){ console.warn(e); toast('保存できませんでした',5000); }
     if(ok===false) return;
