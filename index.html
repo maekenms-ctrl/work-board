@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="e4cc7ed1d6">
+<meta name="ark-ver" content="91591ec156">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -15,7 +15,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script>if('serviceWorker' in navigator&&location.protocol==='https:'){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
 <!-- 代車カレンダー（作業ボード・見積りツールの共通ファイル。読めなくても作業ボードはふだんどおり動く） -->
-<script src="loaner-cal.js?v=2026-11-17"></script>
+<script src="loaner-cal.js?v=2026-11-24"></script>
 <link id="apple-touch-icon" rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
 <link id="pwa-icon" rel="icon" type="image/png" href="icon-192.png">
 <style>
@@ -5229,11 +5229,12 @@ function _sheetDate(v){
 function _sheetCar(v){
   const z=String(v||'').normalize('NFKC').replace(/\s/g,'').toUpperCase().replace(/[‐－−ー](?=BOX)/g,'-');
   if(!z||/^(なし|無|無し|-|×|X|✕|不要)$/.test(z)||/家まで|送迎|自宅|自走/.test(z)) return null;   // 代車なし（送迎などを含む）
-  // レンタカーの枠（10/31）：トヨレン①②＝レンタカー1・2、キンレン①②＝レンタカー3・4。番号がなければ空いている枠へ（T＝トヨレン・K＝キンレン・なし＝4枠のどれか）
-  if(/トヨレン|キンレン|レンタ|ニコニコ|オリックス|タイムズ|ニッポン/.test(z)){ const m=z.match(/([1-4])(?!\d)/), d=m?+m[1]:0;   // ①②→1・2（NFKCで数字になる）
+  // レンタカーの枠（10/31・11/24）：トヨレン①②＝レンタカー1・2、キンレン①②＝レンタカー3・4、その他レンタカー＝レンタカー5。トヨレン・キンレンで番号がなければ空いている枠へ
+  if(/トヨレン|キンレン|レンタ|ニコニコ|オリックス|タイムズ|ニッポン|ビジレン|ジャパレン|バジェット/.test(z)){ const m=z.match(/([1-4])(?!\d)/), d=m?+m[1]:0;   // ①②→1・2（NFKCで数字になる）
     if(/トヨレン|トヨタレンタ/.test(z)) return d===1||d===2?'レンタカー'+d:'レンタカーT';
     if(/キンレン/.test(z)) return d===1||d===2?'レンタカー'+(d+2):'レンタカーK';
-    return d>=1&&d<=4?'レンタカー'+d:'レンタカー'; }
+    if(/^レンタ(カー)?[1-4]$/.test(z)) return 'レンタカー'+d;
+    return 'レンタカー5'; }   // 11/24：「レンタカー」だけ・ビジレンなどほかの会社は「その他レンタカー」（トヨレン・キンレンに書き換えると、その枠へ移る）
   const T=[['フリード',/フリード/],['プリウス',/プリウス/],['フィット',/フィット/],['ミライース',/ミラ/],['ムーブ',/ムーヴ|ムーブ/],['ラパン',/ラパン/],['N-BOX',/N-?BOX|NBOX|エヌボックス|Nボックス/]];
   for(const [n,re] of T) if(re.test(z)) return n;
   return '?';
@@ -5265,6 +5266,7 @@ function _lbAll(){
 //   返却日と貸出日が同じ日だけ接しているもの（入れ替え）は重なりにしない（11/4）
 function lbClash(car,from,to,selfId,j){
   if(!car||!from) return null; to=to||from;
+  if(car==='レンタカー5') return null;   // その他レンタカーは何台でも（重なりにしない）
   const x=j&&_woSheetMatch(j), key=x?_woSheetKey(x):'', no=j?_woPlateNo(j.plate):'';
   return _lbAll().find(b=>!b.returned&&b.id!==selfId&&b.car===car&&b.from<=to&&from<=b.to&&!((b.to===from&&b.from<from)||(b.from===to&&from<to))&&!(j&&b.src==='sheet'&&((key&&b.key===key)||(no&&_woPlateNo(b.plate)===no))))||null;
 }
@@ -5421,7 +5423,7 @@ window.LCAL={
 };
 // 共通ファイルが読めなかったとき（電波が弱いなど）：カレンダーの代わりにお知らせを出す。代車の車両一覧はここで用意して、作業指示の代車欄は使えるようにする
 if(typeof _renderLoanerCal!=='function'){ window.openLoanerCal=()=>toast('代車カレンダーを読み込めませんでした。電波を確認して、作業ボードを開き直してください',7000); window._renderLoanerCal=()=>{};
-  window.OPEN_END='9999-12-31'; window.RENTAL_ROWS=[{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1}];
+  window.OPEN_END='9999-12-31'; window.RENTAL_ROWS=[{n:'レンタカー1',lab:'トヨレン①',ext:1},{n:'レンタカー2',lab:'トヨレン②',ext:1},{n:'レンタカー3',lab:'キンレン①',ext:1},{n:'レンタカー4',lab:'キンレン②',ext:1},{n:'レンタカー5',lab:'その他レンタカー',ext:1,multi:1}];
   window.LOANER_CARS=[{n:'N-BOX'},{n:'ラパン',low:1},{n:'フィット',low:1},{n:'フリード'},{n:'プリウス',low:1},{n:'ミライース',low:1},{n:'ムーブ'}];
   window.LOANER_KINDS=[{k:'鈑金塗装',c:'#E6FF1A'},{k:'整備',c:'#FF2BD6'},{k:'車検点検',c:'#00E5FF'}]; window._toLabel=d=>d===OPEN_END?'返却未定':d.slice(5).replace('-','/'); window._kinds=b=>Array.isArray(b.kinds)?b.kinds:[]; }
 let LB_ALL=null;   // 代車を変えるために、全部の車を出している作業指示
