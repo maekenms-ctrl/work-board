@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="e769419403">
+<meta name="ark-ver" content="16caa536f4">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -1154,7 +1154,18 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
   #tab-yard .yd-tray .card{margin:4px 0;padding:6px 8px;}
   #tab-yard .yd-tray .card-title{font-size:12px;margin-bottom:4px;}
   #tab-yard .yd-tray .yd-pool{min-height:40px;padding:5px;}
+  /* 11/25：縦の画面では、未配置の車両・駒を見出しを押して畳める（配置図を広く見る） */
+  #tab-yard .yd-foldh{cursor:pointer;user-select:none;-webkit-user-select:none;}
+  #tab-yard .yd-foldh .yd-fhint{display:none;}
+  #tab-yard .yd-foldh .yd-fbtn{margin-left:auto;font-size:12px;font-weight:800;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 10px;}
+  #tab-yard .yd-foldh .yd-fbtn::before{content:'▲ 畳む';}
+  #tab-yard .yd-tray .card.fold .yd-foldh .yd-fbtn::before{content:'▼ 開く';}
+  #tab-yard .yd-tray .card.fold .yd-pool{display:none;}
+  #tab-yard .yd-tray .card.fold{padding-bottom:4px;}
+  #tab-yard .yd-tray .card.fold .card-title{margin-bottom:0;}
 }
+@media(min-width:761px){ .yd-foldh .yd-fbtn{display:none;} }
+.yd-fn{margin-left:6px;font-size:.9em;color:var(--accent);}
 /* 11/9：カメラを横向きにしたとき：映像を大きく、シャッターは右（右手の親指の所）に */
 @media (orientation:landscape) and (max-height:600px){
   .wo-cam{flex-direction:row;}
@@ -1265,12 +1276,12 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
     <div class="yd-legend" id="yd-legend" style="margin-top:10px"></div>
   </div>
   <div class="yd-tray">
-  <div class="card">
-    <div class="card-title"><span class="bar"></span>未配置の車両（置き場所へスワイプ、またはタップして選ぶ）</div>
+  <div class="card" id="yd-poolcard">
+    <div class="card-title yd-foldh" onclick="ydFold('pool')"><span class="bar"></span>未配置の車両<span class="yd-fn" id="yd-pool-n"></span><span class="yd-fhint">（置き場所へスワイプ、またはタップして選ぶ）</span><span class="yd-fbtn"></span></div>
     <div class="yd-pool" id="yd-pool"></div>
   </div>
-  <div class="card">
-    <div class="card-title"><span class="bar"></span>駒（待機中の代車・レンタカー・その他車両）置き場所へスワイプ</div>
+  <div class="card" id="yd-lpoolcard">
+    <div class="card-title yd-foldh" onclick="ydFold('lpool')"><span class="bar"></span>駒<span class="yd-fn" id="yd-lpool-n"></span><span class="yd-fhint">（待機中の代車・レンタカー・その他車両）置き場所へスワイプ</span><span class="yd-fbtn"></span></div>
     <div class="yd-pool" id="yd-lpool"></div>
   </div>
   </div>
@@ -4959,12 +4970,17 @@ function _ydLcHtml(c){
 }
 function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; else delete YARD.pmemo[n]; _ydChanged();
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
+// 11/25：縦の画面（幅760px以下）で、未配置の車両・駒の欄を畳む。畳んだかどうかはこの端末に覚える
+let YD_FOLD={}; try{ YD_FOLD=JSON.parse(localStorage.getItem('yd-fold')||'{}')||{}; }catch(e){ YD_FOLD={}; }
+function _ydFoldPaint(){ [['pool','yd-poolcard'],['lpool','yd-lpoolcard']].forEach(([k,id])=>{ const c=document.getElementById(id); if(c) c.classList.toggle('fold',!!YD_FOLD[k]); }); }
+function ydFold(k){ if(window.innerWidth>760) return; YD_FOLD[k]=!YD_FOLD[k]; try{ localStorage.setItem('yd-fold',JSON.stringify(YD_FOLD)); }catch(e){} _ydFoldPaint(); }
 function ydRender(){
   // 車を指で動かしている最中は描き直さない（描き直すと、指の下の車が入れ替わって、離しても置けない・固まることがある。11/7）
   if(YD.cd){ YD._rpend=true; return; }
   YD._rpend=false;
   const cv=document.getElementById('yd-canvas'); if(!cv) return;
   const locked=SEC.ok&&!SEC.key;
+  _ydFoldPaint();
   cv.classList.toggle('edit',YD.edit);
   const dEl=document.getElementById('yd-date'); if(dEl) dEl.textContent=new Date().toLocaleDateString('ja-JP',{month:'numeric',day:'numeric',weekday:'short'});
   cv.innerHTML=YARD.spaces.map(s=>{ const k=_ydKind(s.kind); const js=locked?[]:_ydJobsIn(s.id); const lcs=locked?[]:_ydLcIn(s.id); const used=js.length+lcs.length;
@@ -4977,12 +4993,14 @@ function ydRender(){
     if(WO_SORT==='sheet') un.sort(_woCmpSheet);   // 未配置の車も、入出庫管理表の順に並べる   // 入庫前の車は出さない（入庫日になると出る）
     pool.classList.toggle('target',!!YD.carSel&&!YD.edit);
     pool.onclick=e=>{ if(e.target===pool&&YD.carSel) ydMove(YD.carSel,''); };
+    { const n=document.getElementById('yd-pool-n'); if(n) n.textContent=locked?'':`${un.length}台`; }
     pool.innerHTML=locked?'<span class="sg-note">ロック中です</span>':un.length?un.map(_ydCarHtml).join(''):'<span class="sg-note">未配置の車両はありません（作業中の車両はすべて配置済み）</span>';
   }
   const lp=document.getElementById('yd-lpool');
   if(lp){
     const ids=new Set(YARD.spaces.map(s=>s.id)); const P=YARD.lpos||{};
     const cars=_ydLcCars(); const LJ=_ydLoanJobs(); const wait=cars.filter(c=>!_ydLcOut(c.n)&&!(P[c.n]&&ids.has(P[c.n]))); const out=cars.filter(c=>_ydLcOut(c.n)&&!(P[c.n]&&ids.has(P[c.n])));
+    { const n=document.getElementById('yd-lpool-n'); if(n) n.textContent=locked?'':`待機${wait.length}・貸出${out.length}`; }
     lp.classList.toggle('target',!!YD.carSel&&!YD.edit);
     lp.onclick=e=>{ if(e.target===lp&&YD.carSel) ydMove(YD.carSel,''); };
     lp.innerHTML=locked?'<span class="sg-note">ロック中です</span>':(wait.length?wait.map(_ydLcHtml).join(''):'<span class="sg-note">置き場所に置いていない駒はありません</span>')
