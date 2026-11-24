@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="91591ec156">
+<meta name="ark-ver" content="e769419403">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -383,6 +383,8 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);gap:16px;align-items:start;}
 @media(max-width:900px){.wo-layout{grid-template-columns:minmax(0,1fr);}}
 .wo-layout>*{min-width:0;}
+/* 11/25：パソコン（横並び）は、一覧と作業指示を別々にスクロール。それぞれ画面の高さに収めて、上にくっつける */
+@media(min-width:901px){ .wo-layout>div{position:sticky;top:8px;max-height:calc(100vh - var(--wo-top,8px) - 8px);overflow-y:auto;scrollbar-width:thin;} }
 .wo-lhead{display:flex;align-items:center;gap:6px;}
 .wo-lfold-btn,.wo-lcur{display:none;}
 @media(max-width:899px){
@@ -2742,7 +2744,8 @@ function woNewBlank(){
   toast('作業指示を作りました。登録番号と作業箇所を入力してください',4000);
 }
 function _woGoTab(t){ const b=document.querySelector(`.tab-btn[data-tab="${t}"]`); if(b) b.click(); }
-function woOpen(id){ WO_CUR=id; if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); if(window.innerWidth<900) WO_LFOLD=true; woRenderAll(); _woListFoldPaint(); /* 11/17：スマホは画面ごと切り替える（上へ移る）ので、ここでは動かさない */ }
+function woOpen(id){ const _prevCur=WO_CUR; WO_CUR=id; if(_prevCur!==id&&window.innerWidth>900){ const dp=document.getElementById('wo-detail'); if(dp&&dp.parentElement) dp.parentElement.scrollTop=0; }   // 11/25：別の車を開いたら、右側（作業指示）だけ上に戻す
+  if(WO_FILTER!=='all'){ const j=_woJob(id); if(j&&!_woInFilter(j)) WO_FILTER='all'; } _woGoTab('wo'); if(window.innerWidth<900) WO_LFOLD=true; woRenderAll(); _woListFoldPaint(); /* 11/17：スマホは画面ごと切り替える（上へ移る）ので、ここでは動かさない */ }
 // ── スマホ・タブレット（幅900px未満）だけ：作業指示一覧を畳める（縦のスクロールを減らす）──
 //  ・作業指示を開くと自動で畳む。「▼ 一覧を開く」かいま開いている車の帯を押すと開く
 //  ・パソコン（横並びの画面）では畳まない
@@ -2756,6 +2759,9 @@ function _woListFoldPaint(){
     cur.innerHTML=WO_LFOLD?`<span>${j?'開いている車：<b>'+esc(_woTitle(j))+'</b>':'作業指示を選んでいません'}</span><small>作業中〜完成 ${n}台・押すと一覧を開きます</small>`:''; }
 }
 window.addEventListener('resize',()=>{ if(window.innerWidth>=900&&WO_LFOLD){ WO_LFOLD=false; _woListFoldPaint(); } });
+// 11/25：パソコンで一覧と作業指示を別々にスクロールするとき、それぞれの高さを「画面の下まで」に合わせる（上の帯が見えている分だけ低くする）
+function _woPaneFit(){ const L=document.querySelector('.wo-layout'); if(!L) return; const t=Math.max(8,Math.round(L.getBoundingClientRect().top)); L.style.setProperty('--wo-top',t+'px'); }
+window.addEventListener('scroll',_woPaneFit,{passive:true}); window.addEventListener('resize',_woPaneFit); setTimeout(_woPaneFit,500);
 
 // ── 編集 ──
 function _woCurJob(){ return _woJob(WO_CUR); }
