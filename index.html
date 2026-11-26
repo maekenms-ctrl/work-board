@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="4c364a2ba0">
+<meta name="ark-ver" content="54260aec00">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -922,6 +922,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-shk-drop small{display:block;font-size:11px;opacity:.7;}
 .wo-shk-drop:hover,.wo-shk-drop.on{border-color:var(--accent,#e4ff1a);background:rgba(228,255,26,.08);}
 /* 11/27 操作感の改善 */
+#wo-detail,.wo-layout>div{overflow-anchor:none;}   /* 描き直したときにブラウザが勝手にスクロール位置を動かさないように（11/27夕） */
 #wo-detail .m-back{background:var(--surface,#232830);}   /* 上の戻るボタンの帯：下の文字が透けないように（--card が無かった） */
 .wo-addrow{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin:0 0 12px;position:relative;}
 .wo-addrow .btn{min-height:50px;justify-content:center;}
@@ -937,7 +938,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .wo-qwrap{position:relative;display:inline-flex;align-items:center;flex:1 1 240px;max-width:100%;}
 .wo-qwrap .wo-search{flex:1;min-width:0;width:100%;}
 .wo-qkb{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:1px solid var(--border,#444);background:var(--surface2,#2a2e37);color:var(--text,#eee);border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;}
-.wo-toc{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:4px;margin:0 -4px 6px;padding:6px 4px;background:var(--surface,#1f2229);border-bottom:1px solid var(--border,#333);}
+.wo-toc{position:sticky;top:0;z-index:20;overflow-anchor:none;display:flex;flex-wrap:wrap;gap:4px;margin:0 0 6px;padding:6px 8px;border-radius:12px;background:var(--surface,#1f2229);border-bottom:1px solid var(--border,#333);}
 .wo-toc button{border:1px solid var(--border,#444);background:var(--surface2,#2a2e37);color:var(--text,#eee);border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:700;cursor:pointer;}
 .wo-toc button:hover,.wo-toc button.on{border-color:var(--accent,#e4ff1a);color:var(--accent,#e4ff1a);}
 .m-secs{grid-column:1/-1;display:flex!important;gap:6px;overflow-x:auto;padding:2px 0 0;margin:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -3939,21 +3940,26 @@ document.addEventListener('click',e=>{ if(e.target.closest('.tab-btn')) setTimeo
 addEventListener('resize',()=>{ clearTimeout(_mPaint.t); _mPaint.t=setTimeout(()=>{ _mPaint(); woRenderList(); },200); });
 // 11/27：PC・iPadの詳細の上に「目次」（押すとその項目へ）
 function _woToc(){
-  const d=document.getElementById('wo-detail'); if(!d) return; const old=d.querySelector('.wo-toc'); if(old) old.remove();
-  if(_mMob()||!_woCurJob()) return;
-  const hs=[...d.querySelectorAll('.wo-sec[data-sec]')]; if(hs.length<3) return;
+  // 11/27夕：目次は詳細（#wo-detail）の外（右の列の一番上）に置き、項目が変わったときだけ作り直す。
+  //   詳細を描き直すたびに目次を消して付け直すと、その分だけ中身が上下に動いて「ガタガタ」して見えた
+  const d=document.getElementById('wo-detail'); if(!d) return; const pane=d.parentElement; let toc=document.getElementById('wo-toc');
+  const j=_woCurJob(); const hs=(_mMob()||!j)?[]:[...d.querySelectorAll('.wo-sec[data-sec]')];
+  if(hs.length<3){ if(toc) toc.remove(); return; }
   const nm=k=>{ const t=M_TILES.find(x=>x.k===k); return t?`${t.i} ${t.n}`:''; };
-  const toc=document.createElement('div'); toc.className='wo-toc';
-  toc.innerHTML=hs.map(h=>{ const k=h.dataset.sec; let lab=nm(k); if(!lab){ const c=h.cloneNode(true); c.querySelectorAll('.fold-sum,.fold-i,.bar').forEach(x=>x.remove()); lab=c.textContent.trim().slice(0,10); } return `<button type="button" data-k="${esc(k)}">${esc(lab)}</button>`; }).join('');
-  toc.onclick=e=>{ const b=e.target.closest('button[data-k]'); if(!b) return; const h=d.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`); if(!h) return;
-    if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click();
-    const sc=d.parentElement, H=d.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`)||h;
-    if(sc&&sc.scrollHeight>sc.clientHeight+4&&getComputedStyle(sc).overflowY!=='visible'){ sc.scrollTo({top:H.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-toc.offsetHeight-8,behavior:'smooth'}); }
-    else window.scrollTo({top:H.getBoundingClientRect().top+scrollY-toc.offsetHeight-16,behavior:'smooth'});
-    toc.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); };
-  const head=d.querySelector('.wo-head'); if(head) head.after(toc); else d.prepend(toc);
+  const items=hs.map(h=>{ const k=h.dataset.sec; let lab=nm(k); if(!lab){ const c=h.cloneNode(true); c.querySelectorAll('.fold-sum,.fold-i,.bar').forEach(x=>x.remove()); lab=c.textContent.trim().slice(0,10); } return [k,lab]; });
+  const sig=items.map(x=>x.join(':')).join('|');
+  if(!toc){ toc=document.createElement('div'); toc.id='wo-toc'; toc.className='wo-toc';
+    toc.onclick=e=>{ const b=e.target.closest('button[data-k]'); if(!b) return; const dd=document.getElementById('wo-detail'); const h=dd&&dd.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`); if(!h) return;
+      if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click();
+      const H=dd.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`)||h, sc=toc.parentElement;
+      if(sc&&sc.scrollHeight>sc.clientHeight+4&&getComputedStyle(sc).overflowY!=='visible') sc.scrollTo({top:H.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-toc.offsetHeight-8,behavior:'smooth'});
+      else window.scrollTo({top:H.getBoundingClientRect().top+scrollY-toc.offsetHeight-16,behavior:'smooth'});
+      toc.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); }; }
+  if(toc.parentElement!==pane||toc.nextElementSibling!==d) pane.insertBefore(toc,d);
+  if(toc.dataset.sig!==sig){ toc.dataset.sig=sig; toc.innerHTML=items.map(([k,lab])=>`<button type="button" data-k="${esc(k)}">${esc(lab)}</button>`).join(''); }
 }
-{ const _o1=woRenderDetail; woRenderDetail=function(){ const r=_o1.apply(this,arguments); try{ _mPaint(); }catch(e){} try{ _woToc(); }catch(e){ console.warn('目次',e); } return r; };
+{ const _o1=woRenderDetail; woRenderDetail=function(){ const dp=document.getElementById('wo-detail'), pane=dp&&dp.parentElement, st=pane?pane.scrollTop:0;   // 右の列のスクロール位置を描き直しの前後で同じに保つ（11/27夕）
+    const r=_o1.apply(this,arguments); try{ _mPaint(); }catch(e){} try{ _woToc(); }catch(e){ console.warn('目次',e); } if(pane&&Math.abs(pane.scrollTop-st)>1) pane.scrollTop=st; return r; };
   const _o2=woRenderList; woRenderList=function(){ const r=_o2.apply(this,arguments); try{ _mPaint(); }catch(e){} return r; }; }
 
 // ── 入庫管理表から取り込む：表の行（入庫日・車種・番号・納期・区分）から作業指示を作る ──
@@ -4543,12 +4549,14 @@ function _woMapsHtml(j){
 function _woKeepHeight(el,f){
   if(!el){ f(); return; }
   const h=el.offsetHeight, y=window.scrollY, sc=document.scrollingElement;
+  const pn=el.parentElement&&el.parentElement.scrollHeight>el.parentElement.clientHeight+2?el.parentElement:null, py=pn?pn.scrollTop:0;   // 11/27夕：PCで右と左を別々にスクロールするようになったので、列の中のスクロール位置も保つ
   el.style.minHeight=h+'px';
   try{ f(); } finally{
     if(Math.abs(window.scrollY-y)>1) window.scrollTo(0,y);
+    if(pn&&Math.abs(pn.scrollTop-py)>1) pn.scrollTop=py;
     clearTimeout(el._khT);
     const imgs=[...el.querySelectorAll('img')].filter(i=>!i.complete);
-    const done=()=>{ const y2=window.scrollY; el.style.minHeight=''; if(Math.abs(window.scrollY-y2)>1) window.scrollTo(0,y2); };
+    const done=()=>{ const y2=window.scrollY, p2=pn?pn.scrollTop:0; el.style.minHeight=''; if(Math.abs(window.scrollY-y2)>1) window.scrollTo(0,y2); if(pn&&Math.abs(pn.scrollTop-p2)>1) pn.scrollTop=p2; };
     if(!imgs.length) el._khT=setTimeout(done,120);
     else { let n=imgs.length; const one=()=>{ if(--n<=0){ clearTimeout(el._khT); el._khT=setTimeout(done,60); } }; imgs.forEach(i=>{ i.addEventListener('load',one,{once:true}); i.addEventListener('error',one,{once:true}); }); el._khT=setTimeout(done,1500); }
   }
