@@ -9970,7 +9970,7 @@ return { alignmentPattern: alignmentPattern, dimension: dimension };
 
 (function(){
 'use strict';
-const SR_VER='2026-11-13';
+const SR_VER='2026-11-27';
 const _st=document.createElement('style');
 _st.textContent=`
 .sr-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20000;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -10003,6 +10003,23 @@ function parseShakenQR(codes){
   codes.forEach(c=>{const g=c.sa?('p'+c.sa.parity):('x'+c.cx);(groups[g]=groups[g]||[]).push(c);});
   const texts=Object.values(groups).map(g=>g.sort((a,b)=>(a.sa?a.sa.seq:a.cx)-(b.sa?b.sa.seq:b.cx)).map(c=>_sjis(c.bytes)).join(''));
   const out={raw:texts};
+  // 軽自動車（軽自動車検査協会）のQRは、1つずつ「K/版/…」で始まる（11/27）。紙の車検証は6個（K/02・22・32・51・61・71）、電子車検証は2個（K/22・32）
+  //  K/02：車両番号/車台番号/型式指定・類別　K/22：車両番号/標板/車台番号/原動機型式　K/32：打刻位置/型式指定・類別/有効期間満了日/初度検査年月/型式
+  //  K/51（使用者名）・K/61（住所）は読まない
+  for(const t0 of texts){
+    const t=_z2h(t0); if(!/^K\/\d{2}\//.test(t)) continue;
+    const f=t.split('/').map(x=>String(x||'').trim()), v=f[1];
+    const chs=x=>{ const c=String(x||'').replace(/\s+/g,'').toUpperCase(); return /^[A-Z0-9]{2,10}-?\d{4,8}$/.test(c)?c:''; };
+    const tno=x=>{ const d=String(x||'').replace(/\D/g,''); return d.length===9?d.slice(0,5)+'-'+d.slice(5):''; };
+    const plt=x=>{ const z=String(x||'').replace(/[・･]/g,'').replace(/\s+/g,' ').trim(); const m=z.match(/([一-龠ぁ-んァ-ヶ]{1,4})\s*([0-9]{1,3})\s*([ぁ-んァ-ヶ])\s*([0-9]{1,4})/); return m?`${m[1]} ${m[2]} ${m[3]} ${m[4]}`:''; };
+    if(v==='02'){ if(!out.plate) out.plate=plt(f[3]); if(!out.chassis) out.chassis=chs(f[4]); if(!out.typeNo) out.typeNo=tno(f[5]); }
+    else if(v==='22'){ if(!out.plate) out.plate=plt(f[2]); if(!out.chassis) out.chassis=chs(f[4]); }
+    else if(v==='32'){ if(!out.typeNo) out.typeNo=tno(f[3]);
+      if(!out.expiry&&/^\d{6}$/.test(f[4]||'')&&f[4]!=='999999') out.expiry=`20${f[4].slice(0,2)}/${f[4].slice(2,4)}/${f[4].slice(4,6)}`;
+      if(!out.firstReg&&/^\d{4}$/.test(f[5]||'')&&f[5]!=='9999'){ const yy=+f[5].slice(0,2), cy=new Date().getFullYear()%100; out.firstReg=`${yy>cy+1?19:20}${f[5].slice(0,2)}/${f[5].slice(2,4)}`; }
+      if(!out.kata&&/^[A-Z0-9-]{2,20}$/.test((f[6]||'').toUpperCase())) out.kata=f[6].toUpperCase(); }
+    ['plate','chassis','typeNo'].forEach(k=>{ if(!out[k]) delete out[k]; });
+  }
   for(const t0 of texts){
     const t=_z2h(t0);
     const ch=t.match(/\/([A-Z0-9]{2,8}-\d{5,8})\//); if(ch&&!out.chassis) out.chassis=ch[1];
@@ -10011,6 +10028,14 @@ function parseShakenQR(codes){
     const pm=t.match(/([一-龠ぁ-んァ-ヶ]{1,4})\s*([0-9]{1,3})\s*([ぁ-んァ-ヶ])\s*([0-9]{1,4})/); if(pm&&!out.plate) out.plate=`${pm[1]} ${pm[2]} ${pm[3]} ${pm[4]}`;
   }
   return out;
+}
+// 読み取りの進み具合（11/27）：普通車は連結QR（2組）がそろったら完了。軽自動車は K/22 と K/32 がそろったら完了（紙の車検証は全部で6個、電子車検証は2個）
+function qrProgress(vals){
+  const totals={}; vals.forEach(v=>{ if(v.sa) totals[v.sa.parity]=v.sa.total; });
+  const ks=new Set(); vals.forEach(v=>{ try{ const m=_z2h(_sjis(v.bytes)).match(/^K\/(\d{2})\//); if(m) ks.add(m[1]); }catch(e){} });
+  if(ks.size){ const paper=['02','51','61','71'].some(k=>ks.has(k)); return {kei:true,need:paper?6:2,have:ks.size,complete:ks.has('22')&&ks.has('32')}; }
+  const need=Object.values(totals).reduce((a,b)=>a+b,0)||5;
+  return {kei:false,need:Math.max(need,5),have:vals.length,complete:Object.keys(totals).length>=2&&Object.entries(totals).every(([p,t])=>vals.filter(v=>v.sa&&v.sa.parity==p).length>=t)};
 }
 
 // QRらしい領域（白黒が細かく入れ替わる正方形の塊）を探してから jsQR で読む
@@ -10082,7 +10107,7 @@ function _qrScan(src,opt){
   };
   const cands=_qrFindCandidates(src);
   // 連結QR（3つ組＋2つ組）がそろっているか
-  const incomplete=()=>{const v=[...found.values()];if(v.length<2)return true;const t={};v.forEach(c=>{if(c.sa)t[c.sa.parity]=c.sa.total;});
+  const incomplete=()=>{const v=[...found.values()];{ const P=qrProgress(v); if(P.kei) return !P.complete; } if(v.length<2)return true;const t={};v.forEach(c=>{if(c.sa)t[c.sa.parity]=c.sa.total;});
     if(!Object.keys(t).length) return v.length<5;
     return Object.entries(t).some(([p,n])=>v.filter(c=>c.sa&&c.sa.parity==p).length<n) || Object.keys(t).length<2;};
   const timeUp=()=>Date.now()-T0>BUDGET;
@@ -10591,9 +10616,10 @@ function qrCamera(onPhoto){
         const totals={}; vals.forEach(v=>{ if(v.sa) totals[v.sa.parity]=v.sa.total; });
         const need=Object.values(totals).reduce((a,b)=>a+b,0)||5;
         const info=parseShakenQR(vals);
-        stt.textContent=`${found.size} / ${Math.max(need,5)} 読み取り`+(info.typeNo?`　型式指定 ${info.typeNo}`:'')+(info.chassis?`　${info.chassis}`:'');
+        const PG=qrProgress(vals);
+        stt.textContent=`${PG.have} / ${PG.need} 読み取り`+(PG.kei?'（軽自動車）':'')+(info.typeNo?`　型式指定 ${info.typeNo}`:'')+(info.chassis?`　${info.chassis}`:'');
         const complete=Object.keys(totals).length>=2 && Object.entries(totals).every(([p,t])=>vals.filter(v=>v.sa&&v.sa.parity==p).length>=t);
-        if(complete || (info.typeNo&&info.chassis)){ setTimeout(finish,300); return; }
+        if(complete || PG.complete || (info.typeNo&&info.chassis)){ setTimeout(finish,300); return; }
       }
       setTimeout(tick,120);
     };
@@ -10751,5 +10777,5 @@ async function faxFile(f,own,known){
   }catch(e){ throw new Error(_errMsg(e)); }
   finally{ _busy(null); [wj,we].forEach(w=>{ if(w) try{w.terminate();}catch(e){} }); }
 }
-window.SHAKEN={ver:SR_VER, scan:_qrScan, parseRaw:parseShakenQR, jsQR, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName, faxFix};
+window.SHAKEN={ver:SR_VER, scan:_qrScan, parseRaw:parseShakenQR, qrProgress, jsQR, qrCamera, qrFile, labelFile, parseShakenQR:(c)=>_clean(parseShakenQR(c)), parseLabelText, faxFile, faxParse, faxInsName, faxFix};
 })();

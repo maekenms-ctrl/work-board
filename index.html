@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="16caa536f4">
+<meta name="ark-ver" content="4c364a2ba0">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -910,6 +910,59 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .lc-closed-soon{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(230,40,40,.12);}
 .lc-closed-soon span{background:#c62828;color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;}
 .lc-closed-soon .btn{margin-left:auto;font-size:12px;padding:3px 10px;min-height:0;}
+#wo-pdfv{position:fixed;inset:0;z-index:10000;background:#1b1d22;display:flex;flex-direction:column;}
+#wo-pdfv .pv-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));background:#111;border-bottom:1px solid #333;color:#eee;}
+#wo-pdfv .pv-bar b{flex:1 1 100%;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#wo-pdfv .pv-pg{font-size:12px;opacity:.75;margin-right:auto;}
+#wo-pdfv .pv-bar .btn{padding:6px 12px;font-size:14px;}
+#wo-pdfv .pv-x{border-color:var(--accent,#e4ff1a);color:var(--accent,#e4ff1a);}
+#wo-pdfv .pv-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+#wo-pdfv .pv-body canvas{display:block;margin:0 auto 10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.wo-shk-drop{flex:1 1 100%;margin-top:6px;padding:12px;border:2px dashed var(--border,#444);border-radius:12px;text-align:center;cursor:pointer;color:var(--text,#eee);font-size:14px;line-height:1.5;}
+.wo-shk-drop small{display:block;font-size:11px;opacity:.7;}
+.wo-shk-drop:hover,.wo-shk-drop.on{border-color:var(--accent,#e4ff1a);background:rgba(228,255,26,.08);}
+/* 11/27 操作感の改善 */
+#wo-detail .m-back{background:var(--surface,#232830);}   /* 上の戻るボタンの帯：下の文字が透けないように（--card が無かった） */
+.wo-addrow{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin:0 0 12px;position:relative;}
+.wo-addrow .btn{min-height:50px;justify-content:center;}
+.wo-addbtn{flex-direction:column;gap:0;font-size:16px;font-weight:800;}
+.wo-addbtn small{font-size:10.5px;font-weight:600;opacity:.75;}
+.wo-addbtn .n{display:inline-block;margin-left:6px;min-width:20px;padding:0 6px;border-radius:10px;background:#111;color:var(--accent);font-size:12px;}
+.wo-addm{position:absolute;left:0;top:calc(100% + 6px);z-index:60;width:min(420px,100%);background:var(--surface,#1f2229);border:1px solid var(--accent,#e4ff1a);border-radius:14px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.5);}
+.wo-addm button{display:grid;grid-template-columns:36px 1fr;align-items:center;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:10px 8px;color:var(--text,#eee);cursor:pointer;font:inherit;}
+.wo-addm button:hover,.wo-addm button:active{background:var(--surface2,#2a2e37);}
+.wo-addm i{font-style:normal;font-size:22px;grid-row:span 2;}
+.wo-addm b{font-size:15px;} .wo-addm small{font-size:11.5px;opacity:.7;}
+.wo-addm .n{display:inline-block;margin-left:6px;padding:0 7px;border-radius:10px;background:var(--accent);color:#111;font-size:12px;}
+.wo-qwrap{position:relative;display:inline-flex;align-items:center;flex:1 1 240px;max-width:100%;}
+.wo-qwrap .wo-search{flex:1;min-width:0;width:100%;}
+.wo-qkb{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:1px solid var(--border,#444);background:var(--surface2,#2a2e37);color:var(--text,#eee);border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;}
+.wo-toc{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:4px;margin:0 -4px 6px;padding:6px 4px;background:var(--surface,#1f2229);border-bottom:1px solid var(--border,#333);}
+.wo-toc button{border:1px solid var(--border,#444);background:var(--surface2,#2a2e37);color:var(--text,#eee);border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:700;cursor:pointer;}
+.wo-toc button:hover,.wo-toc button.on{border-color:var(--accent,#e4ff1a);color:var(--accent,#e4ff1a);}
+.m-secs{grid-column:1/-1;display:flex!important;gap:6px;overflow-x:auto;padding:2px 0 0;margin:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.m-secs::-webkit-scrollbar{display:none;}
+.m-back .m-secs button{flex:0 0 auto;min-height:34px;max-width:none;border:1px solid var(--border,#444);background:var(--surface2,#2a2e37);color:var(--text,#eee);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;white-space:nowrap;}
+.m-back .m-secs button.on{background:var(--accent,#e4ff1a);border-color:var(--accent,#e4ff1a);color:#111;}
+@media(max-width:899px){
+  .wo-qkb{display:block;} .wo-qwrap .wo-search{padding-right:64px;}
+  body.m-carv .title-row{display:none;}
+  body.m-carv #tab-wo{padding-top:4px;}
+}
+@media(max-width:760px){
+  .wo-addrow{grid-template-columns:1fr;} .wo-addrow .wo-calbtn{display:none;}
+  #wo-detail .wo-ptbl,#wo-detail .wo-ptbl tbody{display:block;width:100%;min-width:0;}
+  #wo-detail .wo-ptbl tr:first-child{display:none;}
+  #wo-detail .wo-ptbl tr.wo-tr{display:grid;grid-template-columns:1fr 1fr 64px;gap:6px 8px;padding:10px;margin-bottom:8px;border:1px solid var(--border,#333);border-radius:12px;background:var(--surface2,#2a2e37);}
+  #wo-detail .wo-ptbl tr.wo-tr td{display:block;padding:0;border:0;min-width:0;}
+  #wo-detail .wo-ptbl tr.wo-tr td::before{display:block;font-size:10.5px;color:var(--muted,#999);margin-bottom:2px;}
+  #wo-detail .wo-ptbl tr.wo-tr td:nth-child(1){grid-column:1/3;} #wo-detail .wo-ptbl tr.wo-tr td:nth-child(1)::before{content:'部品名';}
+  #wo-detail .wo-ptbl tr.wo-tr td:nth-child(2){grid-column:3;} #wo-detail .wo-ptbl tr.wo-tr td:nth-child(2)::before{content:'数';}
+  #wo-detail .wo-ptbl tr.wo-tr td:nth-child(3){grid-column:1;} #wo-detail .wo-ptbl tr.wo-tr td:nth-child(3)::before{content:'状況';}
+  #wo-detail .wo-ptbl tr.wo-tr td:nth-child(4){grid-column:2;} #wo-detail .wo-ptbl tr.wo-tr td:nth-child(4)::before{content:'入荷予定';}
+  #wo-detail .wo-ptbl tr.wo-tr td.tdel{grid-column:3;display:flex;align-items:flex-end;justify-content:flex-end;gap:4px;}
+  #wo-detail .wo-ptbl tr.wo-tr input,#wo-detail .wo-ptbl tr.wo-tr select{width:100%;min-width:0;box-sizing:border-box;}
+}
 </style>
 <style>html{touch-action:pan-x pan-y;}button,.btn,.selbtn,.tab-btn,.sw{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>
 <script>
@@ -1213,7 +1266,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
       <button class="selbtn rbtn" data-f="all" onclick="woFilter('all')">すべて</button>
       <button type="button" class="selbtn rbtn wo-loanf" id="wo-loanf" onclick="woLoanFilter()">🔑 代車・レンタカー貸出中</button>
     </div>
-    <input class="wo-search" id="wo-q" placeholder="🔍 登録番号・車種・カラー" oninput="woRenderList()">
+    <span class="wo-qwrap"><input class="wo-search" id="wo-q" placeholder="🔍 登録番号・車種・カラー" oninput="woRenderList()"><button type="button" class="wo-qkb" id="wo-qkb" onclick="_woQkb()" title="キーボードの切り替え">あいう</button></span>
     <select class="wo-search wo-sort" id="wo-sort" onchange="woSetSort(this.value)" title="並び順">
       <option value="sheet">並び順：入出庫管理表と同じ（月のタブ・行の順）</option>
       <option value="step">並び順：工程（今どこにいるか：板金中・塗装待ち など）</option>
@@ -1232,10 +1285,7 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-ca
         <div class="card-title wo-lhead"><span class="bar"></span>作業指示一覧<button type="button" class="btn wo-lfold-btn" id="wo-lfold-btn" onclick="woListFold()">▲ 畳む</button></div>
         <div class="wo-lcur" id="wo-lcur" onclick="woListFold(false)"></div>
         <div id="wo-listbody">
-        <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="woNewBlank()">＋ 新しい作業指示（手打ち）</button>
-        <button type="button" class="btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woSheetPick()">📋 入庫管理表から取り込む</button>
-        <button type="button" class="btn wo-xf-btn" id="wo-xf-btn" style="width:100%;justify-content:center;min-height:46px;margin:-4px 0 12px" onclick="woXferPick()">📥 見積りツールから<span id="wo-xf-n"></span></button>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-4px 0 12px"><button type="button" class="btn" style="justify-content:center;min-height:46px" onclick="openLoanerCal()">📅 代車カレンダー</button><button type="button" class="btn" style="justify-content:center;min-height:46px" onclick="openDueCal()">🗓 納期カレンダー</button></div>
+        <div class="wo-addrow"><button type="button" class="btn btn-primary wo-addbtn" id="wo-xf-btn" onclick="woAddMenu(this)">＋ 追加<span id="wo-xf-n"></span><small>手打ち・入庫管理表・見積りツール</small></button><button type="button" class="btn wo-calbtn" onclick="openLoanerCal()">📅 代車</button><button type="button" class="btn wo-calbtn" onclick="openDueCal()">🗓 納期</button></div>
         <div id="wo-list"></div>
         <div id="wo-empty" class="empty">作業指示はまだありません。<br>「＋ 新しい作業指示」から作れます。</div>
         </div>
@@ -2506,7 +2556,7 @@ let _woSRp=null;
 function _woSR(){
   if(window.SHAKEN) return Promise.resolve(window.SHAKEN);
   if(_woSRp) return _woSRp;
-  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-17'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
+  _woSRp=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='shaken-read.js?v=2026-11-27'; s.onload=()=>window.SHAKEN?res(window.SHAKEN):rej(new Error('x')); s.onerror=()=>{ _woSRp=null; rej(new Error('読み取りの準備ができませんでした（通信を確かめてください）')); }; document.head.appendChild(s); });
   return _woSRp;
 }
 async function woReadQR(){
@@ -2713,6 +2763,7 @@ async function _woFileBlob(key){
 async function woFileOpen(key){
   const f=WO_FILES.find(x=>x.key===key); const blob=await _woFileBlob(key).catch(()=>null);
   if(!blob){ toast('PDFを開けませんでした',5000); return; }
+  if(_woPdfInApp()){ try{ await woPdfView(blob,(f&&f.name)||'parts.pdf'); return; }catch(e){ console.warn('PDFをその場で表示',e); } }   // スマホ・タブレット：ダウンロードせずにその場で見る（11/25）
   const url=URL.createObjectURL(blob); setTimeout(()=>URL.revokeObjectURL(url),120000);
   const w=window.open(url,'_blank');
   if(!w){ // ホーム画面アプリで新しい画面を開けないとき：共有シートで開く
@@ -2721,6 +2772,59 @@ async function woFileOpen(key){
     else { const a=document.createElement('a'); a.href=url; a.download=file.name; document.body.appendChild(a); a.click(); a.remove(); }
   }
 }
+// ── 部品伝票のPDFを、スマホ・タブレットでダウンロードせずにその場で見る（11/25）──
+//  ・PDFを読む部品（pdf.js）は、初めて開いたときだけ読み込む。PDFの中身はこの端末の中で絵にするだけで、どこにも送らない
+//  ・PCは今までどおり新しいタブで開く
+const WO_PDFJS='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+let _WO_PDFJS_P=null;
+function _woPdfInApp(){ try{ return matchMedia('(pointer:coarse)').matches||window.innerWidth<=900; }catch(e){ return window.innerWidth<=900; } }
+function _woPdfLib(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(!_WO_PDFJS_P) _WO_PDFJS_P=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src=WO_PDFJS+'pdf.min.js';
+    sc.onload=()=>{ if(!window.pdfjsLib){ rej(new Error('pdf.js')); return; } window.pdfjsLib.GlobalWorkerOptions.workerSrc=WO_PDFJS+'pdf.worker.min.js'; res(window.pdfjsLib); };
+    sc.onerror=()=>{ _WO_PDFJS_P=null; rej(new Error('PDFを表示する部品を読み込めませんでした')); }; document.head.appendChild(sc); });
+  return _WO_PDFJS_P;
+}
+const WPV={doc:null,zoom:1,blob:null,name:'',tok:0};
+async function woPdfView(blob,name){
+  _busy('PDFを開いています…');
+  let lib; try{ lib=await _woPdfLib(); }finally{ _busy(null); }
+  const doc=await lib.getDocument({data:new Uint8Array(await blob.arrayBuffer()),cMapUrl:WO_PDFJS+'../cmaps/',cMapPacked:true,standardFontDataUrl:WO_PDFJS+'../standard_fonts/'}).promise;
+  woPdfClose(); WPV.doc=doc; WPV.zoom=1; WPV.blob=blob; WPV.name=name;
+  const ov=document.createElement('div'); ov.id='wo-pdfv';
+  ov.innerHTML=`<div class="pv-bar"><b>📄 ${esc(name)}</b><span class="pv-pg">${doc.numPages}ページ</span>
+    <button type="button" class="btn" onclick="woPdfZoom(-1)">－</button><button type="button" class="btn" onclick="woPdfZoom(1)">＋</button>
+    <button type="button" class="btn" onclick="woPdfSave()">保存・共有</button><button type="button" class="btn pv-x" onclick="woPdfClose()">✕ 閉じる</button></div>
+    <div class="pv-body" id="wo-pdfv-body"></div>`;
+  document.body.appendChild(ov); document.body.style.overflow='hidden';
+  history.pushState({wpv:1},''); 
+  await _woPdfPaint();
+}
+async function _woPdfPaint(){
+  const body=document.getElementById('wo-pdfv-body'); if(!body||!WPV.doc) return;
+  const tok=++WPV.tok; body.innerHTML='';
+  const W=Math.max(200,body.clientWidth-16)*WPV.zoom, dpr=Math.min(window.devicePixelRatio||1,2.5);
+  for(let i=1;i<=WPV.doc.numPages;i++){
+    const pg=await WPV.doc.getPage(i); if(tok!==WPV.tok) return;
+    const v1=pg.getViewport({scale:1}), sc=W/v1.width, vp=pg.getViewport({scale:sc*dpr});
+    const cv=document.createElement('canvas'); cv.width=Math.floor(vp.width); cv.height=Math.floor(vp.height);
+    cv.style.width=Math.floor(W)+'px'; cv.style.height=Math.floor(v1.height*sc)+'px';
+    body.appendChild(cv);
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise; if(tok!==WPV.tok) return;
+  }
+}
+function woPdfZoom(d){ const z=[1,1.5,2,3]; let i=z.indexOf(WPV.zoom); i=Math.max(0,Math.min(z.length-1,(i<0?0:i)+d)); if(z[i]===WPV.zoom) return; WPV.zoom=z[i]; _woPdfPaint(); }
+async function woPdfSave(){
+  if(!WPV.blob) return; const file=new File([WPV.blob],WPV.name||'parts.pdf',{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file]}); }catch(e){} return; }
+  const url=URL.createObjectURL(WPV.blob); const a=document.createElement('a'); a.href=url; a.download=file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function woPdfClose(fromPop){
+  const ov=document.getElementById('wo-pdfv'); WPV.tok++;
+  if(WPV.doc){ try{ WPV.doc.destroy(); }catch(e){} } WPV.doc=null; WPV.blob=null;
+  if(ov){ ov.remove(); document.body.style.overflow=''; if(!fromPop&&history.state&&history.state.wpv) history.back(); }
+}
+window.addEventListener('popstate',()=>{ if(document.getElementById('wo-pdfv')) woPdfClose(true); });   // 戻る操作（Androidの戻るボタンなど）で閉じる
 async function woFileDel(key){
   const f=WO_FILES.find(x=>x.key===key);
   if(!await askConfirm(`このPDFを削除しますか？
@@ -3187,11 +3291,15 @@ async function woEstPhotos(){
 function _woDropInit(){
   const box=document.getElementById('wo-detail'); if(!box||box._drop) return; box._drop=true;
   const has=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files');
-  box.addEventListener('dragover',e=>{ if(!has(e)||!_woCurJob()) return; e.preventDefault(); e.dataTransfer.dropEffect='copy'; box.classList.add('wo-drop'); });
+  box.addEventListener('dragover',e=>{ if(!has(e)||!_woCurJob()) return; e.preventDefault(); e.dataTransfer.dropEffect='copy';
+    const z=e.target&&e.target.closest&&e.target.closest('.wo-shk-drop'); document.querySelectorAll('.wo-shk-drop.on').forEach(x=>{ if(x!==z) x.classList.remove('on'); });
+    if(z){ z.classList.add('on'); box.classList.remove('wo-drop'); } else box.classList.add('wo-drop'); });
   box.addEventListener('dragleave',e=>{ if(e.target===box||!box.contains(e.relatedTarget)) box.classList.remove('wo-drop'); });
   box.addEventListener('drop',async e=>{
     if(!has(e)) return; e.preventDefault(); box.classList.remove('wo-drop'); if(!_woCurJob()) return;
     const files=[...e.dataTransfer.files];
+    { const z=e.target&&e.target.closest&&e.target.closest('.wo-shk-drop'); document.querySelectorAll('.wo-shk-drop.on').forEach(x=>x.classList.remove('on'));
+      if(z){ const f=files.find(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp)$/i.test(f.name)); if(!f){ toast('車検証の写真（画像）を入れてください'); return; } await woReadQRFile({files:[f],value:''}); return; } }   // 11/27：車検証の欄に落とした写真は、写真には入れずにQRを読む
     const img=files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic|webp|gif)$/i.test(f.name)), pdf=files.filter(f=>/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name));
     if(!img.length&&!pdf.length){ toast('写真かPDFを入れてください'); return; }
     if(img.length) await woPhotoAdd({files:img,value:''});
@@ -3435,6 +3543,7 @@ function _woChassisList(car){
   return out.filter(p=>!x.has(p)).slice(0,12);
 }
 function _woChassisChips(j){
+  return '';   // 11/27：「前に使った型式から選ぶ」は使わないので出さない（代わりに車検証の写真をドロップして読む）
   const L=_woChassisList(j.car); if(!L.length) return j.car?'<span class="sg-note" style="margin:0">「-」の前（型式）を入れると、次から押して入れられます</span>':'';
   return _woPk('ch',`前に使った型式から選ぶ（${L.length}）`,L.map(p=>`<span class="wo-chc"><button type="button" class="selbtn" onclick="woChassisPick('${p}')">${p}-</button><b onclick="woChassisDel('${p}')" title="この型式を一覧から外す">✕</b></span>`).join(''));
 }
@@ -3447,6 +3556,7 @@ function woChassisPick(p){
   if(el){ el.value=j.chassis; el.focus(); try{ el.setSelectionRange(el.value.length,el.value.length); }catch(e){} }
 }
 function woChassisLearn(){
+  return;   // 11/27：型式を覚える機能は止めた
   const j=_woCurJob(); if(!j) return; const k=_woChKey(j.car), p=_woChPre(j.chassis); if(!k||!p) return;
   YARD.chassis=YARD.chassis&&typeof YARD.chassis==='object'?YARD.chassis:{};
   const e=YARD.chassis[k]||{car:String(j.car||'').trim().slice(0,40),p:[],x:[]}; e.p=Array.isArray(e.p)?e.p:[]; e.x=Array.isArray(e.x)?e.x:[];
@@ -3703,7 +3813,7 @@ async function mDone(ev,id){
 function _mSec(k){ if(_mMob()){ mSec(k); return; } const h=document.querySelector(`#wo-detail .wo-sec[data-sec="${k}"]`); if(!h) return; if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click(); setTimeout(()=>h.scrollIntoView({behavior:'smooth',block:'start'}),60); }
 function mGo(k){
   if(k==='list'){ mList(); return; }
-  else if(k==='find'){ mList(); const q=document.getElementById('wo-q'); if(q){ q.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>{ q.focus(); q.select&&q.select(); },250); } }
+  else if(k==='find'){ mList(); const q=document.getElementById('wo-q'); if(q){ _woQkb(true); window.scrollTo({top:Math.max(0,q.getBoundingClientRect().top+scrollY-12),behavior:'smooth'}); setTimeout(()=>{ q.focus(); q.select&&q.select(); },250); } }   // 11/27：数字のキーボードで、下4桁から探す
   else if(k==='me') mMe();
   else if(k==='yard') _woGoTab('yard');
   else if(k==='cal') openLoanerCal();
@@ -3738,6 +3848,15 @@ M.view='list'; M.listY=0;
     const r=_oOpen.apply(this,arguments); if(_mMob()){ _mPaint(); window.scrollTo(0,0); } return r; }; }
 function mList(){ M.view='list'; M.sec=null; _woGoTab('wo'); WO_LFOLD=false; _woListFoldPaint(); woRenderList(); _mPaint(); window.scrollTo(0,M.listY||0); }
 function mSec(k){ M.sec=k; M.secJ=WO_CUR; M.view='car'; _mPaint(); window.scrollTo(0,0); }
+function _mSecList(d,j){ const has=new Set([...d.querySelectorAll('.wo-sec[data-sec]')].map(h=>h.dataset.sec)); if(d.querySelector('.wo-acts')) has.add('acts'); return M_TILES.filter(t=>t.k!=='kz'&&has.has(t.k)); }
+function _mSwipe(dir){ const d=document.getElementById('wo-detail'), j=_woCurJob(); if(!d||!j||!M.sec) return; const L=_mSecList(d,j); const i=L.findIndex(x=>x.k===M.sec); const n=L[i+dir]; if(n){ mSec(n.k); toast(`${n.i} ${n.n}`,900); } }
+{ let sx=0,sy=0,ok=false,t0=0;
+  document.addEventListener('touchstart',e=>{ ok=false; if(!document.body.classList.contains('m-carv')||!M.sec||e.touches.length!==1) return;
+    const tg=e.target; if(tg.closest('input,textarea,select,canvas,.m-secs,.wo-cam,.row-mv,[data-noswipe]')) return;
+    for(let el=tg;el&&el!==document.body;el=el.parentElement){ if(el.scrollWidth>el.clientWidth+4){ const ov=getComputedStyle(el).overflowX; if(ov==='auto'||ov==='scroll') return; } }
+    sx=e.touches[0].clientX; sy=e.touches[0].clientY; t0=Date.now(); ok=true; },{passive:true});
+  document.addEventListener('touchend',e=>{ if(!ok) return; ok=false; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Date.now()-t0<700&&Math.abs(dx)>80&&Math.abs(dy)<Math.abs(dx)*0.5) _mSwipe(dx<0?1:-1); },{passive:true}); }
 function mTiles(){ M.sec=null; _mPaint(); window.scrollTo(0,0); }
 function _mView(){
   const d=document.getElementById('wo-detail'); if(!d) return; const j=_woCurJob();
@@ -3780,6 +3899,10 @@ function _mView(){
   const t=M_TILES.find(x=>x.k===M.sec)||{i:'',n:''};
   bk.innerHTML=`<button type="button" onclick="mTiles()">◀ ${esc(j.car||_woPlateShort(j.plate)||'車')}</button><span>${t.i} ${esc(t.n)}</span>`;
   d.prepend(bk);
+  // 11/27：項目どうしを1回で行き来（横に並んだ項目名・左右にスワイプ）
+  { const L=_mSecList(d,j); const sb=document.createElement('div'); sb.className='m-secs';
+    sb.innerHTML=L.map(x=>`<button type="button" class="${x.k===M.sec?'on':''}" onclick="mSec('${x.k}')">${x.i} ${esc(x.n)}</button>`).join('');
+    bk.appendChild(sb); setTimeout(()=>{ const on=sb.querySelector('.on'); if(on) sb.scrollLeft=Math.max(0,on.offsetLeft-sb.clientWidth/2+on.offsetWidth/2); },0); }
   if(M.sec==='acts'){ if(acts) acts.classList.remove('m-hide'); return; }
   const h=d.querySelector(`.wo-sec[data-sec="${M.sec}"]`); if(!h){ M.sec=null; return _mView(); }
   parts(h).forEach(x=>x.classList.remove('m-hide'));
@@ -3814,7 +3937,23 @@ function _mPaint(){
 }
 document.addEventListener('click',e=>{ if(e.target.closest('.tab-btn')) setTimeout(_mPaint,0); });
 addEventListener('resize',()=>{ clearTimeout(_mPaint.t); _mPaint.t=setTimeout(()=>{ _mPaint(); woRenderList(); },200); });
-{ const _o1=woRenderDetail; woRenderDetail=function(){ const r=_o1.apply(this,arguments); try{ _mPaint(); }catch(e){} return r; };
+// 11/27：PC・iPadの詳細の上に「目次」（押すとその項目へ）
+function _woToc(){
+  const d=document.getElementById('wo-detail'); if(!d) return; const old=d.querySelector('.wo-toc'); if(old) old.remove();
+  if(_mMob()||!_woCurJob()) return;
+  const hs=[...d.querySelectorAll('.wo-sec[data-sec]')]; if(hs.length<3) return;
+  const nm=k=>{ const t=M_TILES.find(x=>x.k===k); return t?`${t.i} ${t.n}`:''; };
+  const toc=document.createElement('div'); toc.className='wo-toc';
+  toc.innerHTML=hs.map(h=>{ const k=h.dataset.sec; let lab=nm(k); if(!lab){ const c=h.cloneNode(true); c.querySelectorAll('.fold-sum,.fold-i,.bar').forEach(x=>x.remove()); lab=c.textContent.trim().slice(0,10); } return `<button type="button" data-k="${esc(k)}">${esc(lab)}</button>`; }).join('');
+  toc.onclick=e=>{ const b=e.target.closest('button[data-k]'); if(!b) return; const h=d.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`); if(!h) return;
+    if(h.classList.contains('wo-foldh')&&!h.classList.contains('open')) h.click();
+    const sc=d.parentElement, H=d.querySelector(`.wo-sec[data-sec="${b.dataset.k}"]`)||h;
+    if(sc&&sc.scrollHeight>sc.clientHeight+4&&getComputedStyle(sc).overflowY!=='visible'){ sc.scrollTo({top:H.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-toc.offsetHeight-8,behavior:'smooth'}); }
+    else window.scrollTo({top:H.getBoundingClientRect().top+scrollY-toc.offsetHeight-16,behavior:'smooth'});
+    toc.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); };
+  const head=d.querySelector('.wo-head'); if(head) head.after(toc); else d.prepend(toc);
+}
+{ const _o1=woRenderDetail; woRenderDetail=function(){ const r=_o1.apply(this,arguments); try{ _mPaint(); }catch(e){} try{ _woToc(); }catch(e){ console.warn('目次',e); } return r; };
   const _o2=woRenderList; woRenderList=function(){ const r=_o2.apply(this,arguments); try{ _mPaint(); }catch(e){} return r; }; }
 
 // ── 入庫管理表から取り込む：表の行（入庫日・車種・番号・納期・区分）から作業指示を作る ──
@@ -3890,6 +4029,22 @@ function _woXferClean(w){ const s=x=>String(x==null?'':x).slice(0,80);
     pay:Array.isArray(w.pay)?w.pay.map(s):[],tasks:(Array.isArray(w.tasks)?w.tasks:[]).filter(t=>t&&typeof t==='object').slice(0,40).map(t=>({part:s(t.part),area:s(t.area),types:(Array.isArray(t.types)?t.types:[]).map(s).map(x=>WO_XF_TYPES.includes(x)?x:'その他').slice(0,3),note:s(t.note)}))}; }
 function _woXferWhen(t){ const d=new Date(t||''); return isNaN(d)?'':`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function _woXferDone(x){ return !!(YARD&&YARD.xfDone&&YARD.xfDone[x.id]); }
+// 11/27：「＋ 追加」を押すと、作り方を3つから選ぶ（手打ち・入庫管理表から・見積りツールから）
+// 探す欄のキーボード：数字（下4桁）⇔ 文字（車種など）を切り替え
+function _woQkb(num){ const q=document.getElementById('wo-q'), b=document.getElementById('wo-qkb'); if(!q) return;
+  const toNum=num===undefined?q.inputMode!=='numeric':!!num; q.inputMode=toNum?'numeric':'text'; q.placeholder=toNum?'🔍 番号（下4桁）':'🔍 登録番号・車種・カラー'; if(b) b.textContent=toNum?'あいう':'123';
+  if(num===undefined){ q.blur(); setTimeout(()=>q.focus(),60); } }
+function woAddMenu(btn){
+  let m=document.getElementById('wo-addm'); if(m){ m.remove(); return; }
+  const n=(typeof WEST!=='undefined'?(WEST.inbox||[]).filter(x=>!_woXferDone(x)).length:0);
+  m=document.createElement('div'); m.id='wo-addm'; m.className='wo-addm';
+  m.innerHTML=`<button type="button" onclick="_woAddGo('blank')"><i>✏️</i><b>新しい作業指示（手打ち）</b><small>空の作業指示を作って、自分で入れる</small></button>
+    <button type="button" onclick="_woAddGo('sheet')"><i>📋</i><b>入庫管理表から取り込む</b><small>表の行を選んで作る</small></button>
+    <button type="button" onclick="_woAddGo('est')"><i>📥</i><b>見積りツールから${n?`<span class="n">${n}</span>`:''}</b><small>見積りツールから送られた車</small></button>`;
+  btn.after(m);
+  setTimeout(()=>{ const off=e=>{ if(!m.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){ m.remove(); document.removeEventListener('click',off,true); } }; document.addEventListener('click',off,true); },0);
+}
+function _woAddGo(k){ const m=document.getElementById('wo-addm'); if(m) m.remove(); if(k==='blank') woNewBlank(); else if(k==='sheet') woSheetPick(); else woXferPick(); }
 function _woXferBadge(){ const n=(WEST.inbox||[]).filter(x=>!_woXferDone(x)).length; const el=document.getElementById('wo-xf-n'); if(el) el.innerHTML=n?`<span class="n">${n}</span>`:''; }
 function _woXferMatch(x){ const no=_woPlateNo(x.plate); if(!no) return null; return JOBS.filter(j=>!j.archived&&!j.deleted&&_woPlateNo(j.plate)===no).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0]||null; }
 function woXferPick(){
@@ -4317,6 +4472,8 @@ function _woRenderList(){
   const q=(document.getElementById('wo-q').value||'').normalize('NFKC').toLowerCase().replace(/\s/g,'');
   { const pb=document.querySelector('#wo-filter [data-f="pre"]'); if(pb){ const n=JOBS.filter(woIsPre).length; pb.textContent=n?`作業前 ${n}`:'作業前'; } }
   { const bb=document.querySelector('#wo-filter [data-f="before"]'); if(bb){ const n=JOBS.filter(woIsBefore).length; bb.textContent=n?`入庫前 ${n}`:'入庫前'; } }
+  // 11/27：作業中・完成待ちにも台数を出す
+  { const f0=WO_FILTER; [['active','作業中'],['done','完成・納車待ち']].forEach(([f,lab])=>{ const b=document.querySelector(`#wo-filter [data-f="${f}"]`); if(!b) return; WO_FILTER=f; let n=0; try{ n=JOBS.filter(j=>!j.archived&&!j.deleted&&_woInFilter(j)).length; }finally{ WO_FILTER=f0; } b.textContent=n?`${lab} ${n}`:lab; }); }
   const lf=document.getElementById('wo-loanf'); if(lf){ const n=JOBS.filter(j=>{ const L=woLoanerInfo(j); return L&&L.now; }).length; lf.classList.toggle('on',WO_LOANF); lf.innerHTML=`🔑 代車・レンタカー貸出中 ${n}台`; }
   const _mob=window.innerWidth<900, _qd=/^\d{2,4}$/.test(q)?q:'';
   const _hit=j=>!q||[j.plate,j.car,j.color,j.chassis,_mob?_woSheetName(j):''].join('').normalize('NFKC').toLowerCase().replace(/\s/g,'').includes(q)||(_qd&&String(j.plate||'').normalize('NFKC').replace(/\D/g,'').endsWith(_qd));
@@ -4452,7 +4609,7 @@ function _woRenderDetail(box){
     <div class="field"><label>車台番号</label><input id="wo-chassis" value="${v('chassis')}" placeholder="例：RP3-1234567" oninput="woSet('chassis',this.value)" onblur="woChassisLearn()"><div class="wo-chb" id="wo-chb">${_woChassisChips(j)}</div></div>
     ${inp('typeNo','型式指定番号','inputmode="numeric" placeholder="例：12345"')}${inp('ruiNo','類別区分番号','inputmode="numeric" placeholder="例：0001"')}
     <div class="field span2"><label>初度登録（年月）</label><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><input type="month" style="flex:1 1 150px;max-width:200px;min-width:0" value="${v('firstReg')}" onchange="woSet('firstReg',this.value);const e=this.nextElementSibling;if(e)e.textContent=_woEraOnly(this.value)"><span style="font-size:17px;font-weight:900;color:var(--accent);white-space:nowrap">${esc(_woEraOnly(j.firstReg))}</span></div></div>
-    <div class="field span2 wo-scan"><button type="button" class="btn" onclick="woReadQR()">📷 車検証QRを読む</button><button type="button" class="btn" onclick="document.getElementById('wo-lbl-in').click()">🏷 コーションプレートからカラー番号</button><input type="file" id="wo-qr-in" accept="image/*" hidden onchange="woReadQRFile(this)"><input type="file" id="wo-lbl-in" accept="image/*" hidden onchange="woReadLabel(this)"></div>
+    <div class="field span2 wo-scan"><button type="button" class="btn" onclick="woReadQR()">📷 車検証QRを読む</button><button type="button" class="btn" onclick="document.getElementById('wo-lbl-in').click()">🏷 コーションプレートからカラー番号</button><input type="file" id="wo-qr-in" accept="image/*" hidden onchange="woReadQRFile(this)"><div class="wo-shk-drop" role="button" tabindex="0" onclick="document.getElementById('wo-qr-in').click()">🪪 <b>車検証の写真をここにドロップ</b><small>（タップ・クリックで写真を選ぶ）QRコードを読んで、車台番号・型式指定番号などを入れます。写真は保存しません</small></div><input type="file" id="wo-lbl-in" accept="image/*" hidden onchange="woReadLabel(this)"></div>
     ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
     ${j.sheetId||j.sheetKey?`<div class="field span2" style="text-align:right;margin-top:-4px"><button type="button" class="btn" style="font-size:12px;padding:4px 10px" onclick="woSheetUnlink()">🔗 入庫管理表とのつながりを外す</button></div>`:''}
@@ -4521,7 +4678,7 @@ function _woRenderDetail(box){
     </div>`; }).join('')}
   </div>
   <div class="wo-sec" data-sec="parts"><span class="bar"></span>部品</div>
-  <div class="wo-scroll"><table class="wo-tbl">
+  <div class="wo-scroll"><table class="wo-tbl wo-ptbl">
     <tr><th style="min-width:140px">部品名</th><th style="width:60px">数</th><th style="min-width:96px">状況</th><th style="min-width:130px">入荷予定</th><th></th></tr>
     ${(j.parts||[]).map((p,pi)=>`<tr class="wo-tr"><td><input value="${esc(p.name)}" oninput="woPart('${p.id}','name',this.value)"></td>
       <td><input inputmode="numeric" value="${esc(p.qty)}" oninput="woPart('${p.id}','qty',this.value)"></td>
@@ -4961,12 +5118,14 @@ const YD_XKIND={rent:{ic:'🚗',sub:'レンタカー',c:'#ffb020'},other:{ic:'�
 // 駒の表示名
 function _ydPn(n){ const x=YD_XPIECES.find(p=>p.n===n); return x?x.lab:n; }
 function _ydLcOut(n){ if(YD_XPIECES.some(x=>x.n===n)) return null; if(typeof LB==='undefined'||!LB.live) return null; const t=_woToday(), r=(YARD.lret||{})[n]; return _lbAll().find(b=>!b.returned&&b.car===n&&b.from<=t&&t<=b.to&&!(b.src==='sheet'&&r&&b.from<=r)&&!_woLoanPending(b))||null; }
+// 11/26：お客様の車がまだ入庫していない（＝これから渡す）代車の予約。駒は待機中のまま「貸出予定」の印を付ける
+function _ydLcPlan(n){ if(YD_XPIECES.some(x=>x.n===n)) return null; if(typeof LB==='undefined'||!LB.live) return null; const t=_woToday(), r=(YARD.lret||{})[n]; return _lbAll().find(b=>!b.returned&&b.car===n&&b.from<=t&&t<=b.to&&!(b.src==='sheet'&&r&&b.from<=r)&&_woLoanPending(b))||null; }
 function _ydLcCars(){ return [...(typeof LOANER_CARS!=='undefined'?LOANER_CARS:[]),...YD_XPIECES]; }
 // 置き場所に置いた駒は、貸出中になっても残す（お客様の車を配置図に置いたときに消える）
 function _ydLcIn(sid){ const P=YARD.lpos||{}; return _ydLcCars().filter(c=>P[c.n]===sid); }
 function _ydLcHtml(c){
-  const x=c.k&&YD_XKIND[c.k]; const memo=((YARD.pmemo||{})[c.n])||''; const out=!x&&_ydLcOut(c.n);
-  return `<div title="${esc(x?(_ydPn(c.n)+(memo?'：'+memo:'')):c.n+(out?'（貸出予定・お客様の車待ち）':''))}" class="yd-car yd-lc${out?' lout':''}${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span class="lnm"><i class="lic">${x?x.ic:'🔑'}</i> ${esc(_ydPn(c.n))}</span>${x?`<b class="lsh">${esc(_ydPn(c.n).replace('レンタカー','レンタ').replace('その他車両','その他'))}</b>`:''}<small class="${x&&memo?'lmemo':''}">${x?esc(memo||'タップでメモ'):out?'貸出予定・お客様の車待ち':'代車・待機中'}</small>${out?'<b class="lsh lwait">貸出予定</b>':''}</div>`;
+  const x=c.k&&YD_XKIND[c.k]; const memo=((YARD.pmemo||{})[c.n])||''; const out=!x&&_ydLcOut(c.n); const plan=!x&&!out&&_ydLcPlan(c.n); const pl=plan?(plan.from===_woToday()?'本日貸出予定':'貸出予定'):'';
+  return `<div title="${esc(x?(_ydPn(c.n)+(memo?'：'+memo:'')):c.n+(out?'（貸出予定・お客様の車待ち）':pl?'（'+pl+'・お客様の車待ち）':''))}" class="yd-car yd-lc${out||pl?' lout':''}${c.low?' low':''}${x?' xp':''}${YD.carSel==='lc:'+c.n?' sel':''}"${x?` style="--xc:${x.c}"`:''} data-lc="${esc(c.n)}" onclick="ydTapCar(event,'lc:${esc(c.n)}')"><span class="lnm"><i class="lic">${x?x.ic:'🔑'}</i> ${esc(_ydPn(c.n))}</span>${x?`<b class="lsh">${esc(_ydPn(c.n).replace('レンタカー','レンタ').replace('その他車両','その他'))}</b>`:''}<small class="${x&&memo?'lmemo':''}">${x?esc(memo||'タップでメモ'):out?'貸出予定・お客様の車待ち':pl?pl+'・お客様の車待ち':'代車・待機中'}</small>${out?'<b class="lsh lwait">貸出予定</b>':pl?`<b class="lsh lwait">${pl==='本日貸出予定'?'本日貸出':'貸出予定'}</b>`:''}</div>`;
 }
 function ydPieceMemo(n,v){ YARD.pmemo=YARD.pmemo||{}; if(v) YARD.pmemo[n]=v; else delete YARD.pmemo[n]; _ydChanged();
   document.querySelectorAll('.yd-lc[data-lc]').forEach(e=>{ if(e.dataset.lc===n){ const sm=e.querySelector('small'); if(sm) sm.textContent=v||'タップでメモ'; } }); }
@@ -5438,7 +5597,7 @@ window.LCAL={
   newId:()=>'wb-cal-'+_woPid(),
   curName:()=>{ const cj=_woCurJob&&_woCurJob(); return cj?[cj.car,cj.plate].filter(Boolean).join(' '):''; },   // お客様名は入れない
   defCar:()=>{ const cj=_woCurJob&&_woCurJob(); return (cj&&cj.loanerCar)||''; },
-  reloadBtn:()=>LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入出庫管理表の代車を読み直しました'))" title="入出庫管理表（スプレッドシート）の代車（K列）を今すぐ読み直します">🔄 再読込</button>`:'',
+  reloadBtn:()=>`<button class="btn" type="button" onclick="_closeLoanerCal();openDueCal()" title="納期カレンダーを開く">🗓 納期カレンダー</button>`+(LB.sheetUrl?`<button class="btn" type="button" onclick="_lbSheetLoad().then(()=>toast('入出庫管理表の代車を読み直しました'))" title="入出庫管理表（スプレッドシート）の代車（K列）を今すぐ読み直します">🔄 再読込</button>`:''),
   warn:()=>!LB.live?(LB.err||'チーム共有にログインすると、見積りツール・ARK通知と同じ予約が表示されます'):'',
   errs:()=>LB.sheetErr?`<div style="margin-top:8px;color:#ff6b6b;font-size:12px">${esc(LB.sheetErr)}</div>`:'',
   onOpen:()=>{ if(LB.sheetUrl&&Date.now()-LB.sheetAt>60000) _lbSheetLoad(); },

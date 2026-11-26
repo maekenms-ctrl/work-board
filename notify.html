@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="ark-ver" content="3f51ea2961">
+<meta name="ark-ver" content="887632c91b">
 <base target="_top">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0b57d0">
@@ -102,6 +102,9 @@ if(/github\.io$/.test(location.hostname)){
   .cmt textarea:focus{outline:2px solid var(--blue);border-color:transparent}
   .cmt button{flex:none;border:0;border-radius:18px;background:var(--blue);color:#fff;font:inherit;font-weight:700;padding:0 14px;height:36px;cursor:pointer}
   .cmt button:disabled{opacity:.4;cursor:default}
+  .cmt.cmt-off{display:none}
+  .chipc{margin-left:auto;border:1px solid var(--blue);background:#fff;border-radius:16px;padding:3px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:var(--blue)}
+  .ev{cursor:pointer}
   .src.in{background:#dcfce7;color:#166534}
   .src.msg{background:#d3e3fd;color:#041e49}
   .ev[style*="#0b57d0"] .t{white-space:pre-wrap;word-break:break-all}
@@ -186,7 +189,7 @@ if(/github\.io$/.test(location.hostname)){
     </div>
   </header>
   <div id="feedView">
-    <form class="cmt" id="cmtForm" autocomplete="off">
+    <form class="cmt cmt-off" id="cmtForm" autocomplete="off">
       <textarea id="cmtText" rows="1" maxlength="300" placeholder="💬 コメントを書く（全員に通知されます）"></textarea>
       <button type="submit" id="cmtSend" disabled>送信</button>
     </form>
@@ -196,6 +199,7 @@ if(/github\.io$/.test(location.hostname)){
       <button class="chip" data-f="est">見積り</button>
       <button class="chip" data-f="loan">代車</button>
       <button class="chip" data-f="msg">コメント</button>
+      <button class="chipc" id="cmtOpen" type="button">💬 書く</button>
     </div>
     <main id="feed"></main>
   </div>
@@ -526,6 +530,10 @@ function hubLink(e){
   }
   return true;
 }
+// 11/27：通知のカード・今日の状況の車を押したら、その車を作業ボードで開く（スプレッドシートの横のパネルでは、今までどおり表の行を選ぶ）
+function inSheet(){ return !!(window.google && google.script && google.script.run); }
+function openJobAny(jid){ if(!jid) return false; if(IN_HUB) hubSend({ark:'openJob', jid}); else window.open(APP_URL.wb+'#job='+encodeURIComponent(jid), 'ark-wb'); return true; }
+function openCardLink(el){ const a = el && el.querySelector('a.open:not(.in)'); if(!a) return false; a.click(); return true; }
 function openApp(kind, jid){
   const url = APP_URL[kind] + (jid ? '#job=' + encodeURIComponent(jid) : '');
   const w = window.open(url, 'ark-' + kind);   // 開いているタブがあればそれを使う
@@ -618,7 +626,7 @@ function renderToday(){
   const ready= jobs.filter(j=>!stepNext(j));
   const parts= jobs.filter(j=>(j.parts||[]).some(p=>p.status==='未発注'||p.status==='発注済'));
   const byStep = STEPS.map(s=>({s, js:jobs.filter(j=>{ const n=stepNext(j); return n&&n.k===s.k; })})).filter(x=>x.js.length);
-  const row = (j, pill, pc, extra='') => `<div class="row" data-num="${esc(plateNum(j.plate))}" data-car="${esc(j.car||'')}">
+  const row = (j, pill, pc, extra='') => `<div class="row" data-num="${esc(plateNum(j.plate))}" data-car="${esc(j.car||'')}" data-jid="${esc(j.id||'')}" style="cursor:pointer">
     <span class="pill" style="background:${pc}">${esc(pill)}</span><span class="x">${esc(carLabel(j))}</span>${extra}</div>`;
   let h = '';
   const sec = (title, n) => `<div class="sec">${title}<span class="n">${n}台</span></div>`;
@@ -974,7 +982,7 @@ async function sendComment(){
   const {F} = fb; $('cmtSend').disabled = true;
   try{
     await F.addDoc(F.collection(db, 'comments'), {text: text.slice(0,300), by: (S.user && S.user.email) || '', dev: MY_DEV, at: F.serverTimestamp(), date: today(), push: 'wait'});   // push：Apps Script がプッシュ通知で全員へ送る（11/9）
-    ta.value = ''; cmtSize(); toast('コメントを送りました');
+    ta.value = ''; cmtSize(); toast('コメントを送りました'); $('cmtForm').classList.add('cmt-off');
   }catch(e){
     toast(/permission/.test(String(e&&e.code)) ? 'コメントを送る権限がありません。Firestoreのルールに comments を追加してください' : 'コメントを送れませんでした：' + (e&&e.code||e), 7000);
   }finally{ $('cmtSend').disabled = !$('cmtText').value.trim(); }
@@ -986,6 +994,9 @@ async function delComment(ref){
 }
 function cmtSize(){ const t=$('cmtText'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight, 120)+'px'; $('cmtSend').disabled = !t.value.trim(); }
 $('cmtForm').addEventListener('submit', e => { e.preventDefault(); sendComment(); });
+// 11/27：コメント欄はふだん閉じておき、「💬 コメントを書く」で開く（書きかけがあれば開いたまま）
+$('cmtOpen').onclick = () => { const f=$('cmtForm'); const off=f.classList.toggle('cmt-off'); if(!off) setTimeout(()=>$('cmtText').focus(),50); };
+$('cmtText').addEventListener('blur', () => { setTimeout(()=>{ if(!$('cmtText').value.trim() && document.activeElement!==$('cmtSend')) $('cmtForm').classList.add('cmt-off'); },200); });
 $('cmtText').addEventListener('input', cmtSize);
 $('cmtText').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); sendComment(); } });
 document.addEventListener('click', e => { const b = e.target.closest('button.cdel'); if(b){ e.stopPropagation(); delComment(b.dataset.del); } }, true);
@@ -1019,6 +1030,8 @@ $('feed').addEventListener('click', e => {
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
   el.classList.remove('new');
+  if(e.target.closest('.evdel')) return;
+  if(!inSheet() && openCardLink(el)) return;
   if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
@@ -1027,6 +1040,8 @@ $('pastView').addEventListener('click', e => {
   if(hubLink(e)) return;
   const el = e.target.closest('.ev'); if(!el) return;
   const ev = S.events.find(x=>x.id===el.dataset.id); if(!ev) return;
+  if(e.target.closest('.evdel')) return;
+  if(!inSheet() && openCardLink(el)) return;
   if((ev.src==='sheet'||ev.src==='daily') && ev.key && (ev.key.tab||ev.key.car)){ sheetGo(ev.key); return; }
   jump(ev.key&&ev.key.num, ev.key&&ev.key.car);
 });
@@ -1035,7 +1050,9 @@ $('todayView').addEventListener('click', e => {
   const fl = e.target.closest('[data-fl]'); if(fl){ fl.disabled = true; markFollow(fl.dataset.fl, fl.dataset.kind); return; }
   const sr = e.target.closest('.row[data-row]');
   if(sr && window.google && google.script){ google.script.run.withSuccessHandler(x=>toast(`${x.row} 行目を選択しました`)).selectRow(+sr.dataset.row); return; }
-  const r = e.target.closest('.row[data-num]'); if(r) jump(r.dataset.num, r.dataset.car); });
+  const r = e.target.closest('.row[data-num]'); if(!r) return;
+  if(!inSheet() && r.dataset.jid){ openJobAny(r.dataset.jid); return; }
+  jump(r.dataset.num, r.dataset.car); });
 $('soundBtn').onclick = e => { e.stopPropagation(); renderSoundPanel(); $('sndPanel').classList.add('on'); };
 $('sndClose').onclick = () => $('sndPanel').classList.remove('on');
 $('sndPanel').addEventListener('click', e => e.stopPropagation());
