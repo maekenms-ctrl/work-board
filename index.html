@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="949db97022">
+<meta name="ark-ver" content="56f9c753f1">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -2033,7 +2033,7 @@ function _woSheetName(j){
   return shop||/様$/.test(n)?n:n+' 様';
 }
 // 保存しない項目（お客様名・見積り由来の情報）を取り除く
-const WO_DROP=['name','estId','note','mileage','bodyShape','carType'];
+const WO_DROP=['name','estId','note','bodyShape','carType'];   // 11/27夜：走行距離（mileage）は残す
 const WO_PAY=['自費','車両保険','対物保険'];
 function _woSanitize(j){ let ch=false; for(const k of WO_DROP){ if(k in j){ delete j[k]; ch=true; } }
   // 形のおかしい項目を直す（1件のおかしなデータで、全部の表示が止まらないように）
@@ -4031,7 +4031,7 @@ const WSP={rows:[],showHidden:false};
 const WXF={showDone:false,ph:{}};
 const WO_XF_TYPES=['鈑金','鈑金塗装','塗装','ボカシ','取替','脱着','付属品脱着','調整','エイミング','その他'];
 function _woXferClean(w){ const s=x=>String(x==null?'':x).slice(0,80);
-  return {lines:(Array.isArray(w.lines)?w.lines:[]).filter(t=>t&&typeof t==='object').slice(0,80).map(t=>({part:s(t.part),type:s(t.type),desc:s(t.desc),qty:+t.qty||1,amt:Math.round(+t.amt||0)})),sub:Math.round(+w.sub||0),tax:Math.round(+w.tax||0),parts:Math.round(+w.parts||0),car:s(w.car),plate:s(w.plate),chassis:s(w.chassis),color:s(w.color),ptype:s(w.ptype),date:s(w.date),staff:s(w.staff),grand:+w.grand||0,phJid:s(w.phJid),phN:+w.phN||0,
+  return {lines:(Array.isArray(w.lines)?w.lines:[]).filter(t=>t&&typeof t==='object').slice(0,80).map(t=>({part:s(t.part),type:s(t.type),desc:s(t.desc),qty:+t.qty||1,amt:Math.round(+t.amt||0)})),sub:Math.round(+w.sub||0),tax:Math.round(+w.tax||0),parts:Math.round(+w.parts||0),car:s(w.car),plate:s(w.plate),chassis:s(w.chassis),color:s(w.color),ptype:s(w.ptype),date:s(w.date),staff:s(w.staff),typeNo:s(w.typeNo),firstReg:/^\d{4}-\d{2}$/.test(String(w.firstReg||''))?String(w.firstReg):'',mileage:String(w.mileage||'').replace(/\D/g,'').slice(0,7),note:String(w.note==null?'':w.note).slice(0,300),loaner:s(w.loaner),loanerYes:w.loanerYes===true,grand:+w.grand||0,phJid:s(w.phJid),phN:+w.phN||0,
     pay:Array.isArray(w.pay)?w.pay.map(s):[],tasks:(Array.isArray(w.tasks)?w.tasks:[]).filter(t=>t&&typeof t==='object').slice(0,40).map(t=>({part:s(t.part),area:s(t.area),types:(Array.isArray(t.types)?t.types:[]).map(s).map(x=>WO_XF_TYPES.includes(x)?x:'その他').slice(0,3),note:s(t.note)}))}; }
 function _woXferWhen(t){ const d=new Date(t||''); return isNaN(d)?'':`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function _woXferDone(x){ return !!(YARD&&YARD.xfDone&&YARD.xfDone[x.id]); }
@@ -4113,17 +4113,27 @@ function _woEstTable(e){ const yen=n=>'¥'+Math.round(+n||0).toLocaleString();
   </table></div><div class="wo-est-sum">${e.parts?`うち部品代 ${yen(e.parts)}　`:''}${e.sub?`作業小計 ${yen(e.sub)}　`:''}${e.tax?`消費税 ${yen(e.tax)}　`:''}<b>合計（税込） ${yen(e.grand)}</b></div>`; }
 function _woEstHtml(j){ const L=Array.isArray(j.ests)?j.ests:[]; if(!L.length) return '';
   return `<div class="wo-est">${L.map((e,k)=>`<details class="wo-est-d"${L.length===1?' open':''}><summary>💴 見積り${L.length>1?(k+1):''}（見積りツールから）　<b>${'¥'+Math.round(+e.grand||0).toLocaleString()}</b>　<small>${esc(_woXferWhen(e.at))}${e.by?' ／ '+esc(e.by):''}${e.staff?' ／ 担当 '+esc(e.staff):''}</small></summary>${_woEstTable(e)}</details>`).join('')}</div>`; }
+// 11/27夜：見積りで入れたもの（車両情報・お支払い・代車・備考）を作業指示に入れる。fill=true のときは空いている項目だけ
+function _woXferFill(j,x,fill){
+  const set=(k,v)=>{ if(v&&(!fill||!String(j[k]||'').trim())) j[k]=v; };
+  set('car',x.car); set('plate',x.plate); set('chassis',x.chassis); set('color',x.color); set('paintType',x.ptype); set('mileage',x.mileage); set('firstReg',x.firstReg);
+  { const tn=String(x.typeNo||'').split('-'); set('typeNo',tn[0]||''); set('ruiNo',tn[1]||''); }
+  if(!fill) set('staff',x.staff);
+  { const ps=(x.pay||[]).filter(p=>WO_PAY.includes(p)); if(ps.length){ const cur=_woPays(j); const all=WO_PAY.filter(p=>cur.includes(p)||ps.includes(p)); if(!fill||!cur.length) j.pay=all.join('・'); } }
+  if(x.loaner&&!j.loanerCar&&j.loanerUse!==false){ j.loanerUse=true; j.loanerCar=x.loaner; }
+  else if(x.loanerYes&&j.loanerUse==null) j.loanerUse=true;   // 「代車あり」だけ（車はまだ決めていない）
+  if(x.note){ const t='【見積りの備考】'+x.note; if(!String(j.caution||'').includes(t)) j.caution=[String(j.caution||'').trim(),t].filter(Boolean).join('\n'); }
+}
 function woXferNew(i){
   const x=(WEST.inbox||[])[i]; if(!x||!_woCheckReady()) return;
   const j=_woNew(); j.id='wo-es-'+_cloudKey(x.id).slice(0,40)+'-'+Date.now().toString(36);
-  Object.assign(j,{inDate:'',car:x.car,plate:x.plate,chassis:x.chassis,color:x.color,paintType:x.ptype,staff:x.staff||''});
-  const pay=(x.pay||[]).find(p=>WO_PAY.includes(p)); if(pay) j.pay=pay;
+  j.inDate=''; _woXferFill(j,x,false);
   _woXferTasks(j,x); _woXferEst(j,x); JOBS.unshift(j); woTouch(j,true); WO_FILTER='pre';
   _woXferFinish(x,j,`見積りから作業指示を作りました：${[j.car,j.plate].filter(Boolean).join(' ')}`);
 }
 function woXferAttach(i,jid){
   const x=(WEST.inbox||[])[i], j=_woJob(jid); if(!x||!j||!_woCheckReady()) return;
-  for(const k of ['chassis','color']) if(!j[k]&&x[k]) j[k]=x[k]; if(!j.paintType&&x.ptype) j.paintType=x.ptype;
+  _woXferFill(j,x,true);
   const n=_woXferTasks(j,x); _woXferEst(j,x); woTouch(j,true);
   _woXferFinish(x,j,`見積りを付けました：${[j.car,j.plate].filter(Boolean).join(' ')}（作業箇所${n}件を追加）`);
 }
@@ -4617,6 +4627,7 @@ function _woRenderDetail(box){
     <div class="field"><label>車台番号</label><input id="wo-chassis" value="${v('chassis')}" placeholder="例：RP3-1234567" oninput="woSet('chassis',this.value)" onblur="woChassisLearn()"><div class="wo-chb" id="wo-chb">${_woChassisChips(j)}</div></div>
     ${inp('typeNo','型式指定番号','inputmode="numeric" placeholder="例：12345"')}${inp('ruiNo','類別区分番号','inputmode="numeric" placeholder="例：0001"')}
     <div class="field span2"><label>初度登録（年月）</label><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><input type="month" style="flex:1 1 150px;max-width:200px;min-width:0" value="${v('firstReg')}" onchange="woSet('firstReg',this.value);const e=this.nextElementSibling;if(e)e.textContent=_woEraOnly(this.value)"><span style="font-size:17px;font-weight:900;color:var(--accent);white-space:nowrap">${esc(_woEraOnly(j.firstReg))}</span></div></div>
+    ${inp('mileage','走行距離（km）','inputmode="numeric" placeholder="例：45678"')}
     <div class="field span2 wo-scan"><button type="button" class="btn" onclick="woReadQR()">📷 車検証QRを読む</button><button type="button" class="btn" onclick="document.getElementById('wo-lbl-in').click()">🏷 コーションプレートからカラー番号</button><input type="file" id="wo-qr-in" accept="image/*" hidden onchange="woReadQRFile(this)"><div class="wo-shk-drop" role="button" tabindex="0" onclick="document.getElementById('wo-qr-in').click()">🪪 <b>車検証の写真をここにドロップ</b><small>（タップ・クリックで写真を選ぶ）QRコードを読んで、車台番号・型式指定番号などを入れます。写真は保存しません</small></div><input type="file" id="wo-lbl-in" accept="image/*" hidden onchange="woReadLabel(this)"></div>
     ${(()=>{ const e=_woEstFor(j); return e?`<div class="field span2"><button type="button" class="btn" style="width:100%;justify-content:center" onclick="woEstFill()">🧾 見積りツールの車両情報を入れる（${esc([e.chassis&&'車台 '+e.chassis,e.color&&'カラー '+e.color,e.ptype].filter(Boolean).join(' ／ '))}）</button></div>`:''; })()}
     <div class="field"><label>入庫日</label><input type="date" value="${v('inDate')}" onchange="woSet('inDate',this.value)"></div>
