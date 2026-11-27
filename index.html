@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="56f9c753f1">
+<meta name="ark-ver" content="6a206bbb9c">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -3332,6 +3332,9 @@ function _woDupOf(j){
     if(no&&on) return no===on&&(!c||!oc||_woCarEq(j.car,o.car));       // 番号が同じ（車種が両方あって違えば別の車）
     if(!c||!oc||c!==oc) return false;                                   // 番号がどちらか空：車種が同じで
     if(!no&&!on&&j.sheetId&&o.sheetId&&j.sheetId!==o.sheetId) return false;
+    if(!no||!on){ if(j.sheetKey&&o.sheetKey&&j.sheetKey!==o.sheetKey) return false;   // 11/28：番号のない車どうしで、表の別々の行から来たものは別の車
+      if((j.sheetId||j.sheetKey)&&(o.sheetId||o.sheetKey)&&!(j.sheetId&&j.sheetId===o.sheetId)&&!(j.sheetKey&&j.sheetKey===o.sheetKey)) return false; }
+    if(!no&&!on) return !!(j.inDate&&o.inDate&&j.inDate===o.inDate)&&_woCarEq(j.car,o.car);   // 両方とも番号がないときは、車種と入庫日が両方あって同じときだけ
     return !j.inDate||!o.inDate||j.inDate===o.inDate;                   // 入庫日が同じ（どちらか空でも）
   })||null;
 }
@@ -4194,15 +4197,19 @@ function _woSheetMatch(j){
     const c=I.byNo.get(no); if(!c||!c.length) return null;
     return c.find(r=>_woSheetKey(r)===j.sheetKey)||c[0];
   }
+  // 11/28：番号のない車どうし（例：新車・入庫歴なしの同じ車種）を取り違えないように、ほかのID（N列）の行には、車種だけではつながない
+  const _otherSid=r=>!!(r&&r.sid&&((j.sheetId&&r.sid!==j.sheetId)||_woSidOwned(r.sid,j)));
   if(j.sheetKey){ const x=I.byKey.get(j.sheetKey); const k=_woCarNorm(j.car), m=x&&_woCarNorm(x.model);
-    if(x&&(j.sheetHand===j.sheetKey||k&&m&&(k===m||k.includes(m)||m.includes(k)))) return x; }   // 手でつないだ行か、番号がないときは、車種が両方あって同じときだけ
+    if(x&&!_otherSid(x)&&(j.sheetHand===j.sheetKey||k&&m&&(k===m||k.includes(m)||m.includes(k)))) return x; }   // 手でつないだ行か、番号がないときは、車種が両方あって同じときだけ
   // それでも見つからない番号のない車：表の「番号のない行」で、車種が同じ行を探す（1行だけならその行。いくつかあれば、内容（I列）が同じ行）
   const k=_woCarNorm(j.car); if(!k) return null;
-  const c=raw.filter(r=>!_woPlateNo(r.plate)&&r.model&&(()=>{ const m=_woCarNorm(r.model); return m&&(k===m||k.includes(m)||m.includes(k)); })());
+  const c=raw.filter(r=>!_woPlateNo(r.plate)&&r.model&&!_otherSid(r)&&(()=>{ const m=_woCarNorm(r.model); return m&&(k===m||k.includes(m)||m.includes(k)); })());
   if(c.length===1) return c[0];
   if(c.length>1){ const w=_woWorkNorm(j.sheetWork); if(w){ const d=c.filter(r=>_woWorkNorm(r.work)===w); if(d.length===1) return d[0]; } }
   return null;
 }
+// その行のID（N列）を、ほかの作業指示（作業中・納車前）が持っているか
+function _woSidOwned(sid,j){ return !!sid&&JOBS.some(o=>o!==j&&o.id!==(j&&j.id)&&!o.archived&&!o.deleted&&o.sheetId===sid); }
 function _woCarEq(a,b){ const x=_woCarNorm(a), y=_woCarNorm(b); return !!x&&!!y&&(x===y||x.includes(y)||y.includes(x)); }
 function _woPickSame(j,c){ if(c.length<2) return c[0]; const a=c.filter(r=>_woCarEq(j.car,r.model)); const b=a.length?a:c;
   if(j.inDate){ const d=b.find(r=>_sheetDate(r.inDate)===j.inDate); if(d) return d; } return b[0]; }
