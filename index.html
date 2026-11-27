@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta name="ark-ver" content="54260aec00">
+<meta name="ark-ver" content="949db97022">
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
@@ -4086,7 +4086,7 @@ async function _woXferPhGet(x){
   const sn=await fs.getDocs(fs.query(fs.collection(CLOUD.db,'photos'),fs.where('jid','==',x.phJid))); sn.forEach(d=>{ const v=d.data()||{}; if(v.d&&/^data:image\//.test(v.d)) L.push({d:v.d,tag:v.tag||''}); });
   WXF.ph[x.id]=L; return L;
 }
-async function woXferPhotos(i){ const x=(WEST.inbox||[])[i]; if(!x) return; try{ const L=await _woXferPhGet(x); if(!L.length) toast('写真が見つかりません（30日で自動で消えます）',5000); woXferRender(); }catch(e){ toast('写真を読めませんでした：'+_netMsg(e),6000); } }
+async function woXferPhotos(i){ const x=(WEST.inbox||[])[i]; if(!x) return; try{ const L=await _woXferPhGet(x); if(!L.length) toast('写真が見つかりません（共有から30日たった写真は、Googleドライブ「ARK 見積りの写真」に移っています）',5000); woXferRender(); }catch(e){ toast('写真を読めませんでした：'+_netMsg(e),6000); } }
 // 見積りの写真を作業指示の写真に入れる（作業指示の写真の上限まで）
 function _woXferAddPhotos(j,L){ const r=_WO_PHQ.then(async()=>{ const arr=_woPhDrop(j.id,await woPhotosGet(j.id)); const room=WO_PHOTO_MAX-arr.length, added=[];
     const have=new Set(arr.map(p=>p.d)); for(const v of L.filter(v=>!have.has(v.d)).slice(0,Math.max(0,room))){ const p={pid:_woPid(),d:v.d,tag:('見積り：'+(v.tag||'写真')).slice(0,30)}; arr.push(p); added.push(p); }
